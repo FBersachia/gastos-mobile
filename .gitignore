@@ -1,0 +1,38 @@
+# dependencies
+node_modules/
+mobile/node_modules/
+
+# Expo and React Native generated files
+.expo/
+mobile/.expo/
+dist/
+web-build/
+expo-env.d.ts
+mobile/expo-env.d.ts
+ios/
+android/
+mobile/ios/
+mobile/android/
+
+# logs and local output
+*.log
+expo-server*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.tsbuildinfo
+
+# secrets and local env
+.env
+.env.*
+!.env.example
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# OS/editor
+.DS_Store
+Thumbs.db
