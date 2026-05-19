@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createDefaultData } from './defaults';
 import { AppData } from './types';
 
-const STORAGE_KEY = 'expense-control-app-data-v2-may-2026-seed';
+const STORAGE_KEY = 'expense-control-app-data-v3';
 
 const withDefaults = (stored: Partial<AppData>): AppData => {
   const defaults = createDefaultData();

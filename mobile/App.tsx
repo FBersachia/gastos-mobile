@@ -80,13 +80,13 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { loadAppData, saveAppData } from './src/storage';
 import { colors, fonts, radius, spacing } from './src/theme';
@@ -486,6 +486,14 @@ const formatDashboardMoney = (amount: number, currency: string): string =>
   })}`;
 
 export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AppRoot />
+    </SafeAreaProvider>
+  );
+}
+
+function AppRoot() {
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
