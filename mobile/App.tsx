@@ -843,7 +843,7 @@ export default function App() {
               onClose={() => setActiveTab('dashboard')}
             />
           ) : null}
-          {activeTab === 'reports' ? <ReportsScreen data={data} selectedMonth={selectedMonth} /> : null}
+          {activeTab === 'reports' ? <ReportsScreen data={data} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} /> : null}
           {activeTab === 'settings' ? (
             <SettingsScreen
               data={data}
@@ -1749,112 +1749,266 @@ function TransactionRow({
   );
 }
 
-function ReportsScreen({ data, selectedMonth }: { data: AppData; selectedMonth: string }) {
-  const [typeFilter, setTypeFilter] = useState<'all' | TransactionType>('all');
-  const [currencyFilter, setCurrencyFilter] = useState('ALL');
+type ReportSection = 'menu' | 'subpaymethod' | 'category' | 'subcategory' | 'installments';
+
+function ReportsScreen({
+  data,
+  selectedMonth,
+  onMonthChange,
+}: {
+  data: AppData;
+  selectedMonth: string;
+  onMonthChange: (month: string) => void;
+}) {
+  const [activeReport, setActiveReport] = useState<ReportSection>('menu');
+
   const transactions = useMemo(() => monthlyTransactions(data, selectedMonth), [data, selectedMonth]);
+
   const categorySummaries = useMemo(
     () => summarizeExpensesByCategory(data, transactions),
     [data, transactions],
   );
-  const paymentSummaries = useMemo(() => {
-    const byMethod = new Map<string, { methodId: string; methodName: string; amount: number; currency: string }>();
 
+  const subcategorySummaries = useMemo(() => {
+    const bySubcat = new Map<string, { subcategoryId: string; name: string; categoryId: string; amount: number; currency: string }>();
     transactions
-      .filter((transaction) => transaction.type === 'expense')
-      .forEach((transaction) => {
-        const key = `${transaction.paymentMethodId}-${transaction.currency}`;
-        const current =
-          byMethod.get(key) ??
-          ({
-            methodId: transaction.paymentMethodId,
-            methodName: paymentMethodName(data, transaction.paymentMethodId),
-            amount: 0,
-            currency: transaction.currency,
-          } satisfies { methodId: string; methodName: string; amount: number; currency: string });
-
-        current.amount += transaction.amount;
-        byMethod.set(key, current);
+      .filter((t) => t.type === 'expense' && t.subcategoryId)
+      .forEach((t) => {
+        const key = `${t.subcategoryId}-${t.currency}`;
+        const sub = data.subcategories.find((s) => s.id === t.subcategoryId);
+        const current = bySubcat.get(key) ?? {
+          subcategoryId: t.subcategoryId!,
+          name: sub?.name ?? t.subcategoryId!,
+          categoryId: t.categoryId,
+          amount: 0,
+          currency: t.currency,
+        };
+        current.amount += t.amount;
+        bySubcat.set(key, current);
       });
-
-    return Array.from(byMethod.values()).sort((left, right) => right.amount - left.amount);
+    return Array.from(bySubcat.values()).sort((a, b) => b.amount - a.amount);
   }, [data, transactions]);
-  const currencies = useMemo(
-    () => ['ALL', ...Array.from(new Set(data.transactions.map((transaction) => transaction.currency)))],
-    [data.transactions],
-  );
 
-  const exportCsv = async () => {
-    const filtered = transactions.filter((transaction) => {
-      const typeMatch = typeFilter === 'all' || transaction.type === typeFilter;
-      const currencyMatch = currencyFilter === 'ALL' || transaction.currency === currencyFilter;
-
-      return typeMatch && currencyMatch;
-    });
-
-    const csv = transactionsToCsv(data, filtered);
-    const fileUri = `${FileSystem.documentDirectory}transactions-${selectedMonth}-${Date.now()}.csv`;
-
-    await FileSystem.writeAsStringAsync(fileUri, csv, {
-      encoding: FileSystem.EncodingType.UTF8,
-    });
-
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Export transactions CSV',
+  const submethodSummaries = useMemo(() => {
+    const bySubmethod = new Map<string, { submethodId: string; name: string; amount: number; currency: string }>();
+    transactions
+      .filter((t) => t.type === 'expense' && t.paymentSubmethodId)
+      .forEach((t) => {
+        const key = `${t.paymentSubmethodId}-${t.currency}`;
+        const current = bySubmethod.get(key) ?? {
+          submethodId: t.paymentSubmethodId!,
+          name: paymentSubmethodName(data, t.paymentSubmethodId) ?? t.paymentSubmethodId!,
+          amount: 0,
+          currency: t.currency,
+        };
+        current.amount += t.amount;
+        bySubmethod.set(key, current);
       });
-      return;
-    }
+    return Array.from(bySubmethod.values()).sort((a, b) => b.amount - a.amount);
+  }, [data, transactions]);
 
-    Alert.alert('CSV created', fileUri);
+  const installmentGroups = useMemo(() => {
+    const groups = new Map<string, { groupId: string; description: string; currency: string; installmentAmount: number; total: number; current: number; transactions: Transaction[] }>();
+    data.transactions
+      .filter((t) => t.installmentGroupId)
+      .forEach((t) => {
+        const groupId = t.installmentGroupId!;
+        const existing = groups.get(groupId);
+        if (existing) {
+          existing.transactions.push(t);
+          existing.total = Math.max(existing.total, t.totalInstallments ?? 0);
+        } else {
+          groups.set(groupId, {
+            groupId,
+            description: t.description,
+            currency: t.currency,
+            installmentAmount: t.amount,
+            total: t.totalInstallments ?? 0,
+            current: 0,
+            transactions: [t],
+          });
+        }
+      });
+    const [year, month] = selectedMonth.split('-').map(Number);
+    return Array.from(groups.values())
+      .filter((g) => {
+        const paid = g.transactions.filter((t) => {
+          const d = new Date(t.date);
+          return d.getFullYear() * 12 + d.getMonth() < year * 12 + (month - 1);
+        }).length;
+        const remaining = g.total - paid;
+        return remaining > 0;
+      })
+      .map((g) => {
+        const paid = g.transactions.filter((t) => {
+          const d = new Date(t.date);
+          return d.getFullYear() * 12 + d.getMonth() < year * 12 + (month - 1);
+        }).length;
+        return { ...g, current: paid + 1 };
+      })
+      .sort((a, b) => a.current - b.current);
+  }, [data.transactions, selectedMonth]);
+
+  const monthLabel = (month: string) => {
+    const [y, m] = month.split('-');
+    return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   };
 
-  return (
-    <ScreenScroll>
-      <Text style={styles.sectionTitle}>Reports</Text>
-      <View style={styles.filterPanel}>
-        <Text style={styles.fieldLabel}>CSV filters</Text>
-        <View style={styles.chipRow}>
-          <Chip label="All" selected={typeFilter === 'all'} onPress={() => setTypeFilter('all')} />
-          <Chip label="Expenses" selected={typeFilter === 'expense'} onPress={() => setTypeFilter('expense')} />
-          <Chip label="Income" selected={typeFilter === 'income'} onPress={() => setTypeFilter('income')} />
-        </View>
-        <View style={styles.chipRow}>
-          {currencies.map((currency) => (
-            <Chip
-              key={currency}
-              label={currency}
-              selected={currencyFilter === currency}
-              onPress={() => setCurrencyFilter(currency)}
-            />
-          ))}
-        </View>
-        <AppButton label="Export CSV" Icon={Download} onPress={() => void exportCsv()} />
+  const prevMonth = () => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m - 2);
+    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  };
+
+  const nextMonth = () => {
+    const [y, m] = selectedMonth.split('-').map(Number);
+    const d = new Date(y, m);
+    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  };
+
+  const ReportDetailHeader = ({ title }: { title: string }) => (
+    <View style={styles.settingsDetailHeader}>
+      <IconButton Icon={ChevronLeft} onPress={() => setActiveReport('menu')} />
+      <View style={styles.reportDetailTitle}>
+        <Text style={styles.sectionTitle}>{title}</Text>
       </View>
-
-      <Text style={styles.sectionTitle}>Expenses by category</Text>
-      {categorySummaries.length ? (
-        categorySummaries.map((summary) => (
-          <CategorySummaryRow key={`${summary.categoryId}-${summary.currency}`} data={data} summary={summary} />
-        ))
-      ) : (
-        <EmptyState title="No expense report data" />
-      )}
-
-      <Text style={styles.sectionTitle}>Expenses by payment method</Text>
-      {paymentSummaries.length ? (
-        paymentSummaries.map((summary) => (
-          <View key={`${summary.methodId}-${summary.currency}`} style={styles.listRow}>
-            <Text style={styles.rowTitle}>{summary.methodName}</Text>
-            <Text style={styles.rowAmount}>{formatMoney(summary.amount, summary.currency)}</Text>
-          </View>
-        ))
-      ) : (
-        <EmptyState title="No payment method report data" />
-      )}
-    </ScreenScroll>
+      <View style={styles.monthControls}>
+        <IconButton Icon={ChevronLeft} onPress={prevMonth} />
+        <IconButton Icon={ChevronRight} onPress={nextMonth} />
+      </View>
+    </View>
   );
+
+  if (activeReport === 'menu') {
+    return (
+      <ScreenScroll>
+        <Text style={styles.sectionTitle}>Reports</Text>
+        <View style={styles.settingsMenu}>
+          <SettingsMenuButton
+            title="By payment submethod"
+            subtitle={`${submethodSummaries.length} submethods with expenses`}
+            Icon={WalletCards}
+            onPress={() => setActiveReport('subpaymethod')}
+          />
+          <SettingsMenuButton
+            title="By category"
+            subtitle={`${categorySummaries.length} categories with expenses`}
+            Icon={List}
+            onPress={() => setActiveReport('category')}
+          />
+          <SettingsMenuButton
+            title="By subcategory"
+            subtitle={`${subcategorySummaries.length} subcategories with expenses`}
+            Icon={Receipt}
+            onPress={() => setActiveReport('subcategory')}
+          />
+          <SettingsMenuButton
+            title="Installments"
+            subtitle={`${installmentGroups.length} active installment plans`}
+            Icon={Repeat}
+            onPress={() => setActiveReport('installments')}
+          />
+        </View>
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'subpaymethod') {
+    return (
+      <ScreenScroll>
+        <ReportDetailHeader title="By payment submethod" />
+        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        {submethodSummaries.length ? (
+          submethodSummaries.map((s) => (
+            <View key={`${s.submethodId}-${s.currency}`} style={styles.listRow}>
+              <View style={styles.managementIconBadge}>
+                <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
+              </View>
+              <Text style={[styles.rowTitle, styles.reportRowName]}>{s.name}</Text>
+              <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
+            </View>
+          ))
+        ) : (
+          <EmptyState title="No submethod expenses this month" />
+        )}
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'category') {
+    return (
+      <ScreenScroll>
+        <ReportDetailHeader title="By category" />
+        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        {categorySummaries.length ? (
+          categorySummaries.map((summary) => (
+            <CategorySummaryRow key={`${summary.categoryId}-${summary.currency}`} data={data} summary={summary} />
+          ))
+        ) : (
+          <EmptyState title="No category expenses this month" />
+        )}
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'subcategory') {
+    return (
+      <ScreenScroll>
+        <ReportDetailHeader title="By subcategory" />
+        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        {subcategorySummaries.length ? (
+          subcategorySummaries.map((s) => {
+            const parentCategory = data.categories.find((c) => c.id === s.categoryId);
+            const subcategory = data.subcategories.find((sub) => sub.id === s.subcategoryId);
+            const SubIcon = getSubcategoryIcon(subcategory, parentCategory);
+            return (
+              <View key={`${s.subcategoryId}-${s.currency}`} style={styles.listRow}>
+                <View style={styles.managementIconBadge}>
+                  <SubIcon color={colors.primary} size={18} strokeWidth={2.2} />
+                </View>
+                <View style={styles.reportRowMeta}>
+                  <Text style={styles.rowTitle}>{s.name}</Text>
+                  <Text style={styles.rowMeta}>{parentCategory?.name ?? ''}</Text>
+                </View>
+                <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
+              </View>
+            );
+          })
+        ) : (
+          <EmptyState title="No subcategory expenses this month" />
+        )}
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'installments') {
+    return (
+      <ScreenScroll>
+        <ReportDetailHeader title="Installments" />
+        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        {installmentGroups.length ? (
+          installmentGroups.map((g) => (
+            <View key={g.groupId} style={styles.installmentRow}>
+              <View style={styles.installmentRowTop}>
+                <Text style={styles.rowTitle} numberOfLines={1}>{g.description}</Text>
+                <Text style={styles.rowAmount}>{formatMoney(g.installmentAmount, g.currency)}</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${Math.round((g.current / g.total) * 100)}%` }]} />
+              </View>
+              <Text style={styles.rowMeta}>
+                Installment {g.current} of {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} total
+              </Text>
+            </View>
+          ))
+        ) : (
+          <EmptyState title="No active installments this month" />
+        )}
+      </ScreenScroll>
+    );
+  }
+
+  return null;
 }
 
 function SettingsScreen({
@@ -3546,6 +3700,32 @@ const styles = StyleSheet.create({
   iconPickerItemSelected: {
     backgroundColor: '#FFEAEA',
     borderColor: colors.primary,
+  },
+  reportMonthLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    marginBottom: spacing.sm,
+  },
+  reportDetailTitle: {
+    flex: 1,
+  },
+  reportRowName: {
+    flex: 1,
+  },
+  reportRowMeta: {
+    flex: 1,
+  },
+  installmentRow: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: spacing.xs,
+    paddingTop: spacing.md,
+  },
+  installmentRowTop: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   managementIconBadge: {
     alignItems: 'center',
