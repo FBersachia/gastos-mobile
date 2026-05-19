@@ -16,11 +16,11 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.suats.gastoscontrol",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F55252"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -28,6 +28,11 @@
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "013acee2-739e-43ae-ac6d-b2f81f8b9bee"
+      }
+    }
   }
 }
