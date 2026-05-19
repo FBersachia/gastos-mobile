@@ -74,6 +74,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -917,6 +918,7 @@ function AppRoot() {
   return (
     <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
       <StatusBar style="dark" />
+      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.appShell}>
         {activeTab === 'transactions' ? null : (
           <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
@@ -969,6 +971,7 @@ function AppRoot() {
         </View>
         <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />
       </View>
+      </KeyboardAvoidingView>
       <TransactionDetailModal
         data={data}
         transaction={selectedTransaction}
@@ -1159,6 +1162,7 @@ function TransactionsScreen({
       onSave={(input) => {
         onSaveTransaction(input, editingTransaction);
         setEditingTransaction(undefined);
+        onClose();
       }}
     />
   );
@@ -1204,6 +1208,11 @@ function TransactionForm({
   onSave: (input: TransactionInput) => void;
 }) {
   const [type, setType] = useState<TransactionType>('expense');
+  const switchType = (next: TransactionType) => {
+    setType(next);
+    setCategoryId('');
+    setSubcategoryId(undefined);
+  };
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(data.settings.defaultCurrency);
   const [date, setDate] = useState(todayInput());
@@ -1218,6 +1227,7 @@ function TransactionForm({
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(monthStartInput());
   const isNewExpenseEntry = !editingTransaction && type === 'expense';
+  const isExpenseEntry = type === 'expense';
 
   const categories = useMemo(
     () => data.categories.filter((category) => category.type === type && category.active),
@@ -1442,15 +1452,28 @@ function TransactionForm({
     }
   };
 
-  if (!editingTransaction && type === 'expense') {
+  if (isExpenseEntry) {
     return (
       <View style={styles.expenseEntryPanel}>
         <View style={styles.expenseEntryHeader}>
-          <IconButton accessibilityLabel="Back to dashboard" Icon={ChevronLeft} onPress={onClose} />
-          <View style={styles.expenseEntryTitleGroup}>
-            <Text style={styles.expenseEntryTitle}>Expenses</Text>
-            <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
-          </View>
+          <IconButton
+            accessibilityLabel={editingTransaction ? 'Cancel edit' : 'Back to dashboard'}
+            Icon={ChevronLeft}
+            onPress={editingTransaction ? onCancelEdit : onClose}
+          />
+          {editingTransaction ? (
+            <Text style={styles.expenseEntryTitle}>Edit transaction</Text>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Toggle expense or income"
+              onPress={() => switchType(type === 'expense' ? 'income' : 'expense')}
+              style={styles.expenseEntryTitleGroup}
+            >
+              <Text style={styles.expenseEntryTitle}>Expenses</Text>
+              <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
+            </Pressable>
+          )}
         </View>
 
         <ScrollView
@@ -1508,7 +1531,17 @@ function TransactionForm({
           <>
             <View style={styles.expenseOptionsPanel}>
               <View style={styles.expenseOptionSection}>
-                <Text style={styles.expenseOptionLabel}>Currency</Text>
+                <View style={styles.expenseOptionLabelRow}>
+                  <Text style={styles.expenseOptionLabel}>Currency</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Close transaction form"
+                    onPress={editingTransaction ? onCancelEdit : onClose}
+                    style={styles.expenseCloseButton}
+                  >
+                    <X color={colors.textMuted} size={20} strokeWidth={2.4} />
+                  </Pressable>
+                </View>
                 <ScrollView
                   horizontal
                   contentContainerStyle={styles.expenseOptionChips}
@@ -1581,7 +1614,7 @@ function TransactionForm({
                 </ScrollView>
               </View>
 
-              <View style={styles.expenseOptionSection}>
+              {!editingTransaction && <View style={styles.expenseOptionSection}>
                 <Text style={styles.expenseOptionLabel}>Installments</Text>
                 <ScrollView
                   horizontal
@@ -1623,7 +1656,7 @@ function TransactionForm({
                     <Text style={styles.expenseInstallmentSuffix}>x</Text>
                   </View>
                 </ScrollView>
-              </View>
+              </View>}
             </View>
 
             <View style={styles.expenseEntryComposer}>
@@ -1715,8 +1748,8 @@ function TransactionForm({
       </View>
 
       <View style={styles.chipRow}>
-        <Chip label="Expense" selected={type === 'expense'} onPress={() => setType('expense')} />
-        <Chip label="Income" selected={type === 'income'} onPress={() => setType('income')} />
+        <Chip label="Expense" selected={false} onPress={() => switchType('expense')} />
+        <Chip label="Income" selected={true} onPress={() => {}} />
       </View>
 
       <View style={styles.formGrid}>
@@ -1804,41 +1837,6 @@ function TransactionForm({
         />
       </Field>
 
-      {type === 'expense' && !editingTransaction ? (
-        <View style={styles.installmentPanel}>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityState={{ checked: installmentsEnabled }}
-            onPress={() => setInstallmentsEnabled((value) => !value)}
-            style={styles.toggleRow}
-          >
-            <View style={[styles.checkbox, installmentsEnabled ? styles.checkboxSelected : null]} />
-            <Text style={styles.toggleLabel}>Split into monthly installments</Text>
-          </Pressable>
-
-          {installmentsEnabled ? (
-            <View style={styles.formGrid}>
-              <Field label="Installments" grid>
-                <TextInput
-                  keyboardType="number-pad"
-                  value={installmentCount}
-                  onChangeText={setInstallmentCount}
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="First date" grid>
-                <TextInput
-                  value={firstInstallmentDate}
-                  onChangeText={setFirstInstallmentDate}
-                  placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.gray}
-                  style={styles.input}
-                />
-              </Field>
-            </View>
-          ) : null}
-        </View>
-      ) : null}
 
       <AppButton label={editingTransaction ? 'Save' : 'Add transaction'} Icon={Save} onPress={handleSubmit} />
     </View>
@@ -3504,6 +3502,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardAvoid: {
+    flex: 1,
+    minHeight: 0,
+  },
   appShell: {
     flex: 1,
     minHeight: 0,
@@ -3690,11 +3692,19 @@ const styles = StyleSheet.create({
   expenseOptionSection: {
     gap: spacing.xs,
   },
+  expenseOptionLabelRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
   expenseOptionLabel: {
     color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 11,
     textTransform: 'uppercase',
+  },
+  expenseCloseButton: {
+    padding: spacing.xs,
   },
   expenseOptionChips: {
     gap: spacing.sm,
