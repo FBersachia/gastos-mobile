@@ -5,9 +5,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/poppins';
 import { StatusBar } from 'expo-status-bar';
-import * as FileSystem from 'expo-file-system/legacy';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as Sharing from 'expo-sharing';
 import {
   Apple,
   BadgeDollarSign,
@@ -30,9 +28,7 @@ import {
   Cookie,
   Croissant,
   CupSoda,
-  Dog,
   DollarSign,
-  Download,
   Dumbbell,
   Film,
   Gamepad2,
@@ -77,6 +73,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -86,8 +83,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { loadAppData, saveAppData } from './src/storage';
 import { colors, fonts, radius, spacing } from './src/theme';
 import {
@@ -122,7 +119,6 @@ import {
   summarizeByCurrency,
   summarizeExpensesByCategory,
   todayInput,
-  transactionsToCsv,
 } from './src/utils';
 
 type AuthStatus = 'checking' | 'authenticated' | 'locked' | 'unavailable';
@@ -132,6 +128,8 @@ type IconComponent = React.ComponentType<{
   size?: number;
   strokeWidth?: number;
 }>;
+
+const appLogo = require('./assets/logo.png');
 
 const tabs: Array<{ key: TabKey; label: string; Icon: IconComponent }> = [
   { key: 'dashboard', label: 'Dashboard', Icon: Home },
@@ -487,9 +485,9 @@ const formatDashboardMoney = (amount: number, currency: string): string =>
 
 export default function App() {
   return (
-    <SafeAreaProvider>
+    <AppSafeAreaProvider>
       <AppRoot />
-    </SafeAreaProvider>
+    </AppSafeAreaProvider>
   );
 }
 
@@ -503,6 +501,8 @@ function AppRoot() {
   const [data, setData] = useState<AppData | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('dashboard');
   const [selectedMonth, setSelectedMonth] = useState(monthStartInput());
+  const [selectedTransactionId, setSelectedTransactionId] = useState<string | undefined>();
+  const [editingTransactionId, setEditingTransactionId] = useState<string | undefined>();
 
   useEffect(() => {
     void loadAppData()
@@ -717,6 +717,27 @@ function AppRoot() {
     }));
   };
 
+  const handleUpdateCategory = (categoryId: string, type: TransactionType, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    persistData((current) => ({
+      ...current,
+      categories: current.categories.map((category) =>
+        category.id === categoryId
+          ? {
+              ...category,
+              type,
+              name: trimmed,
+              updatedAt: new Date().toISOString(),
+            }
+          : category,
+      ),
+    }));
+  };
+
   const handleAddSubcategory = (categoryId: string, name: string, icon?: string) => {
     const trimmed = name.trim();
     if (!trimmed) {
@@ -739,6 +760,28 @@ function AppRoot() {
           updatedAt: timestamp,
         },
       ],
+    }));
+  };
+
+  const handleUpdateSubcategory = (subcategoryId: string, categoryId: string, name: string, icon?: string) => {
+    const trimmed = name.trim();
+    if (!categoryId || !trimmed) {
+      return;
+    }
+
+    persistData((current) => ({
+      ...current,
+      subcategories: current.subcategories.map((subcategory) =>
+        subcategory.id === subcategoryId
+          ? {
+              ...subcategory,
+              categoryId,
+              name: trimmed,
+              icon,
+              updatedAt: new Date().toISOString(),
+            }
+          : subcategory,
+      ),
     }));
   };
 
@@ -780,9 +823,29 @@ function AppRoot() {
     }));
   };
 
-  const handleAddPaymentSubmethod = (paymentMethodId: string, name: string) => {
+  const handleUpdatePaymentMethod = (paymentMethodId: string, name: string) => {
     const trimmed = name.trim();
     if (!trimmed) {
+      return;
+    }
+
+    persistData((current) => ({
+      ...current,
+      paymentMethods: current.paymentMethods.map((method) =>
+        method.id === paymentMethodId
+          ? {
+              ...method,
+              name: trimmed,
+              updatedAt: new Date().toISOString(),
+            }
+          : method,
+      ),
+    }));
+  };
+
+  const handleAddPaymentSubmethod = (paymentMethodId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!paymentMethodId || !trimmed) {
       return;
     }
 
@@ -801,6 +864,27 @@ function AppRoot() {
           updatedAt: timestamp,
         },
       ],
+    }));
+  };
+
+  const handleUpdatePaymentSubmethod = (paymentSubmethodId: string, paymentMethodId: string, name: string) => {
+    const trimmed = name.trim();
+    if (!paymentMethodId || !trimmed) {
+      return;
+    }
+
+    persistData((current) => ({
+      ...current,
+      paymentSubmethods: current.paymentSubmethods.map((submethod) =>
+        submethod.id === paymentSubmethodId
+          ? {
+              ...submethod,
+              paymentMethodId,
+              name: trimmed,
+              updatedAt: new Date().toISOString(),
+            }
+          : submethod,
+      ),
     }));
   };
 
@@ -827,8 +911,11 @@ function AppRoot() {
     return <AuthScreen status={authStatus} onRetry={requestAuthentication} />;
   }
 
+  const selectedTransaction = data.transactions.find((transaction) => transaction.id === selectedTransactionId);
+  const editingTransaction = data.transactions.find((transaction) => transaction.id === editingTransactionId);
+
   return (
-    <SafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
+    <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
       <StatusBar style="dark" />
       <View style={styles.appShell}>
         {activeTab === 'transactions' ? null : (
@@ -840,6 +927,7 @@ function AppRoot() {
               data={data}
               selectedMonth={selectedMonth}
               onAddTransaction={() => setActiveTab('transactions')}
+              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
             />
           ) : null}
           {activeTab === 'transactions' ? (
@@ -848,10 +936,18 @@ function AppRoot() {
               selectedMonth={selectedMonth}
               onSaveTransaction={handleSaveTransaction}
               onDeleteTransaction={handleDeleteTransaction}
+              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
               onClose={() => setActiveTab('dashboard')}
             />
           ) : null}
-          {activeTab === 'reports' ? <ReportsScreen data={data} selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} /> : null}
+          {activeTab === 'reports' ? (
+            <ReportsScreen
+              data={data}
+              selectedMonth={selectedMonth}
+              onMonthChange={setSelectedMonth}
+              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+            />
+          ) : null}
           {activeTab === 'settings' ? (
             <SettingsScreen
               data={data}
@@ -859,26 +955,49 @@ function AppRoot() {
               onSaveBudget={handleSaveBudget}
               onSetDefaultCurrency={handleSetDefaultCurrency}
               onAddCategory={handleAddCategory}
+              onUpdateCategory={handleUpdateCategory}
               onAddSubcategory={handleAddSubcategory}
+              onUpdateSubcategory={handleUpdateSubcategory}
               onDisableCategory={handleDisableCategory}
               onAddPaymentMethod={handleAddPaymentMethod}
+              onUpdatePaymentMethod={handleUpdatePaymentMethod}
               onAddPaymentSubmethod={handleAddPaymentSubmethod}
+              onUpdatePaymentSubmethod={handleUpdatePaymentSubmethod}
               onDisablePaymentMethod={handleDisablePaymentMethod}
             />
           ) : null}
         </View>
         <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />
       </View>
-    </SafeAreaView>
+      <TransactionDetailModal
+        data={data}
+        transaction={selectedTransaction}
+        onClose={() => setSelectedTransactionId(undefined)}
+        onEdit={(transaction) => setEditingTransactionId(transaction.id)}
+        onDelete={(transaction) => {
+          handleDeleteTransaction(transaction);
+          setSelectedTransactionId(undefined);
+        }}
+      />
+      <TransactionEditModal
+        data={data}
+        transaction={editingTransaction}
+        onClose={() => setEditingTransactionId(undefined)}
+        onSave={(input, transaction) => {
+          handleSaveTransaction(input, transaction);
+          setEditingTransactionId(undefined);
+        }}
+      />
+    </AppSafeAreaView>
   );
 }
 
 function LoadingScreen() {
   return (
-    <SafeAreaView style={styles.centerScreen}>
+    <AppSafeAreaView style={styles.centerScreen}>
       <ActivityIndicator color={colors.primary} size="large" />
       <Text style={styles.loadingText}>Loading Expense Control</Text>
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }
 
@@ -890,14 +1009,14 @@ function AuthScreen({ status, onRetry }: { status: AuthStatus; onRetry: () => vo
       : 'Authenticate to view your dashboard and transactions.';
 
   return (
-    <SafeAreaView style={styles.centerScreen}>
+    <AppSafeAreaView style={styles.centerScreen}>
       <View style={styles.lockBadge}>
         <Lock color={colors.surface} size={36} strokeWidth={2.4} />
       </View>
       <Text style={styles.lockTitle}>{title}</Text>
       <Text style={styles.lockMessage}>{message}</Text>
       <AppButton label="Retry" Icon={Lock} onPress={onRetry} />
-    </SafeAreaView>
+    </AppSafeAreaView>
   );
 }
 
@@ -911,7 +1030,10 @@ function Header({
   return (
     <View style={styles.header}>
       <View>
-        <Text style={styles.eyebrow}>Expense Control</Text>
+        <View style={styles.headerBrand}>
+          <Image source={appLogo} style={styles.headerLogo} />
+          <Text style={styles.eyebrow}>Expense Control</Text>
+        </View>
         <Text style={styles.headerTitle}>{monthLabel(selectedMonth)}</Text>
       </View>
       <View style={styles.monthControls}>
@@ -963,10 +1085,12 @@ function DashboardScreen({
   data,
   selectedMonth,
   onAddTransaction,
+  onSelectTransaction,
 }: {
   data: AppData;
   selectedMonth: string;
   onAddTransaction: () => void;
+  onSelectTransaction: (transaction: Transaction) => void;
 }) {
   const transactions = useMemo(() => monthlyTransactions(data, selectedMonth), [data, selectedMonth]);
   const currencySummaries = useMemo(() => summarizeByCurrency(transactions), [transactions]);
@@ -985,7 +1109,12 @@ function DashboardScreen({
 
         {expenseGroups.length ? (
           expenseGroups.map((group) => (
-            <ExpenseDayCard key={group.date} data={data} group={group} />
+            <ExpenseDayCard
+              key={group.date}
+              data={data}
+              group={group}
+              onSelectTransaction={onSelectTransaction}
+            />
           ))
         ) : (
           <EmptyState title="No expenses this month" />
@@ -1009,12 +1138,14 @@ function TransactionsScreen({
   selectedMonth,
   onSaveTransaction,
   onDeleteTransaction,
+  onSelectTransaction,
   onClose,
 }: {
   data: AppData;
   selectedMonth: string;
   onSaveTransaction: (input: TransactionInput, editingTransaction?: Transaction) => void;
   onDeleteTransaction: (transaction: Transaction) => void;
+  onSelectTransaction: (transaction: Transaction) => void;
   onClose: () => void;
 }) {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
@@ -1047,6 +1178,7 @@ function TransactionsScreen({
             key={transaction.id}
             data={data}
             transaction={transaction}
+            onView={() => onSelectTransaction(transaction)}
             onEdit={() => setEditingTransaction(transaction)}
             onDelete={() => onDeleteTransaction(transaction)}
           />
@@ -1716,22 +1848,23 @@ function TransactionForm({
 function TransactionRow({
   data,
   transaction,
+  onView,
   onEdit,
   onDelete,
 }: {
   data: AppData;
   transaction: Transaction;
+  onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const canEdit = !transaction.installmentGroupId;
   const displayCategory = subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
   const displayPayment =
     paymentSubmethodName(data, transaction.paymentSubmethodId) ||
     paymentMethodName(data, transaction.paymentMethodId);
 
   return (
-    <View style={styles.transactionRow}>
+    <Pressable accessibilityRole="button" onPress={onView} style={styles.transactionRow}>
       <View style={styles.transactionMain}>
         <Text style={styles.rowTitle}>
           {transaction.description || displayCategory}
@@ -1749,10 +1882,133 @@ function TransactionRow({
           {formatMoney(transaction.amount, transaction.currency)}
         </Text>
         <View style={styles.iconRow}>
-          {canEdit ? <IconButton accessibilityLabel="Edit transaction" Icon={Pencil} onPress={onEdit} /> : null}
+          <IconButton accessibilityLabel="Edit transaction" Icon={Pencil} onPress={onEdit} />
           <IconButton accessibilityLabel="Delete transaction" Icon={Trash2} danger onPress={onDelete} />
         </View>
       </View>
+    </Pressable>
+  );
+}
+
+function TransactionDetailModal({
+  data,
+  transaction,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  data: AppData;
+  transaction?: Transaction;
+  onClose: () => void;
+  onEdit: (transaction: Transaction) => void;
+  onDelete: (transaction: Transaction) => void;
+}) {
+  if (!transaction) {
+    return null;
+  }
+
+  const category = data.categories.find((item) => item.id === transaction.categoryId);
+  const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
+  const displayCategory = subcategory?.name || categoryName(data, transaction.categoryId);
+  const displayPayment =
+    paymentSubmethodName(data, transaction.paymentSubmethodId) ||
+    paymentMethodName(data, transaction.paymentMethodId);
+  const amountPrefix = transaction.type === 'expense' ? '-' : '+';
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onClose}>
+      <Pressable accessibilityRole="none" onPress={onClose} style={styles.transactionModalOverlay}>
+        <Pressable accessibilityRole="none" onPress={() => undefined} style={styles.transactionDetailPanel}>
+          <View style={styles.transactionDetailHeader}>
+            <View style={styles.transactionDetailTitleGroup}>
+              <CategoryIconBadge category={category} subcategory={subcategory} accent />
+              <View style={styles.transactionDetailTitleText}>
+                <Text style={styles.transactionDetailTitle} numberOfLines={2}>
+                  {transaction.description || displayCategory}
+                </Text>
+                <Text style={styles.rowMeta}>{transaction.date}</Text>
+              </View>
+            </View>
+            <IconButton accessibilityLabel="Close transaction detail" Icon={X} onPress={onClose} />
+          </View>
+
+          <Text
+            style={[
+              styles.transactionDetailAmount,
+              transaction.type === 'expense' ? styles.negativeText : styles.positiveText,
+            ]}
+          >
+            {amountPrefix}
+            {formatMoney(transaction.amount, transaction.currency)}
+          </Text>
+
+          <View style={styles.transactionDetailLines}>
+            <TransactionDetailLine label="Type" value={transaction.type} />
+            <TransactionDetailLine label="Category" value={category?.name || 'Uncategorized'} />
+            <TransactionDetailLine label="Subcategory" value={displayCategory || 'None'} />
+            <TransactionDetailLine label="Payment" value={displayPayment || 'None'} />
+            <TransactionDetailLine label="Currency" value={transaction.currency} />
+            <TransactionDetailLine label="Created" value={transaction.createdAt.slice(0, 10)} />
+            <TransactionDetailLine label="Updated" value={transaction.updatedAt.slice(0, 10)} />
+            {transaction.installmentGroupId ? (
+              <TransactionDetailLine
+                label="Installment"
+                value={`${transaction.installmentNumber ?? '-'} of ${transaction.totalInstallments ?? '-'}`}
+              />
+            ) : null}
+          </View>
+
+          <View style={styles.transactionDetailActions}>
+            <AppButton label="Edit" Icon={Pencil} onPress={() => onEdit(transaction)} />
+            <AppButton label="Delete" Icon={Trash2} variant="secondary" onPress={() => onDelete(transaction)} />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function TransactionEditModal({
+  data,
+  transaction,
+  onClose,
+  onSave,
+}: {
+  data: AppData;
+  transaction?: Transaction;
+  onClose: () => void;
+  onSave: (input: TransactionInput, transaction: Transaction) => void;
+}) {
+  if (!transaction) {
+    return null;
+  }
+
+  return (
+    <Modal transparent visible animationType="fade" onRequestClose={onClose}>
+      <View style={styles.transactionModalOverlay}>
+        <View style={styles.transactionEditPanel}>
+          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <TransactionForm
+              data={data}
+              editingTransaction={transaction}
+              onCancelEdit={onClose}
+              onClose={onClose}
+              onSave={(input) => onSave(input, transaction)}
+            />
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function TransactionDetailLine({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.transactionDetailLine}>
+      <Text style={styles.transactionDetailLabel}>{label}</Text>
+      <Text style={styles.transactionDetailValue} numberOfLines={2}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -1770,10 +2026,12 @@ function ReportsScreen({
   data,
   selectedMonth,
   onMonthChange,
+  onSelectTransaction,
 }: {
   data: AppData;
   selectedMonth: string;
   onMonthChange: (month: string) => void;
+  onSelectTransaction: (transaction: Transaction) => void;
 }) {
   const [activeReport, setActiveReport] = useState<ReportSection>('menu');
   const [selectedItem, setSelectedItem] = useState<SelectedReportItem>(null);
@@ -1910,13 +2168,13 @@ function ReportsScreen({
 
   const DetailHeader = ({ title }: { title: string }) => (
     <View style={styles.settingsDetailHeader}>
-      <IconButton Icon={ChevronLeft} onPress={goBack} />
+      <IconButton accessibilityLabel="Back to reports" Icon={ChevronLeft} onPress={goBack} />
       <View style={styles.reportDetailTitle}>
         <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
       </View>
       <View style={styles.monthControls}>
-        <IconButton Icon={ChevronLeft} onPress={prevMonth} />
-        <IconButton Icon={ChevronRight} onPress={nextMonth} />
+        <IconButton accessibilityLabel="Previous month" Icon={ChevronLeft} onPress={prevMonth} />
+        <IconButton accessibilityLabel="Next month" Icon={ChevronRight} onPress={nextMonth} />
       </View>
     </View>
   );
@@ -1930,7 +2188,12 @@ function ReportsScreen({
         </Text>
         {drillGroups.length ? (
           drillGroups.map((group) => (
-            <ExpenseDayCard key={group.date} data={data} group={group} />
+            <ExpenseDayCard
+              key={group.date}
+              data={data}
+              group={group}
+              onSelectTransaction={onSelectTransaction}
+            />
           ))
         ) : (
           <EmptyState title="No expenses found" />
@@ -2098,10 +2361,14 @@ function SettingsScreen({
   onSaveBudget,
   onSetDefaultCurrency,
   onAddCategory,
+  onUpdateCategory,
   onAddSubcategory,
+  onUpdateSubcategory,
   onDisableCategory,
   onAddPaymentMethod,
+  onUpdatePaymentMethod,
   onAddPaymentSubmethod,
+  onUpdatePaymentSubmethod,
   onDisablePaymentMethod,
 }: {
   data: AppData;
@@ -2109,10 +2376,14 @@ function SettingsScreen({
   onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onAddCategory: (type: TransactionType, name: string) => void;
+  onUpdateCategory: (categoryId: string, type: TransactionType, name: string) => void;
   onAddSubcategory: (categoryId: string, name: string, icon?: string) => void;
+  onUpdateSubcategory: (subcategoryId: string, categoryId: string, name: string, icon?: string) => void;
   onDisableCategory: (categoryId: string) => void;
   onAddPaymentMethod: (name: string) => void;
+  onUpdatePaymentMethod: (paymentMethodId: string, name: string) => void;
   onAddPaymentSubmethod: (paymentMethodId: string, name: string) => void;
+  onUpdatePaymentSubmethod: (paymentSubmethodId: string, paymentMethodId: string, name: string) => void;
   onDisablePaymentMethod: (paymentMethodId: string) => void;
 }) {
   const [defaultCurrency, setDefaultCurrency] = useState(data.settings.defaultCurrency);
@@ -2134,11 +2405,26 @@ function SettingsScreen({
   );
   const [paymentSubmethodInput, setPaymentSubmethodInput] = useState('');
   const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSection>('menu');
+  const [editingCategoryId, setEditingCategoryId] = useState<string | undefined>();
+  const [editingCategoryName, setEditingCategoryName] = useState('');
+  const [editingCategoryType, setEditingCategoryType] = useState<TransactionType>('expense');
+  const [editingSubcategoryId, setEditingSubcategoryId] = useState<string | undefined>();
+  const [editingSubcategoryName, setEditingSubcategoryName] = useState('');
+  const [editingSubcategoryCategoryId, setEditingSubcategoryCategoryId] = useState('');
+  const [editingSubcategoryIcon, setEditingSubcategoryIcon] = useState<string | undefined>();
+  const [editingPaymentMethodId, setEditingPaymentMethodId] = useState<string | undefined>();
+  const [editingPaymentMethodName, setEditingPaymentMethodName] = useState('');
+  const [editingPaymentSubmethodId, setEditingPaymentSubmethodId] = useState<string | undefined>();
+  const [editingPaymentSubmethodName, setEditingPaymentSubmethodName] = useState('');
+  const [editingPaymentSubmethodMethodId, setEditingPaymentSubmethodMethodId] = useState('');
 
   const activeCategories = data.categories.filter((category) => category.active);
   const expenseCategories = activeCategories.filter((category) => category.type === 'expense');
   const activeSubcategories = data.subcategories.filter((subcategory) => subcategory.active);
   const activePaymentMethods = data.paymentMethods.filter((method) => method.active);
+  const selectedPaymentMethod =
+    activePaymentMethods.find((method) => method.id === paymentSubmethodMethodId) ?? activePaymentMethods[0];
+  const selectedPaymentMethodId = selectedPaymentMethod?.id ?? '';
   const budgets = summarizeBudgets(data, selectedMonth);
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: 'Core settings',
@@ -2158,6 +2444,99 @@ function SettingsScreen({
 
     onSaveBudget(budgetCategoryId, parsedAmount, budgetCurrency);
     setBudgetAmount('');
+  };
+
+  const startCategoryEdit = (category: Category) => {
+    setEditingCategoryId(category.id);
+    setEditingCategoryName(category.name);
+    setEditingCategoryType(category.type);
+  };
+
+  const clearCategoryEdit = () => {
+    setEditingCategoryId(undefined);
+    setEditingCategoryName('');
+    setEditingCategoryType('expense');
+  };
+
+  const saveCategoryEdit = () => {
+    if (!editingCategoryId) {
+      return;
+    }
+
+    onUpdateCategory(editingCategoryId, editingCategoryType, editingCategoryName);
+    clearCategoryEdit();
+  };
+
+  const startSubcategoryEdit = (subcategory: Subcategory) => {
+    setEditingSubcategoryId(subcategory.id);
+    setEditingSubcategoryName(subcategory.name);
+    setEditingSubcategoryCategoryId(subcategory.categoryId);
+    setEditingSubcategoryIcon(subcategory.icon);
+  };
+
+  const clearSubcategoryEdit = () => {
+    setEditingSubcategoryId(undefined);
+    setEditingSubcategoryName('');
+    setEditingSubcategoryCategoryId('');
+    setEditingSubcategoryIcon(undefined);
+  };
+
+  const saveSubcategoryEdit = () => {
+    if (!editingSubcategoryId) {
+      return;
+    }
+
+    onUpdateSubcategory(
+      editingSubcategoryId,
+      editingSubcategoryCategoryId,
+      editingSubcategoryName,
+      editingSubcategoryIcon,
+    );
+    clearSubcategoryEdit();
+  };
+
+  const startPaymentMethodEdit = (methodId: string, methodName: string) => {
+    setEditingPaymentMethodId(methodId);
+    setEditingPaymentMethodName(methodName);
+  };
+
+  const clearPaymentMethodEdit = () => {
+    setEditingPaymentMethodId(undefined);
+    setEditingPaymentMethodName('');
+  };
+
+  const savePaymentMethodEdit = () => {
+    if (!editingPaymentMethodId) {
+      return;
+    }
+
+    onUpdatePaymentMethod(editingPaymentMethodId, editingPaymentMethodName);
+    clearPaymentMethodEdit();
+  };
+
+  const startPaymentSubmethodEdit = (submethodId: string, methodId: string, submethodName: string) => {
+    setEditingPaymentSubmethodId(submethodId);
+    setEditingPaymentSubmethodMethodId(methodId);
+    setEditingPaymentSubmethodName(submethodName);
+  };
+
+  const clearPaymentSubmethodEdit = () => {
+    setEditingPaymentSubmethodId(undefined);
+    setEditingPaymentSubmethodMethodId('');
+    setEditingPaymentSubmethodName('');
+  };
+
+  const savePaymentSubmethodEdit = () => {
+    if (!editingPaymentSubmethodId) {
+      return;
+    }
+
+    onUpdatePaymentSubmethod(
+      editingPaymentSubmethodId,
+      editingPaymentSubmethodMethodId,
+      editingPaymentSubmethodName,
+    );
+    clearPaymentSubmethodEdit();
   };
 
   if (activeSettingsSection === 'menu') {
@@ -2303,11 +2682,42 @@ function SettingsScreen({
         />
 
         {activeCategories.map((category) => (
-          <CategoryManagementRow
-            key={category.id}
-            category={category}
-            onDisable={() => onDisableCategory(category.id)}
-          />
+          <View key={category.id} style={styles.managementEditGroup}>
+            <CategoryManagementRow
+              category={category}
+              onEdit={() => startCategoryEdit(category)}
+              onDisable={() => onDisableCategory(category.id)}
+            />
+            {editingCategoryId === category.id ? (
+              <View style={styles.inlineEditPanel}>
+                <View style={styles.chipRow}>
+                  <Chip
+                    label="Expense"
+                    selected={editingCategoryType === 'expense'}
+                    onPress={() => setEditingCategoryType('expense')}
+                  />
+                  <Chip
+                    label="Income"
+                    selected={editingCategoryType === 'income'}
+                    onPress={() => setEditingCategoryType('income')}
+                  />
+                </View>
+                <Field label="Category name">
+                  <TextInput
+                    value={editingCategoryName}
+                    onChangeText={setEditingCategoryName}
+                    placeholder="Category name"
+                    placeholderTextColor={colors.gray}
+                    style={styles.input}
+                  />
+                </Field>
+                <View style={styles.inlineEditActions}>
+                  <AppButton label="Cancel" compact variant="secondary" onPress={clearCategoryEdit} />
+                  <AppButton label="Save" compact Icon={Save} onPress={saveCategoryEdit} />
+                </View>
+              </View>
+            ) : null}
+          </View>
         ))}
         </View>
       ) : null}
@@ -2368,12 +2778,64 @@ function SettingsScreen({
           const SubcatIcon = getSubcategoryIcon(subcategory, parentCategory);
 
           return (
-            <ManagementRow
-              key={subcategory.id}
-              Icon={SubcatIcon}
-              title={subcategory.name}
-              subtitle={parentCategory ? parentCategory.name : 'No parent category'}
-            />
+            <View key={subcategory.id} style={styles.managementEditGroup}>
+              <ManagementRow
+                Icon={SubcatIcon}
+                title={subcategory.name}
+                subtitle={parentCategory ? parentCategory.name : 'No parent category'}
+                onEdit={() => startSubcategoryEdit(subcategory)}
+              />
+              {editingSubcategoryId === subcategory.id ? (
+                <View style={styles.inlineEditPanel}>
+                  <Field label="Parent category">
+                    <View style={styles.chipRow}>
+                      {activeCategories.map((category) => (
+                        <CategoryChip
+                          key={category.id}
+                          category={category}
+                          selected={editingSubcategoryCategoryId === category.id}
+                          onPress={() => setEditingSubcategoryCategoryId(category.id)}
+                        />
+                      ))}
+                    </View>
+                  </Field>
+                  <Field label="Subcategory name">
+                    <TextInput
+                      value={editingSubcategoryName}
+                      onChangeText={setEditingSubcategoryName}
+                      placeholder="Subcategory name"
+                      placeholderTextColor={colors.gray}
+                      style={styles.input}
+                    />
+                  </Field>
+                  <Field label="Icon">
+                    <View style={styles.iconPickerGrid}>
+                      {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
+                        <Pressable
+                          key={key}
+                          accessibilityRole="button"
+                          onPress={() => setEditingSubcategoryIcon(editingSubcategoryIcon === key ? undefined : key)}
+                          style={[
+                            styles.iconPickerItem,
+                            editingSubcategoryIcon === key && styles.iconPickerItemSelected,
+                          ]}
+                        >
+                          <Icon
+                            color={editingSubcategoryIcon === key ? colors.primary : colors.textMuted}
+                            size={20}
+                            strokeWidth={2.2}
+                          />
+                        </Pressable>
+                      ))}
+                    </View>
+                  </Field>
+                  <View style={styles.inlineEditActions}>
+                    <AppButton label="Cancel" compact variant="secondary" onPress={clearSubcategoryEdit} />
+                    <AppButton label="Save" compact Icon={Save} onPress={saveSubcategoryEdit} />
+                  </View>
+                </View>
+              ) : null}
+            </View>
           );
         })}
         </View>
@@ -2405,7 +2867,7 @@ function SettingsScreen({
               <Chip
                 key={method.id}
                 label={method.name}
-                selected={paymentSubmethodMethodId === method.id}
+                selected={selectedPaymentMethodId === method.id}
                 onPress={() => setPaymentSubmethodMethodId(method.id)}
               />
             ))}
@@ -2422,19 +2884,100 @@ function SettingsScreen({
           label="Add submethod"
           Icon={Plus}
           onPress={() => {
-            onAddPaymentSubmethod(paymentSubmethodMethodId, paymentSubmethodInput);
+            onAddPaymentSubmethod(selectedPaymentMethodId, paymentSubmethodInput);
             setPaymentSubmethodInput('');
           }}
         />
 
-        {activePaymentMethods.map((method) => (
-          <ManagementRow
-            key={method.id}
-            title={method.name}
-            subtitle={`${data.paymentSubmethods.filter((item) => item.paymentMethodId === method.id && item.active).length} submethods`}
-            onDisable={() => onDisablePaymentMethod(method.id)}
-          />
-        ))}
+        {activePaymentMethods.map((method) => {
+          const submethods = data.paymentSubmethods.filter(
+            (item) => item.paymentMethodId === method.id && item.active,
+          );
+          const selected = selectedPaymentMethodId === method.id;
+
+          return (
+            <View key={method.id} style={styles.paymentMethodGroup}>
+              <PaymentMethodManagementRow
+                methodName={method.name}
+                submethodCount={submethods.length}
+                selected={selected}
+                onSelect={() => setPaymentSubmethodMethodId(method.id)}
+                onEdit={() => startPaymentMethodEdit(method.id, method.name)}
+                onDisable={() => onDisablePaymentMethod(method.id)}
+              />
+              {editingPaymentMethodId === method.id ? (
+                <View style={styles.inlineEditPanel}>
+                  <Field label="Payment method name">
+                    <TextInput
+                      value={editingPaymentMethodName}
+                      onChangeText={setEditingPaymentMethodName}
+                      placeholder="Payment method"
+                      placeholderTextColor={colors.gray}
+                      style={styles.input}
+                    />
+                  </Field>
+                  <View style={styles.inlineEditActions}>
+                    <AppButton label="Cancel" compact variant="secondary" onPress={clearPaymentMethodEdit} />
+                    <AppButton label="Save" compact Icon={Save} onPress={savePaymentMethodEdit} />
+                  </View>
+                </View>
+              ) : null}
+              {selected ? (
+                <View style={styles.paymentSubmethodList}>
+                  {submethods.length ? (
+                    submethods.map((submethod) => (
+                      <View key={submethod.id} style={styles.paymentSubmethodItem}>
+                        <View style={styles.paymentSubmethodRow}>
+                          <View style={styles.managementIconBadge}>
+                            <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
+                          </View>
+                          <Text style={styles.rowTitle}>{submethod.name}</Text>
+                          <AppButton
+                            label="Edit"
+                            compact
+                            variant="secondary"
+                            onPress={() => startPaymentSubmethodEdit(submethod.id, method.id, submethod.name)}
+                          />
+                        </View>
+                        {editingPaymentSubmethodId === submethod.id ? (
+                          <View style={styles.inlineEditPanel}>
+                            <Field label="Parent payment method">
+                              <View style={styles.chipRow}>
+                                {activePaymentMethods.map((paymentMethod) => (
+                                  <Chip
+                                    key={paymentMethod.id}
+                                    label={paymentMethod.name}
+                                    selected={editingPaymentSubmethodMethodId === paymentMethod.id}
+                                    onPress={() => setEditingPaymentSubmethodMethodId(paymentMethod.id)}
+                                  />
+                                ))}
+                              </View>
+                            </Field>
+                            <Field label="Submethod name">
+                              <TextInput
+                                value={editingPaymentSubmethodName}
+                                onChangeText={setEditingPaymentSubmethodName}
+                                placeholder="Submethod name"
+                                placeholderTextColor={colors.gray}
+                                style={styles.input}
+                              />
+                            </Field>
+                            <View style={styles.inlineEditActions}>
+                              <AppButton label="Cancel" compact variant="secondary" onPress={clearPaymentSubmethodEdit} />
+                              <AppButton label="Save" compact Icon={Save} onPress={savePaymentSubmethodEdit} />
+                            </View>
+                          </View>
+                        ) : null}
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.rowMeta}>No active submethods.</Text>
+                  )}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
         </View>
       ) : null}
     </ScreenScroll>
@@ -2468,7 +3011,15 @@ function DashboardSummaryCard({ summary }: { summary: CurrencySummary }) {
   );
 }
 
-function ExpenseDayCard({ data, group }: { data: AppData; group: ExpenseDayGroup }) {
+function ExpenseDayCard({
+  data,
+  group,
+  onSelectTransaction,
+}: {
+  data: AppData;
+  group: ExpenseDayGroup;
+  onSelectTransaction: (transaction: Transaction) => void;
+}) {
   return (
     <View style={styles.expenseDayCard}>
       <View style={styles.expenseDayHeader}>
@@ -2483,6 +3034,7 @@ function ExpenseDayCard({ data, group }: { data: AppData; group: ExpenseDayGroup
           data={data}
           transaction={transaction}
           withDivider={index > 0}
+          onPress={() => onSelectTransaction(transaction)}
         />
       ))}
     </View>
@@ -2493,17 +3045,23 @@ function DashboardExpenseRow({
   data,
   transaction,
   withDivider,
+  onPress,
 }: {
   data: AppData;
   transaction: Transaction;
   withDivider: boolean;
+  onPress: () => void;
 }) {
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
   const title = transaction.description || subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
 
   return (
-    <View style={[styles.dashboardExpenseRow, withDivider ? styles.dashboardExpenseRowDivider : null]}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.dashboardExpenseRow, withDivider ? styles.dashboardExpenseRowDivider : null]}
+    >
       <View style={styles.dashboardExpenseMain}>
         <CategoryIconBadge category={category} subcategory={subcategory} accent />
         <Text style={styles.dashboardExpenseTitle} numberOfLines={2}>
@@ -2513,7 +3071,7 @@ function DashboardExpenseRow({
       <Text style={styles.dashboardExpenseAmount} numberOfLines={1}>
         - {formatMoney(transaction.amount, transaction.currency)}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -2584,7 +3142,15 @@ function BudgetStatusRow({ summary, category }: { summary: BudgetSummary; catego
   );
 }
 
-function CategoryManagementRow({ category, onDisable }: { category: Category; onDisable: () => void }) {
+function CategoryManagementRow({
+  category,
+  onEdit,
+  onDisable,
+}: {
+  category: Category;
+  onEdit: () => void;
+  onDisable: () => void;
+}) {
   return (
     <View style={styles.managementRow}>
       <View style={styles.managementInfo}>
@@ -2596,7 +3162,10 @@ function CategoryManagementRow({ category, onDisable }: { category: Category; on
           <Text style={styles.rowMeta}>{category.type}</Text>
         </View>
       </View>
-      <AppButton label="Disable" compact variant="secondary" onPress={onDisable} />
+      <View style={styles.managementActions}>
+        <AppButton label="Edit" compact variant="secondary" onPress={onEdit} />
+        <AppButton label="Disable" compact variant="secondary" onPress={onDisable} />
+      </View>
     </View>
   );
 }
@@ -2605,11 +3174,13 @@ function ManagementRow({
   title,
   subtitle,
   Icon,
+  onEdit,
   onDisable,
 }: {
   title: string;
   subtitle: string;
   Icon?: IconComponent;
+  onEdit?: () => void;
   onDisable?: () => void;
 }) {
   return (
@@ -2625,7 +3196,53 @@ function ManagementRow({
           <Text style={styles.rowMeta}>{subtitle}</Text>
         </View>
       </View>
-      {onDisable ? <AppButton label="Disable" compact variant="secondary" onPress={onDisable} /> : null}
+      {onEdit || onDisable ? (
+        <View style={styles.managementActions}>
+          {onEdit ? <AppButton label="Edit" compact variant="secondary" onPress={onEdit} /> : null}
+          {onDisable ? <AppButton label="Disable" compact variant="secondary" onPress={onDisable} /> : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function PaymentMethodManagementRow({
+  methodName,
+  submethodCount,
+  selected,
+  onSelect,
+  onEdit,
+  onDisable,
+}: {
+  methodName: string;
+  submethodCount: number;
+  selected: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDisable: () => void;
+}) {
+  return (
+    <View style={[styles.managementRow, selected ? styles.managementRowSelected : null]}>
+      <Pressable accessibilityRole="button" onPress={onSelect} style={styles.managementSelectArea}>
+        <View style={styles.managementIconBadge}>
+          <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
+        </View>
+        <View style={styles.managementText}>
+          <Text style={styles.rowTitle}>{methodName}</Text>
+          <Text style={styles.rowMeta}>
+            {submethodCount} {submethodCount === 1 ? 'submethod' : 'submethods'}
+          </Text>
+        </View>
+        {selected ? (
+          <ChevronDown color={colors.textMuted} size={18} strokeWidth={2.2} />
+        ) : (
+          <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
+        )}
+      </Pressable>
+      <View style={styles.managementActions}>
+        <AppButton label="Edit" compact variant="secondary" onPress={onEdit} />
+        <AppButton label="Disable" compact variant="secondary" onPress={onDisable} />
+      </View>
     </View>
   );
 }
@@ -2742,7 +3359,7 @@ function CalendarModal({
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <Pressable accessibilityRole="button" onPress={onClose} style={styles.calendarOverlay}>
+      <Pressable accessibilityRole="none" onPress={onClose} style={styles.calendarOverlay}>
         <Pressable accessibilityRole="none" onPress={() => undefined} style={styles.calendarPanel}>
           <View style={styles.calendarHeader}>
             <IconButton
@@ -2940,6 +3557,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  headerBrand: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  headerLogo: {
+    borderRadius: radius.sm,
+    height: 28,
+    width: 28,
   },
   eyebrow: {
     color: colors.primary,
@@ -3643,6 +4270,83 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
   },
+  transactionModalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  transactionDetailPanel: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    gap: spacing.lg,
+    maxWidth: 420,
+    padding: spacing.lg,
+    width: '100%',
+  },
+  transactionEditPanel: {
+    maxHeight: '90%',
+    maxWidth: 460,
+    width: '100%',
+  },
+  transactionDetailHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+  transactionDetailTitleGroup: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minWidth: 0,
+  },
+  transactionDetailTitleText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  transactionDetailTitle: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+  },
+  transactionDetailAmount: {
+    fontFamily: fonts.bold,
+    fontSize: 28,
+  },
+  transactionDetailLines: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+  },
+  transactionDetailLine: {
+    alignItems: 'center',
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+    minHeight: 44,
+    paddingVertical: spacing.sm,
+  },
+  transactionDetailLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  transactionDetailValue: {
+    color: colors.text,
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    textAlign: 'right',
+  },
+  transactionDetailActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'flex-end',
+  },
   transactionMain: {
     flex: 1,
     gap: spacing.xs,
@@ -3693,6 +4397,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing.md,
   },
+  managementRowSelected: {
+    backgroundColor: '#FFF5F5',
+    borderRadius: radius.sm,
+    marginHorizontal: -spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
   managementInfo: {
     alignItems: 'center',
     flex: 1,
@@ -3703,6 +4414,51 @@ const styles = StyleSheet.create({
   managementText: {
     flex: 1,
     minWidth: 0,
+  },
+  managementActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  managementSelectArea: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 44,
+    minWidth: 0,
+  },
+  paymentMethodGroup: {
+    gap: spacing.sm,
+  },
+  managementEditGroup: {
+    gap: spacing.sm,
+  },
+  inlineEditPanel: {
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.sm,
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  inlineEditActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'flex-end',
+  },
+  paymentSubmethodList: {
+    gap: spacing.sm,
+    paddingLeft: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+  paymentSubmethodItem: {
+    gap: spacing.sm,
+  },
+  paymentSubmethodRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 38,
   },
   lockSettingRow: {
     alignItems: 'center',
