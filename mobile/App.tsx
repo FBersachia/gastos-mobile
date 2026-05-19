@@ -1751,6 +1751,13 @@ function TransactionRow({
 
 type ReportSection = 'menu' | 'subpaymethod' | 'category' | 'subcategory' | 'installments';
 
+type SelectedReportItem = {
+  label: string;
+  type: ReportSection;
+  id: string;
+  currency?: string;
+} | null;
+
 function ReportsScreen({
   data,
   selectedMonth,
@@ -1761,6 +1768,7 @@ function ReportsScreen({
   onMonthChange: (month: string) => void;
 }) {
   const [activeReport, setActiveReport] = useState<ReportSection>('menu');
+  const [selectedItem, setSelectedItem] = useState<SelectedReportItem>(null);
 
   const transactions = useMemo(() => monthlyTransactions(data, selectedMonth), [data, selectedMonth]);
 
@@ -1836,8 +1844,7 @@ function ReportsScreen({
           const d = new Date(t.date);
           return d.getFullYear() * 12 + d.getMonth() < year * 12 + (month - 1);
         }).length;
-        const remaining = g.total - paid;
-        return remaining > 0;
+        return g.total - paid > 0;
       })
       .map((g) => {
         const paid = g.transactions.filter((t) => {
@@ -1849,7 +1856,21 @@ function ReportsScreen({
       .sort((a, b) => a.current - b.current);
   }, [data.transactions, selectedMonth]);
 
-  const monthLabel = (month: string) => {
+  const drillTransactions = useMemo(() => {
+    if (!selectedItem) return [];
+    const base = selectedItem.type === 'installments' ? data.transactions : transactions;
+    return base.filter((t) => {
+      if (selectedItem.type === 'category') return t.categoryId === selectedItem.id && t.currency === selectedItem.currency;
+      if (selectedItem.type === 'subcategory') return t.subcategoryId === selectedItem.id && t.currency === selectedItem.currency;
+      if (selectedItem.type === 'subpaymethod') return t.paymentSubmethodId === selectedItem.id && t.currency === selectedItem.currency;
+      if (selectedItem.type === 'installments') return t.installmentGroupId === selectedItem.id;
+      return false;
+    });
+  }, [selectedItem, transactions, data.transactions]);
+
+  const drillGroups = useMemo(() => groupExpensesByDate(drillTransactions), [drillTransactions]);
+
+  const toMonth = (month: string) => {
     const [y, m] = month.split('-');
     return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
   };
@@ -1866,11 +1887,24 @@ function ReportsScreen({
     onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   };
 
-  const ReportDetailHeader = ({ title }: { title: string }) => (
+  const goBack = () => {
+    if (selectedItem) { setSelectedItem(null); return; }
+    setActiveReport('menu');
+  };
+
+  const reportTitle: Record<ReportSection, string> = {
+    menu: '',
+    subpaymethod: 'By payment submethod',
+    category: 'By category',
+    subcategory: 'By subcategory',
+    installments: 'Installments',
+  };
+
+  const DetailHeader = ({ title }: { title: string }) => (
     <View style={styles.settingsDetailHeader}>
-      <IconButton Icon={ChevronLeft} onPress={() => setActiveReport('menu')} />
+      <IconButton Icon={ChevronLeft} onPress={goBack} />
       <View style={styles.reportDetailTitle}>
-        <Text style={styles.sectionTitle}>{title}</Text>
+        <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
       </View>
       <View style={styles.monthControls}>
         <IconButton Icon={ChevronLeft} onPress={prevMonth} />
@@ -1878,6 +1912,24 @@ function ReportsScreen({
       </View>
     </View>
   );
+
+  if (selectedItem) {
+    return (
+      <ScreenScroll>
+        <DetailHeader title={selectedItem.label} />
+        <Text style={styles.reportMonthLabel}>
+          {selectedItem.type === 'installments' ? 'All installments' : toMonth(selectedMonth)}
+        </Text>
+        {drillGroups.length ? (
+          drillGroups.map((group) => (
+            <ExpenseDayCard key={group.date} data={data} group={group} />
+          ))
+        ) : (
+          <EmptyState title="No expenses found" />
+        )}
+      </ScreenScroll>
+    );
+  }
 
   if (activeReport === 'menu') {
     return (
@@ -1916,17 +1968,22 @@ function ReportsScreen({
   if (activeReport === 'subpaymethod') {
     return (
       <ScreenScroll>
-        <ReportDetailHeader title="By payment submethod" />
-        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        <DetailHeader title={reportTitle.subpaymethod} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
         {submethodSummaries.length ? (
           submethodSummaries.map((s) => (
-            <View key={`${s.submethodId}-${s.currency}`} style={styles.listRow}>
+            <Pressable
+              key={`${s.submethodId}-${s.currency}`}
+              accessibilityRole="button"
+              onPress={() => setSelectedItem({ type: 'subpaymethod', id: s.submethodId, currency: s.currency, label: s.name })}
+              style={styles.listRow}
+            >
               <View style={styles.managementIconBadge}>
                 <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
               </View>
               <Text style={[styles.rowTitle, styles.reportRowName]}>{s.name}</Text>
               <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
-            </View>
+            </Pressable>
           ))
         ) : (
           <EmptyState title="No submethod expenses this month" />
@@ -1938,11 +1995,17 @@ function ReportsScreen({
   if (activeReport === 'category') {
     return (
       <ScreenScroll>
-        <ReportDetailHeader title="By category" />
-        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        <DetailHeader title={reportTitle.category} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
         {categorySummaries.length ? (
           categorySummaries.map((summary) => (
-            <CategorySummaryRow key={`${summary.categoryId}-${summary.currency}`} data={data} summary={summary} />
+            <Pressable
+              key={`${summary.categoryId}-${summary.currency}`}
+              accessibilityRole="button"
+              onPress={() => setSelectedItem({ type: 'category', id: summary.categoryId, currency: summary.currency, label: summary.categoryName })}
+            >
+              <CategorySummaryRow data={data} summary={summary} />
+            </Pressable>
           ))
         ) : (
           <EmptyState title="No category expenses this month" />
@@ -1954,15 +2017,20 @@ function ReportsScreen({
   if (activeReport === 'subcategory') {
     return (
       <ScreenScroll>
-        <ReportDetailHeader title="By subcategory" />
-        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        <DetailHeader title={reportTitle.subcategory} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
         {subcategorySummaries.length ? (
           subcategorySummaries.map((s) => {
             const parentCategory = data.categories.find((c) => c.id === s.categoryId);
             const subcategory = data.subcategories.find((sub) => sub.id === s.subcategoryId);
             const SubIcon = getSubcategoryIcon(subcategory, parentCategory);
             return (
-              <View key={`${s.subcategoryId}-${s.currency}`} style={styles.listRow}>
+              <Pressable
+                key={`${s.subcategoryId}-${s.currency}`}
+                accessibilityRole="button"
+                onPress={() => setSelectedItem({ type: 'subcategory', id: s.subcategoryId, currency: s.currency, label: s.name })}
+                style={styles.listRow}
+              >
                 <View style={styles.managementIconBadge}>
                   <SubIcon color={colors.primary} size={18} strokeWidth={2.2} />
                 </View>
@@ -1971,7 +2039,7 @@ function ReportsScreen({
                   <Text style={styles.rowMeta}>{parentCategory?.name ?? ''}</Text>
                 </View>
                 <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
-              </View>
+              </Pressable>
             );
           })
         ) : (
@@ -1984,11 +2052,16 @@ function ReportsScreen({
   if (activeReport === 'installments') {
     return (
       <ScreenScroll>
-        <ReportDetailHeader title="Installments" />
-        <Text style={styles.reportMonthLabel}>{monthLabel(selectedMonth)}</Text>
+        <DetailHeader title={reportTitle.installments} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
         {installmentGroups.length ? (
           installmentGroups.map((g) => (
-            <View key={g.groupId} style={styles.installmentRow}>
+            <Pressable
+              key={g.groupId}
+              accessibilityRole="button"
+              onPress={() => setSelectedItem({ type: 'installments', id: g.groupId, label: g.description })}
+              style={styles.installmentRow}
+            >
               <View style={styles.installmentRowTop}>
                 <Text style={styles.rowTitle} numberOfLines={1}>{g.description}</Text>
                 <Text style={styles.rowAmount}>{formatMoney(g.installmentAmount, g.currency)}</Text>
@@ -1999,7 +2072,7 @@ function ReportsScreen({
               <Text style={styles.rowMeta}>
                 Installment {g.current} of {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} total
               </Text>
-            </View>
+            </Pressable>
           ))
         ) : (
           <EmptyState title="No active installments this month" />
