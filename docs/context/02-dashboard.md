@@ -2,7 +2,7 @@
 
 ## Requirement
 
-The dashboard must show the selected month's financial status, defaulting to the current month. It must include income, expenses, balance, expenses by category, budget status, month selection, and a quick action to add a transaction.
+The dashboard must show the selected month's financial status, defaulting to the current month. It must include income, expenses, balance, month selection, a quick action to add a transaction, and a main list containing only the selected month's expenses.
 
 ## Current behavior
 
@@ -11,9 +11,9 @@ Implemented in `DashboardScreen` in `mobile/App.tsx`.
 - Reads `selectedMonth` from app state.
 - Uses `monthlyTransactions(data, selectedMonth)` from `mobile/src/utils.ts`.
 - Uses `summarizeByCurrency` to produce income, expenses, and balance grouped by currency.
-- Uses `summarizeExpensesByCategory` for category totals.
-- Uses `summarizeBudgets` for visual budget status.
-- Includes an Add action that switches to the Transactions tab.
+- Groups selected-month expenses by transaction date.
+- Each date group shows a daily expense total and expense rows with category icon, title, and amount.
+- Includes a floating Add action that switches to the Transactions tab.
 
 ## Month selection
 
@@ -30,6 +30,5 @@ Dashboard totals are not mixed across currencies. Each currency gets its own sum
 ## Known gaps
 
 - No charts yet.
-- Category summary is limited to a simple sorted list.
 - No empty-state illustration or richer guidance.
 - The dashboard does not currently support custom date ranges.

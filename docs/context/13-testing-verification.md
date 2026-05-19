@@ -7,6 +7,7 @@ The current implementation has been verified with:
 - `npx tsc --noEmit`
 - `npx expo-doctor`
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
+- May 2026 sample data validation: 72 CSV rows produce 77 transactions, including six generated installments and no missing category/payment references.
 
 At the time of initial implementation, the Android bundle request returned HTTP 200.
 
@@ -33,6 +34,7 @@ Transactions:
 - Delete a transaction after confirmation.
 - Create an installment expense and confirm one transaction per month.
 - Delete an installment and confirm the full group is removed.
+- Confirm the May 2026 default seed shows the salary income, imported expenses, Visa/Amex/Transfer/Cash methods, and generated future installments.
 
 Categories and payment methods:
 

@@ -9,11 +9,16 @@ All data must be stored locally on the device. There is no cloud sync, multi-use
 Implemented in `mobile/src/storage.ts`.
 
 - Storage provider: AsyncStorage.
-- Storage key: `expense-control-app-data-v1`.
+- Storage key: `expense-control-app-data-v2-may-2026-seed`.
 - Persisted shape: one `AppData` JSON object.
 - `loadAppData` returns defaults when no data exists.
 - `withDefaults` merges missing stored sections with default data.
 - `saveAppData` writes the full app data object after mutations.
+
+Current seed note:
+
+- Defaults are loaded from the May 2026 sample dataset in `mobile/src/sampleData.ts`.
+- The seed expands the CSV row marked `6cuotas` into six monthly installment transactions.
 
 ## Current entities
 

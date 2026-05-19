@@ -10,16 +10,15 @@ Implemented in `TransactionsScreen`, `TransactionForm`, and `TransactionRow` in 
 
 Supported fields:
 
-- Type: expense or income.
 - Amount.
-- Currency.
+- Currency selector in the new expense screen and currency input in the fallback form.
 - Date.
-- Category.
-- Subcategory.
-- Payment method.
-- Payment submethod.
+- New expense subcategory grid with icons. The entry controls stay hidden until a subcategory is selected.
+- Payment submethod selector in the new expense screen.
 - Description.
-- Installment count and first installment date for new expenses.
+- Installment selector in the new expense screen, including suggested values and a custom numeric input.
+
+The default Transactions tab surface is optimized for adding a new expense: header, scrollable subcategory grid, currency, payment and installment controls after subcategory selection, memo row, amount preview, fixed numeric keypad, and an in-app calendar selector opened from the date key.
 
 ## Validation
 
@@ -27,8 +26,8 @@ The form validates:
 
 - Amount must be numeric and greater than zero.
 - Date must match `YYYY-MM-DD`.
-- Category is required.
-- Payment method is required.
+- Subcategory is required.
+- Payment submethod is required.
 - Installment count must be at least 2 when enabled.
 
 ## Creation
@@ -63,6 +62,6 @@ Transactions are filtered by selected month and sorted newest to oldest through 
 
 - There is no separate transaction detail screen yet.
 - There is no search or filter UI inside the transaction list.
-- Date input is plain text, not a date picker.
+- Date input is still plain text in the fallback edit form; the new expense screen has a calendar selector.
 - Amount input is plain text, not a masked money field.
 - Editing an installment parent purchase and regenerating future installments is not implemented.

@@ -10,15 +10,12 @@ Implemented in `SettingsScreen`.
 
 Settings currently includes:
 
-- Default currency update.
-- Biometric lock status message.
-- Monthly budget creation and update.
-- Category creation.
-- Subcategory creation.
-- Category disable.
-- Payment method creation.
-- Payment submethod creation.
-- Payment method disable.
+- A settings menu with individual buttons for each management area.
+- Core settings screen: default currency update and biometric lock status message.
+- Monthly budgets screen: monthly budget creation and update.
+- Categories screen: category creation and category disable.
+- Subcategories screen: subcategory creation and active subcategory listing.
+- Payment methods screen: payment method creation, payment submethod creation, and payment method disable.
 
 CSV export is currently located in Reports, not Settings.
 

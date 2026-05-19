@@ -17,6 +17,7 @@ export interface Subcategory {
   id: string;
   categoryId: string;
   name: string;
+  icon?: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;

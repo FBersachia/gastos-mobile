@@ -46,6 +46,8 @@ Implemented in `SettingsScreen`:
 - Add subcategory.
 - Disable category.
 - Active categories are shown in forms and settings.
+- Category UI uses lucide icons for default and keyword-matched categories. Category names are displayed smaller than the icon.
+- Subcategory UI has its own icon map and keyword fallback, so expense entry and dashboard rows can show more specific icons such as groceries, delivery, breakfast, rides, public transit, laundry, music, soccer, bike insurance, pet food, and payroll.
 
 ## Current deletion policy
 
