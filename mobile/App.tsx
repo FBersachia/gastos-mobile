@@ -33,11 +33,13 @@ import {
   Film,
   Gamepad2,
   GraduationCap,
+  Globe2,
   Hamburger,
   HandCoins,
   HeartPulse,
   Home,
   HousePlug,
+  Info,
   LampDesk,
   List,
   Lock,
@@ -75,6 +77,7 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -84,6 +87,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { loadAppData, saveAppData } from './src/storage';
@@ -140,6 +144,11 @@ const translations = {
     addTransaction: 'Add transaction',
     allInstallments: 'All installments',
     amount: 'Amount',
+    about: 'About',
+    aboutAppByInflatrack: 'An Inflatrack app.',
+    aboutIntro:
+      'Expense Control is developed by Inflatrack to help track personal expenses, income, budgets and payment methods on this device.',
+    aboutSubtitle: 'Inflatrack, legal and version',
     activeCategories: 'active categories',
     activeInstallmentPlans: 'active installment plans',
     activeMethods: 'active methods',
@@ -236,6 +245,9 @@ const translations = {
     subcategoriesWithExpenses: 'subcategories with expenses',
     subcategoryName: 'Subcategory name',
     today: 'Today',
+    termsBody:
+      'By using this app you agree to use it responsibly and to verify the information you enter. The app is provided as a financial organization tool and does not replace accounting, tax or legal advice. Inflatrack may update functionality, correct errors or change availability in future versions.',
+    termsTitle: 'Terms and conditions',
     transactions: 'Transactions',
     type: 'Type',
     uncategorized: 'Uncategorized',
@@ -244,6 +256,11 @@ const translations = {
     none: 'None',
     installment: 'Installment',
     total: 'total',
+    version: 'Version',
+    website: 'Website',
+    privacyBody:
+      'This version stores your financial data locally on your device. Inflatrack does not sell your information and does not access your local records unless you explicitly share exported files or diagnostic information outside the app.',
+    privacyTitle: 'Privacy policy',
   },
   'es-AR': {
     addCategory: 'Agregar categoría',
@@ -253,6 +270,11 @@ const translations = {
     addTransaction: 'Agregar movimiento',
     allInstallments: 'Todas las cuotas',
     amount: 'Importe',
+    about: 'Acerca de',
+    aboutAppByInflatrack: 'Una app de Inflatrack.',
+    aboutIntro:
+      'Expense Control es desarrollada por Inflatrack para ayudar a registrar gastos, ingresos, presupuestos y medios de pago en este dispositivo.',
+    aboutSubtitle: 'Inflatrack, legales y versión',
     activeCategories: 'categorías activas',
     activeInstallmentPlans: 'planes de cuotas activos',
     activeMethods: 'métodos activos',
@@ -349,6 +371,9 @@ const translations = {
     subcategoriesWithExpenses: 'subcategorías con gastos',
     subcategoryName: 'Nombre de subcategoría',
     today: 'Hoy',
+    termsBody:
+      'Al usar esta app aceptás utilizarla de forma responsable y verificar la información que cargás. La app se entrega como una herramienta de organización financiera y no reemplaza asesoramiento contable, impositivo ni legal. Inflatrack puede actualizar funcionalidades, corregir errores o cambiar disponibilidad en versiones futuras.',
+    termsTitle: 'Términos y condiciones',
     transactions: 'Movimientos',
     type: 'Tipo',
     uncategorized: 'Sin categoría',
@@ -357,6 +382,11 @@ const translations = {
     none: 'Ninguno',
     installment: 'Cuota',
     total: 'total',
+    version: 'Versión',
+    website: 'Sitio web',
+    privacyBody:
+      'Esta versión guarda tus datos financieros localmente en tu dispositivo. Inflatrack no vende tu información y no accede a tus registros locales salvo que compartas explícitamente archivos exportados o información de diagnóstico fuera de la app.',
+    privacyTitle: 'Política de privacidad',
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
 
@@ -364,6 +394,9 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
+const APP_VERSION = '1.0.1';
+const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
+const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
 const appLogo = require('./assets/icon.png');
 
@@ -632,7 +665,7 @@ type ExpenseDayGroup = {
   totalsByCurrency: Array<{ currency: string; amount: number }>;
 };
 
-type SettingsSection = 'menu' | 'core' | 'budgets' | 'categories' | 'subcategories' | 'payments';
+type SettingsSection = 'menu' | 'core' | 'budgets' | 'categories' | 'subcategories' | 'payments' | 'about';
 
 const formatDashboardDate = (dateInput: string): string => {
   const [year, month, day] = dateInput.split('-').map(Number);
@@ -2721,6 +2754,7 @@ function SettingsScreen({
     categories: t('categories'),
     subcategories: t('subcategories'),
     payments: t('paymentMethods'),
+    about: t('about'),
   };
 
   const saveBudget = () => {
@@ -2840,6 +2874,12 @@ function SettingsScreen({
             onPress={() => setActiveSettingsSection('core')}
           />
           <SettingsMenuButton
+            title={t('language')}
+            subtitle={t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')}
+            Icon={Globe2}
+            onPress={() => setActiveSettingsSection('core')}
+          />
+          <SettingsMenuButton
             title={t('budgets')}
             subtitle={monthLabel(selectedMonth)}
             Icon={BarChart3}
@@ -2863,6 +2903,12 @@ function SettingsScreen({
             Icon={WalletCards}
             onPress={() => setActiveSettingsSection('payments')}
           />
+          <SettingsMenuButton
+            title={t('about')}
+            subtitle={t('aboutSubtitle')}
+            Icon={Info}
+            onPress={() => setActiveSettingsSection('about')}
+          />
         </View>
       </ScreenScroll>
     );
@@ -2881,16 +2927,6 @@ function SettingsScreen({
 
       {activeSettingsSection === 'core' ? (
         <View style={styles.formPanel}>
-        <Field label={t('defaultCurrency')}>
-          <TextInput
-            autoCapitalize="characters"
-            maxLength={3}
-            value={defaultCurrency}
-            onChangeText={setDefaultCurrency}
-            style={styles.input}
-          />
-        </Field>
-        <AppButton label={t('saveCurrency')} Icon={Save} onPress={() => onSetDefaultCurrency(defaultCurrency)} />
         <Field label={t('language')}>
           <View style={styles.chipRow}>
             <Chip
@@ -2905,12 +2941,24 @@ function SettingsScreen({
             />
           </View>
         </Field>
+        <Field label={t('defaultCurrency')}>
+          <TextInput
+            autoCapitalize="characters"
+            maxLength={3}
+            value={defaultCurrency}
+            onChangeText={setDefaultCurrency}
+            style={styles.input}
+          />
+        </Field>
+        <AppButton label={t('saveCurrency')} Icon={Save} onPress={() => onSetDefaultCurrency(defaultCurrency)} />
         <View style={styles.lockSettingRow}>
           <Lock color={colors.primary} size={20} />
           <Text style={styles.rowMeta}>{t('biometricMandatory')}</Text>
         </View>
         </View>
       ) : null}
+
+      {activeSettingsSection === 'about' ? <AboutPanel t={t} /> : null}
 
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
@@ -3287,6 +3335,89 @@ function SettingsScreen({
         </View>
       ) : null}
     </ScreenScroll>
+  );
+}
+
+function AboutPanel({ t }: { t: Translator }) {
+  return (
+    <View style={styles.aboutPanel}>
+      <View style={styles.aboutHero}>
+        <InflatrackLogoMark size={88} />
+        <View style={styles.aboutHeroText}>
+          <Text style={styles.aboutBrand}>Inflatrack</Text>
+          <Text style={styles.rowMeta}>{t('aboutAppByInflatrack')}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.aboutBody}>{t('aboutIntro')}</Text>
+
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => Linking.openURL(INFLATRACK_URL)}
+        style={styles.aboutLinkRow}
+      >
+        <Globe2 color={colors.primary} size={18} strokeWidth={2.2} />
+        <View style={styles.aboutLinkTextGroup}>
+          <Text style={styles.aboutLabel}>{t('website')}</Text>
+          <Text style={styles.aboutLink}>{INFLATRACK_DISPLAY_URL}</Text>
+        </View>
+        <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
+      </Pressable>
+
+      <View style={styles.aboutInfoRow}>
+        <Text style={styles.aboutLabel}>{t('version')}</Text>
+        <Text style={styles.aboutValue}>{APP_VERSION}</Text>
+      </View>
+
+      <AboutLegalSection title={t('termsTitle')} body={t('termsBody')} />
+      <AboutLegalSection title={t('privacyTitle')} body={t('privacyBody')} />
+    </View>
+  );
+}
+
+function AboutLegalSection({ title, body }: { title: string; body: string }) {
+  return (
+    <View style={styles.aboutLegalSection}>
+      <Text style={styles.aboutLegalTitle}>{title}</Text>
+      <Text style={styles.aboutBody}>{body}</Text>
+    </View>
+  );
+}
+
+function InflatrackLogoMark({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 1024 1024">
+      <Rect x={28} y={28} width={968} height={968} rx={150} fill="#C90027" />
+      <Path
+        d="M28 255C84 105 220 28 390 28H996V115H390C260 115 158 176 105 290L28 255Z"
+        fill="#FFFFFF"
+      />
+      <Path
+        d="M182 520V320C182 218 265 135 367 135H705"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeLinecap="round"
+        strokeWidth={118}
+      />
+      <Path
+        d="M367 135C268 135 182 221 182 320H367V135Z"
+        fill="#D6D6D6"
+      />
+      <Path
+        d="M632 410V760"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeLinecap="round"
+        strokeWidth={118}
+      />
+      <Path
+        d="M632 410H820"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeLinecap="round"
+        strokeWidth={118}
+      />
+    </Svg>
   );
 }
 
@@ -4482,6 +4613,84 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg,
+  },
+  aboutPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.lg,
+    padding: spacing.lg,
+  },
+  aboutHero: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  aboutHeroText: {
+    flex: 1,
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  aboutBrand: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 22,
+  },
+  aboutBody: {
+    color: colors.textMuted,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  aboutLinkRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.md,
+    minHeight: 64,
+    padding: spacing.md,
+  },
+  aboutLinkTextGroup: {
+    flex: 1,
+    gap: spacing.xs,
+    minWidth: 0,
+  },
+  aboutLabel: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  aboutLink: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  aboutInfoRow: {
+    alignItems: 'center',
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+  },
+  aboutValue: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  aboutLegalSection: {
+    gap: spacing.sm,
+  },
+  aboutLegalTitle: {
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 15,
   },
   filterPanel: {
     backgroundColor: colors.surface,
