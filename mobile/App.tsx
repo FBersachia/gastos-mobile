@@ -90,6 +90,7 @@ import { loadAppData, saveAppData } from './src/storage';
 import { colors, fonts, radius, spacing } from './src/theme';
 import {
   AppData,
+  AppLanguage,
   BudgetSummary,
   Category,
   CategorySummary,
@@ -130,7 +131,241 @@ type IconComponent = React.ComponentType<{
   strokeWidth?: number;
 }>;
 
-const appLogo = require('./assets/logo.png');
+const translations = {
+  en: {
+    addCategory: 'Add category',
+    addMethod: 'Add method',
+    addSubcategory: 'Add subcategory',
+    addSubmethod: 'Add submethod',
+    addTransaction: 'Add transaction',
+    allInstallments: 'All installments',
+    amount: 'Amount',
+    activeCategories: 'active categories',
+    activeInstallmentPlans: 'active installment plans',
+    activeMethods: 'active methods',
+    activeSubcategories: 'active subcategories',
+    actionCannotBeUndone: 'This action cannot be undone.',
+    balance: 'Balance',
+    backToDashboard: 'Back to dashboard',
+    backToReports: 'Back to reports',
+    backToSettings: 'Back to settings',
+    biometricMandatory: 'Biometric lock is mandatory for the MVP.',
+    budgetInvalidMessage: 'Select a category and enter an amount greater than zero.',
+    budgetInvalidTitle: 'Invalid budget',
+    budgets: 'Monthly budgets',
+    byCategory: 'By category',
+    byPaymentSubmethod: 'By payment submethod',
+    bySubcategory: 'By subcategory',
+    cancel: 'Cancel',
+    cancelEdit: 'Cancel edit',
+    categories: 'Categories',
+    categoryName: 'Category name',
+    closeTransactionDetail: 'Close transaction detail',
+    closeTransactionForm: 'Close transaction form',
+    coreSettings: 'Core settings',
+    currency: 'Currency',
+    custom: 'Custom',
+    date: 'Date',
+    defaultCurrency: 'Default currency',
+    delete: 'Delete',
+    deleteInstallmentGroup: 'Delete installment group',
+    deleteLastDigit: 'Delete last digit',
+    deleteTransaction: 'Delete transaction',
+    description: 'Description',
+    disable: 'Disable',
+    edit: 'Edit',
+    editTransaction: 'Edit transaction',
+    expense: 'Expense',
+    expenseCategory: 'Expense category',
+    expenses: 'Expenses',
+    icon: 'Icon',
+    income: 'Income',
+    installments: 'Installments',
+    invalidAmountMessage: 'Enter an amount greater than zero.',
+    invalidAmountTitle: 'Invalid amount',
+    invalidDateMessage: 'Use YYYY-MM-DD format.',
+    invalidDateTitle: 'Invalid date',
+    invalidInstallmentsMessage: 'Use two or more installments.',
+    invalidInstallmentsTitle: 'Invalid installments',
+    language: 'Language',
+    languageEnglish: 'English',
+    languageSpanishArgentina: 'Español (Argentina)',
+    memo: 'Memo',
+    missingFieldsMessage: 'Subcategory and payment submethod are required.',
+    missingFieldsTitle: 'Missing fields',
+    newCategory: 'New category',
+    newMethod: 'New method',
+    newSubcategory: 'New subcategory',
+    newSubmethod: 'New submethod',
+    newTransaction: 'New transaction',
+    nextMonth: 'Next month',
+    noActivePaymentSubmethods: 'No active payment submethods available.',
+    noActiveSubcategories: 'No active subcategories available',
+    noActiveSubmethods: 'No active submethods.',
+    noCategoryExpenses: 'No category expenses this month',
+    noExpenses: 'No expenses this month',
+    noExpensesFound: 'No expenses found',
+    noInstallments: 'No active installments this month',
+    noMovements: 'No movements this month',
+    noParentCategory: 'No parent category',
+    noPaymentOptions: 'No payment options',
+    noSubcategoryExpenses: 'No subcategory expenses this month',
+    noSubmethodExpenses: 'No submethod expenses this month',
+    noTransactions: 'No transactions in the selected month',
+    optional: 'Optional',
+    parentCategory: 'Parent category',
+    parentPaymentMethod: 'Parent payment method',
+    payment: 'Payment',
+    paymentMethodName: 'Payment method name',
+    paymentMethods: 'Payment methods',
+    paymentSubmethod: 'Payment submethod',
+    previousMonth: 'Previous month',
+    reports: 'Reports',
+    save: 'Save',
+    saveBudget: 'Save budget',
+    saveCurrency: 'Save currency',
+    saveExpense: 'Save expense',
+    settings: 'Settings',
+    single: 'Single',
+    storageErrorMessage: 'The local data store could not be loaded.',
+    storageErrorSaveMessage: 'The last change could not be saved locally.',
+    storageErrorTitle: 'Storage error',
+    subcategories: 'Subcategories',
+    submethodsWithExpenses: 'submethods with expenses',
+    categoriesWithExpenses: 'categories with expenses',
+    subcategoriesWithExpenses: 'subcategories with expenses',
+    subcategoryName: 'Subcategory name',
+    today: 'Today',
+    transactions: 'Transactions',
+    type: 'Type',
+    uncategorized: 'Uncategorized',
+    updated: 'Updated',
+    created: 'Created',
+    none: 'None',
+    installment: 'Installment',
+    total: 'total',
+  },
+  'es-AR': {
+    addCategory: 'Agregar categoría',
+    addMethod: 'Agregar método',
+    addSubcategory: 'Agregar subcategoría',
+    addSubmethod: 'Agregar submétodo',
+    addTransaction: 'Agregar movimiento',
+    allInstallments: 'Todas las cuotas',
+    amount: 'Importe',
+    activeCategories: 'categorías activas',
+    activeInstallmentPlans: 'planes de cuotas activos',
+    activeMethods: 'métodos activos',
+    activeSubcategories: 'subcategorías activas',
+    actionCannotBeUndone: 'Esta acción no se puede deshacer.',
+    balance: 'Saldo',
+    backToDashboard: 'Volver al tablero',
+    backToReports: 'Volver a reportes',
+    backToSettings: 'Volver a ajustes',
+    biometricMandatory: 'El bloqueo biométrico es obligatorio para el MVP.',
+    budgetInvalidMessage: 'Seleccioná una categoría e ingresá un importe mayor que cero.',
+    budgetInvalidTitle: 'Presupuesto inválido',
+    budgets: 'Presupuestos mensuales',
+    byCategory: 'Por categoría',
+    byPaymentSubmethod: 'Por submétodo de pago',
+    bySubcategory: 'Por subcategoría',
+    cancel: 'Cancelar',
+    cancelEdit: 'Cancelar edición',
+    categories: 'Categorías',
+    categoryName: 'Nombre de categoría',
+    closeTransactionDetail: 'Cerrar detalle del movimiento',
+    closeTransactionForm: 'Cerrar formulario de movimiento',
+    coreSettings: 'Ajustes principales',
+    currency: 'Moneda',
+    custom: 'Personalizado',
+    date: 'Fecha',
+    defaultCurrency: 'Moneda predeterminada',
+    delete: 'Eliminar',
+    deleteInstallmentGroup: 'Eliminar grupo de cuotas',
+    deleteLastDigit: 'Borrar último dígito',
+    deleteTransaction: 'Eliminar movimiento',
+    description: 'Descripción',
+    disable: 'Desactivar',
+    edit: 'Editar',
+    editTransaction: 'Editar movimiento',
+    expense: 'Gasto',
+    expenseCategory: 'Categoría de gasto',
+    expenses: 'Gastos',
+    icon: 'Ícono',
+    income: 'Ingreso',
+    installments: 'Cuotas',
+    invalidAmountMessage: 'Ingresá un importe mayor que cero.',
+    invalidAmountTitle: 'Importe inválido',
+    invalidDateMessage: 'Usá el formato YYYY-MM-DD.',
+    invalidDateTitle: 'Fecha inválida',
+    invalidInstallmentsMessage: 'Usá dos o más cuotas.',
+    invalidInstallmentsTitle: 'Cuotas inválidas',
+    language: 'Idioma',
+    languageEnglish: 'English',
+    languageSpanishArgentina: 'Español (Argentina)',
+    memo: 'Nota',
+    missingFieldsMessage: 'La subcategoría y el submétodo de pago son obligatorios.',
+    missingFieldsTitle: 'Faltan datos',
+    newCategory: 'Nueva categoría',
+    newMethod: 'Nuevo método',
+    newSubcategory: 'Nueva subcategoría',
+    newSubmethod: 'Nuevo submétodo',
+    newTransaction: 'Nuevo movimiento',
+    nextMonth: 'Mes siguiente',
+    noActivePaymentSubmethods: 'No hay submétodos de pago activos.',
+    noActiveSubcategories: 'No hay subcategorías activas disponibles',
+    noActiveSubmethods: 'No hay submétodos activos.',
+    noCategoryExpenses: 'No hay gastos por categoría este mes',
+    noExpenses: 'No hay gastos este mes',
+    noExpensesFound: 'No se encontraron gastos',
+    noInstallments: 'No hay cuotas activas este mes',
+    noMovements: 'No hay movimientos este mes',
+    noParentCategory: 'Sin categoría padre',
+    noPaymentOptions: 'No hay opciones de pago',
+    noSubcategoryExpenses: 'No hay gastos por subcategoría este mes',
+    noSubmethodExpenses: 'No hay gastos por submétodo este mes',
+    noTransactions: 'No hay movimientos en el mes seleccionado',
+    optional: 'Opcional',
+    parentCategory: 'Categoría padre',
+    parentPaymentMethod: 'Método de pago padre',
+    payment: 'Pago',
+    paymentMethodName: 'Nombre del método de pago',
+    paymentMethods: 'Métodos de pago',
+    paymentSubmethod: 'Submétodo de pago',
+    previousMonth: 'Mes anterior',
+    reports: 'Reportes',
+    save: 'Guardar',
+    saveBudget: 'Guardar presupuesto',
+    saveCurrency: 'Guardar moneda',
+    saveExpense: 'Guardar gasto',
+    settings: 'Ajustes',
+    single: 'Única',
+    storageErrorMessage: 'No se pudo cargar el almacenamiento local.',
+    storageErrorSaveMessage: 'No se pudo guardar el último cambio localmente.',
+    storageErrorTitle: 'Error de almacenamiento',
+    subcategories: 'Subcategorías',
+    submethodsWithExpenses: 'submétodos con gastos',
+    categoriesWithExpenses: 'categorías con gastos',
+    subcategoriesWithExpenses: 'subcategorías con gastos',
+    subcategoryName: 'Nombre de subcategoría',
+    today: 'Hoy',
+    transactions: 'Movimientos',
+    type: 'Tipo',
+    uncategorized: 'Sin categoría',
+    updated: 'Actualizado',
+    created: 'Creado',
+    none: 'Ninguno',
+    installment: 'Cuota',
+    total: 'total',
+  },
+} satisfies Record<AppLanguage, Record<string, string>>;
+
+type TranslationKey = keyof typeof translations.en;
+type Translator = (key: TranslationKey) => string;
+
+const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
+
+const appLogo = require('./assets/icon.png');
 
 const tabs: Array<{ key: TabKey; label: string; Icon: IconComponent }> = [
   { key: 'dashboard', label: 'Dashboard', Icon: Home },
@@ -509,7 +744,7 @@ function AppRoot() {
     void loadAppData()
       .then(setData)
       .catch(() => {
-        Alert.alert('Storage error', 'The local data store could not be loaded.');
+        Alert.alert(translations.en.storageErrorTitle, translations.en.storageErrorMessage);
       });
   }, []);
 
@@ -555,7 +790,8 @@ function AppRoot() {
 
       const next = updater(current);
       void saveAppData(next).catch(() => {
-        Alert.alert('Storage error', 'The last change could not be saved locally.');
+        const t = getTranslator(next.settings.language);
+        Alert.alert(t('storageErrorTitle'), t('storageErrorSaveMessage'));
       });
 
       return next;
@@ -616,12 +852,13 @@ function AppRoot() {
   };
 
   const handleDeleteTransaction = (transaction: Transaction) => {
-    const deleteLabel = transaction.installmentGroupId ? 'Delete installment group' : 'Delete transaction';
+    const t = getTranslator(data?.settings.language ?? 'en');
+    const deleteLabel = transaction.installmentGroupId ? t('deleteInstallmentGroup') : t('deleteTransaction');
 
-    Alert.alert(deleteLabel, 'This action cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(deleteLabel, t('actionCannotBeUndone'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: () =>
           persistData((current) => ({
@@ -690,6 +927,16 @@ function AppRoot() {
       settings: {
         ...current.settings,
         defaultCurrency: normalizeCurrency(currency),
+      },
+    }));
+  };
+
+  const handleSetLanguage = (language: AppLanguage) => {
+    persistData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        language,
       },
     }));
   };
@@ -914,6 +1161,7 @@ function AppRoot() {
 
   const selectedTransaction = data.transactions.find((transaction) => transaction.id === selectedTransactionId);
   const editingTransaction = data.transactions.find((transaction) => transaction.id === editingTransactionId);
+  const t = getTranslator(data.settings.language);
 
   return (
     <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
@@ -921,12 +1169,13 @@ function AppRoot() {
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.appShell}>
         {activeTab === 'transactions' ? null : (
-          <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+          <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} />
         )}
         <View style={styles.content}>
           {activeTab === 'dashboard' ? (
             <DashboardScreen
               data={data}
+              t={t}
               selectedMonth={selectedMonth}
               onAddTransaction={() => setActiveTab('transactions')}
               onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
@@ -935,6 +1184,7 @@ function AppRoot() {
           {activeTab === 'transactions' ? (
             <TransactionsScreen
               data={data}
+              t={t}
               selectedMonth={selectedMonth}
               onSaveTransaction={handleSaveTransaction}
               onDeleteTransaction={handleDeleteTransaction}
@@ -945,6 +1195,7 @@ function AppRoot() {
           {activeTab === 'reports' ? (
             <ReportsScreen
               data={data}
+              t={t}
               selectedMonth={selectedMonth}
               onMonthChange={setSelectedMonth}
               onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
@@ -953,9 +1204,11 @@ function AppRoot() {
           {activeTab === 'settings' ? (
             <SettingsScreen
               data={data}
+              t={t}
               selectedMonth={selectedMonth}
               onSaveBudget={handleSaveBudget}
               onSetDefaultCurrency={handleSetDefaultCurrency}
+              onSetLanguage={handleSetLanguage}
               onAddCategory={handleAddCategory}
               onUpdateCategory={handleUpdateCategory}
               onAddSubcategory={handleAddSubcategory}
@@ -969,11 +1222,12 @@ function AppRoot() {
             />
           ) : null}
         </View>
-        <BottomNavigation activeTab={activeTab} onChange={setActiveTab} />
+        <BottomNavigation activeTab={activeTab} onChange={setActiveTab} t={t} />
       </View>
       </KeyboardAvoidingView>
       <TransactionDetailModal
         data={data}
+        t={t}
         transaction={selectedTransaction}
         onClose={() => setSelectedTransactionId(undefined)}
         onEdit={(transaction) => setEditingTransactionId(transaction.id)}
@@ -984,6 +1238,7 @@ function AppRoot() {
       />
       <TransactionEditModal
         data={data}
+        t={t}
         transaction={editingTransaction}
         onClose={() => setEditingTransactionId(undefined)}
         onSave={(input, transaction) => {
@@ -1026,9 +1281,11 @@ function AuthScreen({ status, onRetry }: { status: AuthStatus; onRetry: () => vo
 function Header({
   selectedMonth,
   onMonthChange,
+  t,
 }: {
   selectedMonth: string;
   onMonthChange: (value: string) => void;
+  t: Translator;
 }) {
   return (
     <View style={styles.header}>
@@ -1041,12 +1298,12 @@ function Header({
       </View>
       <View style={styles.monthControls}>
         <IconButton
-          accessibilityLabel="Previous month"
+          accessibilityLabel={t('previousMonth')}
           Icon={ChevronLeft}
           onPress={() => onMonthChange(shiftMonth(selectedMonth, -1))}
         />
         <IconButton
-          accessibilityLabel="Next month"
+          accessibilityLabel={t('nextMonth')}
           Icon={ChevronRight}
           onPress={() => onMonthChange(shiftMonth(selectedMonth, 1))}
         />
@@ -1058,14 +1315,24 @@ function Header({
 function BottomNavigation({
   activeTab,
   onChange,
+  t,
 }: {
   activeTab: TabKey;
   onChange: (tab: TabKey) => void;
+  t: Translator;
 }) {
+  const tabLabels: Record<TabKey, string> = {
+    dashboard: 'Dashboard',
+    transactions: t('transactions'),
+    reports: t('reports'),
+    settings: t('settings'),
+  };
+
   return (
     <View style={styles.bottomNav}>
-      {tabs.map(({ key, label, Icon }) => {
+      {tabs.map(({ key, Icon }) => {
         const active = activeTab === key;
+        const label = tabLabels[key];
 
         return (
           <Pressable
@@ -1086,11 +1353,13 @@ function BottomNavigation({
 
 function DashboardScreen({
   data,
+  t,
   selectedMonth,
   onAddTransaction,
   onSelectTransaction,
 }: {
   data: AppData;
+  t: Translator;
   selectedMonth: string;
   onAddTransaction: () => void;
   onSelectTransaction: (transaction: Transaction) => void;
@@ -1104,10 +1373,10 @@ function DashboardScreen({
       <ScreenScroll>
         {currencySummaries.length ? (
           currencySummaries.map((summary) => (
-            <DashboardSummaryCard key={summary.currency} summary={summary} />
+            <DashboardSummaryCard key={summary.currency} summary={summary} t={t} />
           ))
         ) : (
-          <EmptyState title="No movements this month" />
+          <EmptyState title={t('noMovements')} />
         )}
 
         {expenseGroups.length ? (
@@ -1115,18 +1384,19 @@ function DashboardScreen({
             <ExpenseDayCard
               key={group.date}
               data={data}
+              t={t}
               group={group}
               onSelectTransaction={onSelectTransaction}
             />
           ))
         ) : (
-          <EmptyState title="No expenses this month" />
+          <EmptyState title={t('noExpenses')} />
         )}
         <View style={styles.dashboardFabSpacer} />
       </ScreenScroll>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Add transaction"
+        accessibilityLabel={t('addTransaction')}
         onPress={onAddTransaction}
         style={styles.dashboardFab}
       >
@@ -1138,6 +1408,7 @@ function DashboardScreen({
 
 function TransactionsScreen({
   data,
+  t,
   selectedMonth,
   onSaveTransaction,
   onDeleteTransaction,
@@ -1145,6 +1416,7 @@ function TransactionsScreen({
   onClose,
 }: {
   data: AppData;
+  t: Translator;
   selectedMonth: string;
   onSaveTransaction: (input: TransactionInput, editingTransaction?: Transaction) => void;
   onDeleteTransaction: (transaction: Transaction) => void;
@@ -1156,6 +1428,7 @@ function TransactionsScreen({
   const transactionForm = (
     <TransactionForm
       data={data}
+      t={t}
       editingTransaction={editingTransaction}
       onCancelEdit={() => setEditingTransaction(undefined)}
       onClose={onClose}
@@ -1175,12 +1448,13 @@ function TransactionsScreen({
     <ScreenScroll>
       {transactionForm}
 
-      <Text style={styles.sectionTitle}>Transactions</Text>
+      <Text style={styles.sectionTitle}>{t('transactions')}</Text>
       {transactions.length ? (
         transactions.map((transaction) => (
           <TransactionRow
             key={transaction.id}
             data={data}
+            t={t}
             transaction={transaction}
             onView={() => onSelectTransaction(transaction)}
             onEdit={() => setEditingTransaction(transaction)}
@@ -1188,7 +1462,7 @@ function TransactionsScreen({
           />
         ))
       ) : (
-        <EmptyState title="No transactions in the selected month" />
+        <EmptyState title={t('noTransactions')} />
       )}
     </ScreenScroll>
   );
@@ -1196,12 +1470,14 @@ function TransactionsScreen({
 
 function TransactionForm({
   data,
+  t,
   editingTransaction,
   onCancelEdit,
   onClose,
   onSave,
 }: {
   data: AppData;
+  t: Translator;
   editingTransaction?: Transaction;
   onCancelEdit: () => void;
   onClose: () => void;
@@ -1407,22 +1683,22 @@ function TransactionForm({
     const parsedInstallments = Number.parseInt(installmentCount, 10);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Invalid amount', 'Enter an amount greater than zero.');
+      Alert.alert(t('invalidAmountTitle'), t('invalidAmountMessage'));
       return;
     }
 
     if (!date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      Alert.alert('Invalid date', 'Use YYYY-MM-DD format.');
+      Alert.alert(t('invalidDateTitle'), t('invalidDateMessage'));
       return;
     }
 
     if (!categoryId || !subcategoryId || !paymentMethodId || !paymentSubmethodId) {
-      Alert.alert('Missing fields', 'Subcategory and payment submethod are required.');
+      Alert.alert(t('missingFieldsTitle'), t('missingFieldsMessage'));
       return;
     }
 
     if (installmentsEnabled && (!Number.isFinite(parsedInstallments) || parsedInstallments < 2)) {
-      Alert.alert('Invalid installments', 'Use two or more installments.');
+      Alert.alert(t('invalidInstallmentsTitle'), t('invalidInstallmentsMessage'));
       return;
     }
 
@@ -1457,20 +1733,20 @@ function TransactionForm({
       <View style={styles.expenseEntryPanel}>
         <View style={styles.expenseEntryHeader}>
           <IconButton
-            accessibilityLabel={editingTransaction ? 'Cancel edit' : 'Back to dashboard'}
+            accessibilityLabel={editingTransaction ? t('cancelEdit') : t('backToDashboard')}
             Icon={ChevronLeft}
             onPress={editingTransaction ? onCancelEdit : onClose}
           />
           {editingTransaction ? (
-            <Text style={styles.expenseEntryTitle}>Edit transaction</Text>
+            <Text style={styles.expenseEntryTitle}>{t('editTransaction')}</Text>
           ) : (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Toggle expense or income"
+              accessibilityLabel={`${t('expense')} / ${t('income')}`}
               onPress={() => switchType(type === 'expense' ? 'income' : 'expense')}
               style={styles.expenseEntryTitleGroup}
             >
-              <Text style={styles.expenseEntryTitle}>Expenses</Text>
+              <Text style={styles.expenseEntryTitle}>{t('expenses')}</Text>
               <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
             </Pressable>
           )}
@@ -1523,7 +1799,7 @@ function TransactionForm({
               );
             })
           ) : (
-            <EmptyState title="No active subcategories available" />
+            <EmptyState title={t('noActiveSubcategories')} />
           )}
         </ScrollView>
 
@@ -1532,10 +1808,10 @@ function TransactionForm({
             <View style={styles.expenseOptionsPanel}>
               <View style={styles.expenseOptionSection}>
                 <View style={styles.expenseOptionLabelRow}>
-                  <Text style={styles.expenseOptionLabel}>Currency</Text>
+                  <Text style={styles.expenseOptionLabel}>{t('currency')}</Text>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="Close transaction form"
+                    accessibilityLabel={t('closeTransactionForm')}
                     onPress={editingTransaction ? onCancelEdit : onClose}
                     style={styles.expenseCloseButton}
                   >
@@ -1574,7 +1850,7 @@ function TransactionForm({
               </View>
 
               <View style={styles.expenseOptionSection}>
-                <Text style={styles.expenseOptionLabel}>Payment</Text>
+                <Text style={styles.expenseOptionLabel}>{t('payment')}</Text>
                 <ScrollView
                   horizontal
                   contentContainerStyle={styles.expenseOptionChips}
@@ -1609,13 +1885,13 @@ function TransactionForm({
                       );
                     })
                   ) : (
-                    <Text style={styles.expenseOptionEmpty}>No payment options</Text>
+                    <Text style={styles.expenseOptionEmpty}>{t('noPaymentOptions')}</Text>
                   )}
                 </ScrollView>
               </View>
 
               {!editingTransaction && <View style={styles.expenseOptionSection}>
-                <Text style={styles.expenseOptionLabel}>Installments</Text>
+                <Text style={styles.expenseOptionLabel}>{t('installments')}</Text>
                 <ScrollView
                   horizontal
                   contentContainerStyle={styles.expenseOptionChips}
@@ -1639,7 +1915,7 @@ function TransactionForm({
                             selected ? styles.expenseOptionChipTextSelected : null,
                           ]}
                         >
-                          {count === 1 ? 'Single' : `${count}x`}
+                          {count === 1 ? t('single') : `${count}x`}
                         </Text>
                       </Pressable>
                     );
@@ -1649,7 +1925,7 @@ function TransactionForm({
                       keyboardType="number-pad"
                       value={installmentCount}
                       onChangeText={handleInstallmentInputChange}
-                      placeholder="Custom"
+                      placeholder={t('custom')}
                       placeholderTextColor={colors.gray}
                       style={styles.expenseInstallmentInput}
                     />
@@ -1666,7 +1942,7 @@ function TransactionForm({
                 <TextInput
                   value={description}
                   onChangeText={setDescription}
-                  placeholder="Memo"
+                  placeholder={t('memo')}
                   placeholderTextColor={colors.gray}
                   style={styles.expenseMemoInput}
                 />
@@ -1689,7 +1965,7 @@ function TransactionForm({
                   }}
                   style={styles.expenseKey}
                 >
-                  <Text style={styles.expenseKeyText}>Today</Text>
+                  <Text style={styles.expenseKeyText}>{t('today')}</Text>
                   <Text style={styles.expenseKeySubtext}>{formatShortInputDate(date)}</Text>
                 </Pressable>
               </View>
@@ -1710,7 +1986,7 @@ function TransactionForm({
                 <AmountKey label="0" onPress={() => handleAmountKeyPress('0')} />
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Delete last digit"
+                  accessibilityLabel={t('deleteLastDigit')}
                   onPress={() => handleAmountKeyPress('backspace')}
                   style={styles.expenseKey}
                 >
@@ -1718,7 +1994,7 @@ function TransactionForm({
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Save expense"
+                  accessibilityLabel={t('saveExpense')}
                   onPress={handleSubmit}
                   style={[styles.expenseKey, styles.expenseConfirmKey]}
                 >
@@ -1728,6 +2004,7 @@ function TransactionForm({
             </View>
             <CalendarModal
               visible={calendarVisible}
+              t={t}
               selectedDate={date}
               viewMonth={calendarMonth}
               onClose={() => setCalendarVisible(false)}
@@ -1743,17 +2020,17 @@ function TransactionForm({
   return (
     <View style={styles.formPanel}>
       <View style={styles.formHeader}>
-        <Text style={styles.sectionTitle}>{editingTransaction ? 'Edit transaction' : 'New transaction'}</Text>
-        {editingTransaction ? <IconButton accessibilityLabel="Cancel edit" Icon={X} onPress={onCancelEdit} /> : null}
+        <Text style={styles.sectionTitle}>{editingTransaction ? t('editTransaction') : t('newTransaction')}</Text>
+        {editingTransaction ? <IconButton accessibilityLabel={t('cancelEdit')} Icon={X} onPress={onCancelEdit} /> : null}
       </View>
 
       <View style={styles.chipRow}>
-        <Chip label="Expense" selected={false} onPress={() => switchType('expense')} />
-        <Chip label="Income" selected={true} onPress={() => {}} />
+        <Chip label={t('expense')} selected={false} onPress={() => switchType('expense')} />
+        <Chip label={t('income')} selected={true} onPress={() => {}} />
       </View>
 
       <View style={styles.formGrid}>
-        <Field label="Amount" grid>
+        <Field label={t('amount')} grid>
           <TextInput
             keyboardType="decimal-pad"
             value={amount}
@@ -1763,7 +2040,7 @@ function TransactionForm({
             style={styles.input}
           />
         </Field>
-        <Field label="Currency" grid>
+        <Field label={t('currency')} grid>
           <TextInput
             autoCapitalize="characters"
             value={currency}
@@ -1776,7 +2053,7 @@ function TransactionForm({
         </Field>
       </View>
 
-      <Field label="Subcategory">
+      <Field label={t('subcategories')}>
         {subcategories.length ? (
           <View style={styles.chipRow}>
             {subcategories.map((subcategory) => (
@@ -1792,11 +2069,11 @@ function TransactionForm({
             ))}
           </View>
         ) : (
-          <Text style={styles.rowMeta}>No active subcategories available.</Text>
+          <Text style={styles.rowMeta}>{t('noActiveSubcategories')}.</Text>
         )}
       </Field>
 
-      <Field label="Payment submethod">
+      <Field label={t('paymentSubmethod')}>
         {paymentSubmethods.length ? (
           <View style={styles.chipRow}>
             {paymentSubmethods.map((submethod) => (
@@ -1812,11 +2089,11 @@ function TransactionForm({
             ))}
           </View>
         ) : (
-          <Text style={styles.rowMeta}>No active payment submethods available.</Text>
+          <Text style={styles.rowMeta}>{t('noActivePaymentSubmethods')}</Text>
         )}
       </Field>
 
-      <Field label="Date">
+      <Field label={t('date')}>
         <TextInput
           value={date}
           onChangeText={setDate}
@@ -1826,11 +2103,11 @@ function TransactionForm({
         />
       </Field>
 
-      <Field label="Description">
+      <Field label={t('description')}>
         <TextInput
           value={description}
           onChangeText={setDescription}
-          placeholder="Optional"
+          placeholder={t('optional')}
           placeholderTextColor={colors.gray}
           style={[styles.input, styles.multilineInput]}
           multiline
@@ -1838,19 +2115,21 @@ function TransactionForm({
       </Field>
 
 
-      <AppButton label={editingTransaction ? 'Save' : 'Add transaction'} Icon={Save} onPress={handleSubmit} />
+      <AppButton label={editingTransaction ? t('save') : t('addTransaction')} Icon={Save} onPress={handleSubmit} />
     </View>
   );
 }
 
 function TransactionRow({
   data,
+  t,
   transaction,
   onView,
   onEdit,
   onDelete,
 }: {
   data: AppData;
+  t: Translator;
   transaction: Transaction;
   onView: () => void;
   onEdit: () => void;
@@ -1880,8 +2159,8 @@ function TransactionRow({
           {formatMoney(transaction.amount, transaction.currency)}
         </Text>
         <View style={styles.iconRow}>
-          <IconButton accessibilityLabel="Edit transaction" Icon={Pencil} onPress={onEdit} />
-          <IconButton accessibilityLabel="Delete transaction" Icon={Trash2} danger onPress={onDelete} />
+          <IconButton accessibilityLabel={t('editTransaction')} Icon={Pencil} onPress={onEdit} />
+          <IconButton accessibilityLabel={t('deleteTransaction')} Icon={Trash2} danger onPress={onDelete} />
         </View>
       </View>
     </Pressable>
@@ -1890,12 +2169,14 @@ function TransactionRow({
 
 function TransactionDetailModal({
   data,
+  t,
   transaction,
   onClose,
   onEdit,
   onDelete,
 }: {
   data: AppData;
+  t: Translator;
   transaction?: Transaction;
   onClose: () => void;
   onEdit: (transaction: Transaction) => void;
@@ -1927,7 +2208,7 @@ function TransactionDetailModal({
                 <Text style={styles.rowMeta}>{transaction.date}</Text>
               </View>
             </View>
-            <IconButton accessibilityLabel="Close transaction detail" Icon={X} onPress={onClose} />
+            <IconButton accessibilityLabel={t('closeTransactionDetail')} Icon={X} onPress={onClose} />
           </View>
 
           <Text
@@ -1941,24 +2222,24 @@ function TransactionDetailModal({
           </Text>
 
           <View style={styles.transactionDetailLines}>
-            <TransactionDetailLine label="Type" value={transaction.type} />
-            <TransactionDetailLine label="Category" value={category?.name || 'Uncategorized'} />
-            <TransactionDetailLine label="Subcategory" value={displayCategory || 'None'} />
-            <TransactionDetailLine label="Payment" value={displayPayment || 'None'} />
-            <TransactionDetailLine label="Currency" value={transaction.currency} />
-            <TransactionDetailLine label="Created" value={transaction.createdAt.slice(0, 10)} />
-            <TransactionDetailLine label="Updated" value={transaction.updatedAt.slice(0, 10)} />
+            <TransactionDetailLine label={t('type')} value={transaction.type} />
+            <TransactionDetailLine label={t('categories')} value={category?.name || t('uncategorized')} />
+            <TransactionDetailLine label={t('subcategories')} value={displayCategory || t('none')} />
+            <TransactionDetailLine label={t('payment')} value={displayPayment || t('none')} />
+            <TransactionDetailLine label={t('currency')} value={transaction.currency} />
+            <TransactionDetailLine label={t('created')} value={transaction.createdAt.slice(0, 10)} />
+            <TransactionDetailLine label={t('updated')} value={transaction.updatedAt.slice(0, 10)} />
             {transaction.installmentGroupId ? (
               <TransactionDetailLine
-                label="Installment"
+                label={t('installment')}
                 value={`${transaction.installmentNumber ?? '-'} of ${transaction.totalInstallments ?? '-'}`}
               />
             ) : null}
           </View>
 
           <View style={styles.transactionDetailActions}>
-            <AppButton label="Edit" Icon={Pencil} onPress={() => onEdit(transaction)} />
-            <AppButton label="Delete" Icon={Trash2} variant="secondary" onPress={() => onDelete(transaction)} />
+            <AppButton label={t('edit')} Icon={Pencil} onPress={() => onEdit(transaction)} />
+            <AppButton label={t('delete')} Icon={Trash2} variant="secondary" onPress={() => onDelete(transaction)} />
           </View>
         </Pressable>
       </Pressable>
@@ -1968,11 +2249,13 @@ function TransactionDetailModal({
 
 function TransactionEditModal({
   data,
+  t,
   transaction,
   onClose,
   onSave,
 }: {
   data: AppData;
+  t: Translator;
   transaction?: Transaction;
   onClose: () => void;
   onSave: (input: TransactionInput, transaction: Transaction) => void;
@@ -1988,6 +2271,7 @@ function TransactionEditModal({
           <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             <TransactionForm
               data={data}
+              t={t}
               editingTransaction={transaction}
               onCancelEdit={onClose}
               onClose={onClose}
@@ -2022,11 +2306,13 @@ type SelectedReportItem = {
 
 function ReportsScreen({
   data,
+  t,
   selectedMonth,
   onMonthChange,
   onSelectTransaction,
 }: {
   data: AppData;
+  t: Translator;
   selectedMonth: string;
   onMonthChange: (month: string) => void;
   onSelectTransaction: (transaction: Transaction) => void;
@@ -2158,21 +2444,21 @@ function ReportsScreen({
 
   const reportTitle: Record<ReportSection, string> = {
     menu: '',
-    subpaymethod: 'By payment submethod',
-    category: 'By category',
-    subcategory: 'By subcategory',
+    subpaymethod: t('byPaymentSubmethod'),
+    category: t('byCategory'),
+    subcategory: t('bySubcategory'),
     installments: 'Installments',
   };
 
   const DetailHeader = ({ title }: { title: string }) => (
     <View style={styles.settingsDetailHeader}>
-      <IconButton accessibilityLabel="Back to reports" Icon={ChevronLeft} onPress={goBack} />
+      <IconButton accessibilityLabel={t('backToReports')} Icon={ChevronLeft} onPress={goBack} />
       <View style={styles.reportDetailTitle}>
         <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
       </View>
       <View style={styles.monthControls}>
-        <IconButton accessibilityLabel="Previous month" Icon={ChevronLeft} onPress={prevMonth} />
-        <IconButton accessibilityLabel="Next month" Icon={ChevronRight} onPress={nextMonth} />
+        <IconButton accessibilityLabel={t('previousMonth')} Icon={ChevronLeft} onPress={prevMonth} />
+        <IconButton accessibilityLabel={t('nextMonth')} Icon={ChevronRight} onPress={nextMonth} />
       </View>
     </View>
   );
@@ -2182,19 +2468,20 @@ function ReportsScreen({
       <ScreenScroll>
         <DetailHeader title={selectedItem.label} />
         <Text style={styles.reportMonthLabel}>
-          {selectedItem.type === 'installments' ? 'All installments' : toMonth(selectedMonth)}
+          {selectedItem.type === 'installments' ? t('allInstallments') : toMonth(selectedMonth)}
         </Text>
         {drillGroups.length ? (
           drillGroups.map((group) => (
             <ExpenseDayCard
               key={group.date}
               data={data}
+              t={t}
               group={group}
               onSelectTransaction={onSelectTransaction}
             />
           ))
         ) : (
-          <EmptyState title="No expenses found" />
+          <EmptyState title={t('noExpensesFound')} />
         )}
       </ScreenScroll>
     );
@@ -2203,29 +2490,29 @@ function ReportsScreen({
   if (activeReport === 'menu') {
     return (
       <ScreenScroll>
-        <Text style={styles.sectionTitle}>Reports</Text>
+        <Text style={styles.sectionTitle}>{t('reports')}</Text>
         <View style={styles.settingsMenu}>
           <SettingsMenuButton
-            title="By payment submethod"
-            subtitle={`${submethodSummaries.length} submethods with expenses`}
+            title={t('byPaymentSubmethod')}
+            subtitle={`${submethodSummaries.length} ${t('submethodsWithExpenses')}`}
             Icon={WalletCards}
             onPress={() => setActiveReport('subpaymethod')}
           />
           <SettingsMenuButton
-            title="By category"
-            subtitle={`${categorySummaries.length} categories with expenses`}
+            title={t('byCategory')}
+            subtitle={`${categorySummaries.length} ${t('categoriesWithExpenses')}`}
             Icon={List}
             onPress={() => setActiveReport('category')}
           />
           <SettingsMenuButton
-            title="By subcategory"
-            subtitle={`${subcategorySummaries.length} subcategories with expenses`}
+            title={t('bySubcategory')}
+            subtitle={`${subcategorySummaries.length} ${t('subcategoriesWithExpenses')}`}
             Icon={Receipt}
             onPress={() => setActiveReport('subcategory')}
           />
           <SettingsMenuButton
-            title="Installments"
-            subtitle={`${installmentGroups.length} active installment plans`}
+            title={t('installments')}
+            subtitle={`${installmentGroups.length} ${t('activeInstallmentPlans')}`}
             Icon={Repeat}
             onPress={() => setActiveReport('installments')}
           />
@@ -2255,7 +2542,7 @@ function ReportsScreen({
             </Pressable>
           ))
         ) : (
-          <EmptyState title="No submethod expenses this month" />
+          <EmptyState title={t('noSubmethodExpenses')} />
         )}
       </ScreenScroll>
     );
@@ -2277,7 +2564,7 @@ function ReportsScreen({
             </Pressable>
           ))
         ) : (
-          <EmptyState title="No category expenses this month" />
+          <EmptyState title={t('noCategoryExpenses')} />
         )}
       </ScreenScroll>
     );
@@ -2312,7 +2599,7 @@ function ReportsScreen({
             );
           })
         ) : (
-          <EmptyState title="No subcategory expenses this month" />
+          <EmptyState title={t('noSubcategoryExpenses')} />
         )}
       </ScreenScroll>
     );
@@ -2339,12 +2626,12 @@ function ReportsScreen({
                 <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${Math.round((g.current / g.total) * 100)}%` }]} />
               </View>
               <Text style={styles.rowMeta}>
-                Installment {g.current} of {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} total
+                {t('installment')} {g.current} of {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} {t('total')}
               </Text>
             </Pressable>
           ))
         ) : (
-          <EmptyState title="No active installments this month" />
+          <EmptyState title={t('noInstallments')} />
         )}
       </ScreenScroll>
     );
@@ -2355,9 +2642,11 @@ function ReportsScreen({
 
 function SettingsScreen({
   data,
+  t,
   selectedMonth,
   onSaveBudget,
   onSetDefaultCurrency,
+  onSetLanguage,
   onAddCategory,
   onUpdateCategory,
   onAddSubcategory,
@@ -2370,9 +2659,11 @@ function SettingsScreen({
   onDisablePaymentMethod,
 }: {
   data: AppData;
+  t: Translator;
   selectedMonth: string;
   onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
+  onSetLanguage: (language: AppLanguage) => void;
   onAddCategory: (type: TransactionType, name: string) => void;
   onUpdateCategory: (categoryId: string, type: TransactionType, name: string) => void;
   onAddSubcategory: (categoryId: string, name: string, icon?: string) => void;
@@ -2425,18 +2716,18 @@ function SettingsScreen({
   const selectedPaymentMethodId = selectedPaymentMethod?.id ?? '';
   const budgets = summarizeBudgets(data, selectedMonth);
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
-    core: 'Core settings',
-    budgets: 'Monthly budgets',
-    categories: 'Categories',
-    subcategories: 'Subcategories',
-    payments: 'Payment methods',
+    core: t('coreSettings'),
+    budgets: t('budgets'),
+    categories: t('categories'),
+    subcategories: t('subcategories'),
+    payments: t('paymentMethods'),
   };
 
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
 
     if (!budgetCategoryId || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      Alert.alert('Invalid budget', 'Select a category and enter an amount greater than zero.');
+      Alert.alert(t('budgetInvalidTitle'), t('budgetInvalidMessage'));
       return;
     }
 
@@ -2540,35 +2831,35 @@ function SettingsScreen({
   if (activeSettingsSection === 'menu') {
     return (
       <ScreenScroll>
-        <Text style={styles.sectionTitle}>Settings</Text>
+        <Text style={styles.sectionTitle}>{t('settings')}</Text>
         <View style={styles.settingsMenu}>
           <SettingsMenuButton
-            title="Core settings"
-            subtitle={`Default currency: ${data.settings.defaultCurrency}`}
+            title={t('coreSettings')}
+            subtitle={`${t('defaultCurrency')}: ${data.settings.defaultCurrency} · ${t('language')}: ${t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')}`}
             Icon={SettingsIcon}
             onPress={() => setActiveSettingsSection('core')}
           />
           <SettingsMenuButton
-            title="Monthly budgets"
+            title={t('budgets')}
             subtitle={monthLabel(selectedMonth)}
             Icon={BarChart3}
             onPress={() => setActiveSettingsSection('budgets')}
           />
           <SettingsMenuButton
-            title="Categories"
-            subtitle={`${activeCategories.length} active categories`}
+            title={t('categories')}
+            subtitle={`${activeCategories.length} ${t('activeCategories')}`}
             Icon={List}
             onPress={() => setActiveSettingsSection('categories')}
           />
           <SettingsMenuButton
-            title="Subcategories"
-            subtitle={`${activeSubcategories.length} active subcategories`}
+            title={t('subcategories')}
+            subtitle={`${activeSubcategories.length} ${t('activeSubcategories')}`}
             Icon={Receipt}
             onPress={() => setActiveSettingsSection('subcategories')}
           />
           <SettingsMenuButton
-            title="Payment methods"
-            subtitle={`${activePaymentMethods.length} active methods`}
+            title={t('paymentMethods')}
+            subtitle={`${activePaymentMethods.length} ${t('activeMethods')}`}
             Icon={WalletCards}
             onPress={() => setActiveSettingsSection('payments')}
           />
@@ -2581,7 +2872,7 @@ function SettingsScreen({
     <ScreenScroll>
       <View style={styles.settingsDetailHeader}>
         <IconButton
-          accessibilityLabel="Back to settings"
+          accessibilityLabel={t('backToSettings')}
           Icon={ChevronLeft}
           onPress={() => setActiveSettingsSection('menu')}
         />
@@ -2590,7 +2881,7 @@ function SettingsScreen({
 
       {activeSettingsSection === 'core' ? (
         <View style={styles.formPanel}>
-        <Field label="Default currency">
+        <Field label={t('defaultCurrency')}>
           <TextInput
             autoCapitalize="characters"
             maxLength={3}
@@ -2599,10 +2890,24 @@ function SettingsScreen({
             style={styles.input}
           />
         </Field>
-        <AppButton label="Save currency" Icon={Save} onPress={() => onSetDefaultCurrency(defaultCurrency)} />
+        <AppButton label={t('saveCurrency')} Icon={Save} onPress={() => onSetDefaultCurrency(defaultCurrency)} />
+        <Field label={t('language')}>
+          <View style={styles.chipRow}>
+            <Chip
+              label={t('languageEnglish')}
+              selected={data.settings.language === 'en'}
+              onPress={() => onSetLanguage('en')}
+            />
+            <Chip
+              label={t('languageSpanishArgentina')}
+              selected={data.settings.language === 'es-AR'}
+              onPress={() => onSetLanguage('es-AR')}
+            />
+          </View>
+        </Field>
         <View style={styles.lockSettingRow}>
           <Lock color={colors.primary} size={20} />
-          <Text style={styles.rowMeta}>Biometric lock is mandatory for the MVP.</Text>
+          <Text style={styles.rowMeta}>{t('biometricMandatory')}</Text>
         </View>
         </View>
       ) : null}
@@ -2610,7 +2915,7 @@ function SettingsScreen({
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
         <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth)}</Text>
-        <Field label="Expense category">
+        <Field label={t('expenseCategory')}>
           <View style={styles.chipRow}>
             {expenseCategories.map((category) => (
               <CategoryChip
@@ -2623,7 +2928,7 @@ function SettingsScreen({
           </View>
         </Field>
         <View style={styles.formGrid}>
-          <Field label="Amount" grid>
+          <Field label={t('amount')} grid>
             <TextInput
               keyboardType="decimal-pad"
               value={budgetAmount}
@@ -2633,7 +2938,7 @@ function SettingsScreen({
               style={styles.input}
             />
           </Field>
-          <Field label="Currency" grid>
+          <Field label={t('currency')} grid>
             <TextInput
               autoCapitalize="characters"
               maxLength={3}
@@ -2643,7 +2948,7 @@ function SettingsScreen({
             />
           </Field>
         </View>
-        <AppButton label="Save budget" Icon={Save} onPress={saveBudget} />
+        <AppButton label={t('saveBudget')} Icon={Save} onPress={saveBudget} />
 
         {budgets.map((budget) => (
           <BudgetStatusRow
@@ -2658,20 +2963,20 @@ function SettingsScreen({
       {activeSettingsSection === 'categories' ? (
         <View style={styles.formPanel}>
         <View style={styles.chipRow}>
-          <Chip label="Expense" selected={categoryType === 'expense'} onPress={() => setCategoryType('expense')} />
-          <Chip label="Income" selected={categoryType === 'income'} onPress={() => setCategoryType('income')} />
+          <Chip label={t('expense')} selected={categoryType === 'expense'} onPress={() => setCategoryType('expense')} />
+          <Chip label={t('income')} selected={categoryType === 'income'} onPress={() => setCategoryType('income')} />
         </View>
-        <Field label="New category">
+        <Field label={t('newCategory')}>
           <TextInput
             value={categoryNameInput}
             onChangeText={setCategoryNameInput}
-            placeholder="Category name"
+            placeholder={t('categoryName')}
             placeholderTextColor={colors.gray}
             style={styles.input}
           />
         </Field>
         <AppButton
-          label="Add category"
+          label={t('addCategory')}
           Icon={Plus}
           onPress={() => {
             onAddCategory(categoryType, categoryNameInput);
@@ -2683,6 +2988,7 @@ function SettingsScreen({
           <View key={category.id} style={styles.managementEditGroup}>
             <CategoryManagementRow
               category={category}
+              t={t}
               onEdit={() => startCategoryEdit(category)}
               onDisable={() => onDisableCategory(category.id)}
             />
@@ -2690,28 +2996,28 @@ function SettingsScreen({
               <View style={styles.inlineEditPanel}>
                 <View style={styles.chipRow}>
                   <Chip
-                    label="Expense"
+                    label={t('expense')}
                     selected={editingCategoryType === 'expense'}
                     onPress={() => setEditingCategoryType('expense')}
                   />
                   <Chip
-                    label="Income"
+                    label={t('income')}
                     selected={editingCategoryType === 'income'}
                     onPress={() => setEditingCategoryType('income')}
                   />
                 </View>
-                <Field label="Category name">
+                <Field label={t('categoryName')}>
                   <TextInput
                     value={editingCategoryName}
                     onChangeText={setEditingCategoryName}
-                    placeholder="Category name"
+                    placeholder={t('categoryName')}
                     placeholderTextColor={colors.gray}
                     style={styles.input}
                   />
                 </Field>
                 <View style={styles.inlineEditActions}>
-                  <AppButton label="Cancel" compact variant="secondary" onPress={clearCategoryEdit} />
-                  <AppButton label="Save" compact Icon={Save} onPress={saveCategoryEdit} />
+                  <AppButton label={t('cancel')} compact variant="secondary" onPress={clearCategoryEdit} />
+                  <AppButton label={t('save')} compact Icon={Save} onPress={saveCategoryEdit} />
                 </View>
               </View>
             ) : null}
@@ -2722,7 +3028,7 @@ function SettingsScreen({
 
       {activeSettingsSection === 'subcategories' ? (
         <View style={styles.formPanel}>
-        <Field label="Parent category">
+        <Field label={t('parentCategory')}>
           <View style={styles.chipRow}>
             {activeCategories.map((category) => (
               <CategoryChip
@@ -2734,16 +3040,16 @@ function SettingsScreen({
             ))}
           </View>
         </Field>
-        <Field label="New subcategory">
+        <Field label={t('newSubcategory')}>
           <TextInput
             value={subcategoryNameInput}
             onChangeText={setSubcategoryNameInput}
-            placeholder="Subcategory name"
+            placeholder={t('subcategoryName')}
             placeholderTextColor={colors.gray}
             style={styles.input}
           />
         </Field>
-        <Field label="Icon">
+        <Field label={t('icon')}>
           <View style={styles.iconPickerGrid}>
             {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
               <Pressable
@@ -2762,7 +3068,7 @@ function SettingsScreen({
           </View>
         </Field>
         <AppButton
-          label="Add subcategory"
+          label={t('addSubcategory')}
           Icon={Plus}
           onPress={() => {
             onAddSubcategory(subcategoryCategoryId, subcategoryNameInput, subcategoryIconInput);
@@ -2779,13 +3085,14 @@ function SettingsScreen({
             <View key={subcategory.id} style={styles.managementEditGroup}>
               <ManagementRow
                 Icon={SubcatIcon}
+                t={t}
                 title={subcategory.name}
-                subtitle={parentCategory ? parentCategory.name : 'No parent category'}
+                subtitle={parentCategory ? parentCategory.name : t('noParentCategory')}
                 onEdit={() => startSubcategoryEdit(subcategory)}
               />
               {editingSubcategoryId === subcategory.id ? (
                 <View style={styles.inlineEditPanel}>
-                  <Field label="Parent category">
+                  <Field label={t('parentCategory')}>
                     <View style={styles.chipRow}>
                       {activeCategories.map((category) => (
                         <CategoryChip
@@ -2797,16 +3104,16 @@ function SettingsScreen({
                       ))}
                     </View>
                   </Field>
-                  <Field label="Subcategory name">
+                  <Field label={t('subcategoryName')}>
                     <TextInput
                       value={editingSubcategoryName}
                       onChangeText={setEditingSubcategoryName}
-                      placeholder="Subcategory name"
+                      placeholder={t('subcategoryName')}
                       placeholderTextColor={colors.gray}
                       style={styles.input}
                     />
                   </Field>
-                  <Field label="Icon">
+                  <Field label={t('icon')}>
                     <View style={styles.iconPickerGrid}>
                       {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
                         <Pressable
@@ -2828,8 +3135,8 @@ function SettingsScreen({
                     </View>
                   </Field>
                   <View style={styles.inlineEditActions}>
-                    <AppButton label="Cancel" compact variant="secondary" onPress={clearSubcategoryEdit} />
-                    <AppButton label="Save" compact Icon={Save} onPress={saveSubcategoryEdit} />
+                    <AppButton label={t('cancel')} compact variant="secondary" onPress={clearSubcategoryEdit} />
+                    <AppButton label={t('save')} compact Icon={Save} onPress={saveSubcategoryEdit} />
                   </View>
                 </View>
               ) : null}
@@ -2841,17 +3148,17 @@ function SettingsScreen({
 
       {activeSettingsSection === 'payments' ? (
         <View style={styles.formPanel}>
-        <Field label="New method">
+        <Field label={t('newMethod')}>
           <TextInput
             value={paymentMethodInput}
             onChangeText={setPaymentMethodInput}
-            placeholder="Payment method"
+            placeholder={t('paymentMethods')}
             placeholderTextColor={colors.gray}
             style={styles.input}
           />
         </Field>
         <AppButton
-          label="Add method"
+          label={t('addMethod')}
           Icon={WalletCards}
           onPress={() => {
             onAddPaymentMethod(paymentMethodInput);
@@ -2859,7 +3166,7 @@ function SettingsScreen({
           }}
         />
 
-        <Field label="New submethod">
+        <Field label={t('newSubmethod')}>
           <View style={styles.chipRow}>
             {activePaymentMethods.map((method) => (
               <Chip
@@ -2873,13 +3180,13 @@ function SettingsScreen({
           <TextInput
             value={paymentSubmethodInput}
             onChangeText={setPaymentSubmethodInput}
-            placeholder="Submethod name"
+            placeholder={t('newSubmethod')}
             placeholderTextColor={colors.gray}
             style={styles.input}
           />
         </Field>
         <AppButton
-          label="Add submethod"
+          label={t('addSubmethod')}
           Icon={Plus}
           onPress={() => {
             onAddPaymentSubmethod(selectedPaymentMethodId, paymentSubmethodInput);
@@ -2897,6 +3204,7 @@ function SettingsScreen({
             <View key={method.id} style={styles.paymentMethodGroup}>
               <PaymentMethodManagementRow
                 methodName={method.name}
+                t={t}
                 submethodCount={submethods.length}
                 selected={selected}
                 onSelect={() => setPaymentSubmethodMethodId(method.id)}
@@ -2905,18 +3213,18 @@ function SettingsScreen({
               />
               {editingPaymentMethodId === method.id ? (
                 <View style={styles.inlineEditPanel}>
-                  <Field label="Payment method name">
+                  <Field label={t('paymentMethodName')}>
                     <TextInput
                       value={editingPaymentMethodName}
                       onChangeText={setEditingPaymentMethodName}
-                      placeholder="Payment method"
+                      placeholder={t('paymentMethods')}
                       placeholderTextColor={colors.gray}
                       style={styles.input}
                     />
                   </Field>
                   <View style={styles.inlineEditActions}>
-                    <AppButton label="Cancel" compact variant="secondary" onPress={clearPaymentMethodEdit} />
-                    <AppButton label="Save" compact Icon={Save} onPress={savePaymentMethodEdit} />
+                    <AppButton label={t('cancel')} compact variant="secondary" onPress={clearPaymentMethodEdit} />
+                    <AppButton label={t('save')} compact Icon={Save} onPress={savePaymentMethodEdit} />
                   </View>
                 </View>
               ) : null}
@@ -2931,7 +3239,7 @@ function SettingsScreen({
                           </View>
                           <Text style={styles.rowTitle}>{submethod.name}</Text>
                           <AppButton
-                            label="Edit"
+                            label={t('edit')}
                             compact
                             variant="secondary"
                             onPress={() => startPaymentSubmethodEdit(submethod.id, method.id, submethod.name)}
@@ -2939,7 +3247,7 @@ function SettingsScreen({
                         </View>
                         {editingPaymentSubmethodId === submethod.id ? (
                           <View style={styles.inlineEditPanel}>
-                            <Field label="Parent payment method">
+                            <Field label={t('parentPaymentMethod')}>
                               <View style={styles.chipRow}>
                                 {activePaymentMethods.map((paymentMethod) => (
                                   <Chip
@@ -2951,25 +3259,25 @@ function SettingsScreen({
                                 ))}
                               </View>
                             </Field>
-                            <Field label="Submethod name">
+                            <Field label={t('newSubmethod')}>
                               <TextInput
                                 value={editingPaymentSubmethodName}
                                 onChangeText={setEditingPaymentSubmethodName}
-                                placeholder="Submethod name"
+                                placeholder={t('newSubmethod')}
                                 placeholderTextColor={colors.gray}
                                 style={styles.input}
                               />
                             </Field>
                             <View style={styles.inlineEditActions}>
-                              <AppButton label="Cancel" compact variant="secondary" onPress={clearPaymentSubmethodEdit} />
-                              <AppButton label="Save" compact Icon={Save} onPress={savePaymentSubmethodEdit} />
+                              <AppButton label={t('cancel')} compact variant="secondary" onPress={clearPaymentSubmethodEdit} />
+                              <AppButton label={t('save')} compact Icon={Save} onPress={savePaymentSubmethodEdit} />
                             </View>
                           </View>
                         ) : null}
                       </View>
                     ))
                   ) : (
-                    <Text style={styles.rowMeta}>No active submethods.</Text>
+                    <Text style={styles.rowMeta}>{t('noActiveSubmethods')}</Text>
                   )}
                 </View>
               ) : null}
@@ -2982,25 +3290,25 @@ function SettingsScreen({
   );
 }
 
-function DashboardSummaryCard({ summary }: { summary: CurrencySummary }) {
+function DashboardSummaryCard({ summary, t }: { summary: CurrencySummary; t: Translator }) {
   return (
     <View style={styles.dashboardSummaryCard}>
       <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>Income</Text>
+        <Text style={styles.dashboardMetricLabel}>{t('income')}</Text>
         <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
           {formatDashboardMoney(summary.income, summary.currency)}
         </Text>
       </View>
       <View style={styles.dashboardMetricDivider} />
       <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>Expenses</Text>
+        <Text style={styles.dashboardMetricLabel}>{t('expenses')}</Text>
         <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
           {formatDashboardMoney(summary.expenses, summary.currency)}
         </Text>
       </View>
       <View style={styles.dashboardMetricDivider} />
       <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>Balance</Text>
+        <Text style={styles.dashboardMetricLabel}>{t('balance')}</Text>
         <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
           {formatDashboardMoney(summary.balance, summary.currency)}
         </Text>
@@ -3011,10 +3319,12 @@ function DashboardSummaryCard({ summary }: { summary: CurrencySummary }) {
 
 function ExpenseDayCard({
   data,
+  t,
   group,
   onSelectTransaction,
 }: {
   data: AppData;
+  t: Translator;
   group: ExpenseDayGroup;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
@@ -3023,7 +3333,7 @@ function ExpenseDayCard({
       <View style={styles.expenseDayHeader}>
         <Text style={styles.expenseDayDate}>{formatDashboardDate(group.date)}</Text>
         <Text style={styles.expenseDayTotal} numberOfLines={1}>
-          Expenses: {formatExpenseTotals(group.totalsByCurrency)}
+          {t('expenses')}: {formatExpenseTotals(group.totalsByCurrency)}
         </Text>
       </View>
       {group.transactions.map((transaction, index) => (
@@ -3142,10 +3452,12 @@ function BudgetStatusRow({ summary, category }: { summary: BudgetSummary; catego
 
 function CategoryManagementRow({
   category,
+  t,
   onEdit,
   onDisable,
 }: {
   category: Category;
+  t: Translator;
   onEdit: () => void;
   onDisable: () => void;
 }) {
@@ -3161,8 +3473,8 @@ function CategoryManagementRow({
         </View>
       </View>
       <View style={styles.managementActions}>
-        <AppButton label="Edit" compact variant="secondary" onPress={onEdit} />
-        <AppButton label="Disable" compact variant="secondary" onPress={onDisable} />
+        <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} />
+        <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} />
       </View>
     </View>
   );
@@ -3172,12 +3484,14 @@ function ManagementRow({
   title,
   subtitle,
   Icon,
+  t = getTranslator('en'),
   onEdit,
   onDisable,
 }: {
   title: string;
   subtitle: string;
   Icon?: IconComponent;
+  t?: Translator;
   onEdit?: () => void;
   onDisable?: () => void;
 }) {
@@ -3196,8 +3510,8 @@ function ManagementRow({
       </View>
       {onEdit || onDisable ? (
         <View style={styles.managementActions}>
-          {onEdit ? <AppButton label="Edit" compact variant="secondary" onPress={onEdit} /> : null}
-          {onDisable ? <AppButton label="Disable" compact variant="secondary" onPress={onDisable} /> : null}
+          {onEdit ? <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} /> : null}
+          {onDisable ? <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} /> : null}
         </View>
       ) : null}
     </View>
@@ -3206,6 +3520,7 @@ function ManagementRow({
 
 function PaymentMethodManagementRow({
   methodName,
+  t,
   submethodCount,
   selected,
   onSelect,
@@ -3213,6 +3528,7 @@ function PaymentMethodManagementRow({
   onDisable,
 }: {
   methodName: string;
+  t: Translator;
   submethodCount: number;
   selected: boolean;
   onSelect: () => void;
@@ -3238,8 +3554,8 @@ function PaymentMethodManagementRow({
         )}
       </Pressable>
       <View style={styles.managementActions}>
-        <AppButton label="Edit" compact variant="secondary" onPress={onEdit} />
-        <AppButton label="Disable" compact variant="secondary" onPress={onDisable} />
+        <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} />
+        <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} />
       </View>
     </View>
   );
@@ -3339,6 +3655,7 @@ function Chip({
 
 function CalendarModal({
   visible,
+  t,
   selectedDate,
   viewMonth,
   onClose,
@@ -3346,6 +3663,7 @@ function CalendarModal({
   onSelectDate,
 }: {
   visible: boolean;
+  t: Translator;
   selectedDate: string;
   viewMonth: string;
   onClose: () => void;
@@ -3361,13 +3679,13 @@ function CalendarModal({
         <Pressable accessibilityRole="none" onPress={() => undefined} style={styles.calendarPanel}>
           <View style={styles.calendarHeader}>
             <IconButton
-              accessibilityLabel="Previous month"
+              accessibilityLabel={t('previousMonth')}
               Icon={ChevronLeft}
               onPress={() => onMonthChange(shiftMonth(viewMonth, -1))}
             />
             <Text style={styles.calendarTitle}>{monthLabel(viewMonth)}</Text>
             <IconButton
-              accessibilityLabel="Next month"
+              accessibilityLabel={t('nextMonth')}
               Icon={ChevronRight}
               onPress={() => onMonthChange(shiftMonth(viewMonth, 1))}
             />

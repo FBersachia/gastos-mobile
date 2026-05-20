@@ -366,6 +366,7 @@ export const createMay2026SampleData = (): AppData => ({
   budgets: [],
   settings: {
     defaultCurrency: CURRENCY,
+    language: 'en',
     biometricLockEnabled: true,
     budgetNearLimitThreshold: 0.8,
   },

@@ -4,6 +4,8 @@ export type BudgetStatus = 'available' | 'near-limit' | 'exceeded';
 
 export type TabKey = 'dashboard' | 'transactions' | 'reports' | 'settings';
 
+export type AppLanguage = 'en' | 'es-AR';
+
 export interface Category {
   id: string;
   name: string;
@@ -71,6 +73,7 @@ export interface Budget {
 
 export interface AppSettings {
   defaultCurrency: string;
+  language: AppLanguage;
   biometricLockEnabled: true;
   budgetNearLimitThreshold: number;
 }

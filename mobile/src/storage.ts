@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { createDefaultData } from './defaults';
-import { AppData } from './types';
+import { AppData, AppLanguage } from './types';
 
 const STORAGE_KEY = 'expense-control-app-data-v3';
+
+const isAppLanguage = (value: unknown): value is AppLanguage => value === 'en' || value === 'es-AR';
 
 const withDefaults = (stored: Partial<AppData>): AppData => {
   const defaults = createDefaultData();
@@ -20,6 +22,7 @@ const withDefaults = (stored: Partial<AppData>): AppData => {
     settings: {
       ...defaults.settings,
       ...stored.settings,
+      language: isAppLanguage(stored.settings?.language) ? stored.settings.language : defaults.settings.language,
       biometricLockEnabled: true,
     },
   };
