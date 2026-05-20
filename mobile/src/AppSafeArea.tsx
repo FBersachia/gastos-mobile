@@ -1,13 +1,18 @@
 import { PropsWithChildren } from 'react';
-import { SafeAreaView, StyleProp, ViewStyle } from 'react-native';
+import { Platform, StyleProp, ViewStyle } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 export function AppSafeAreaProvider({ children }: PropsWithChildren) {
-  return <>{children}</>;
+  return <SafeAreaProvider>{children}</SafeAreaProvider>;
 }
 
 export function AppSafeAreaView({
   children,
   style,
 }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
-  return <SafeAreaView style={style}>{children}</SafeAreaView>;
+  return (
+    <SafeAreaView edges={Platform.OS === 'web' ? [] : ['top', 'right', 'bottom', 'left']} style={style}>
+      {children}
+    </SafeAreaView>
+  );
 }

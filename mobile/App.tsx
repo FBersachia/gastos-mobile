@@ -394,7 +394,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.0.2';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -1198,7 +1198,7 @@ function AppRoot() {
 
   return (
     <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
-      <StatusBar style="dark" />
+      <StatusBar backgroundColor={colors.surface} style="dark" translucent={false} />
       <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.appShell}>
         {activeTab === 'transactions' ? null : (
