@@ -71,7 +71,7 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
-import { useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -85,6 +85,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -128,12 +129,39 @@ import {
 } from './src/utils';
 
 type AuthStatus = 'checking' | 'authenticated' | 'locked' | 'unavailable';
+type ScreenSize = 'compact' | 'regular' | 'large';
+
+type ResponsiveInfo = {
+  width: number;
+  height: number;
+  screenSize: ScreenSize;
+  isCompact: boolean;
+  isLarge: boolean;
+};
 
 type IconComponent = React.ComponentType<{
   color?: string;
   size?: number;
   strokeWidth?: number;
 }>;
+
+const getScreenSize = (width: number): ScreenSize => {
+  if (width < 360) return 'compact';
+  if (width < 430) return 'regular';
+  return 'large';
+};
+
+const defaultResponsive: ResponsiveInfo = {
+  width: 390,
+  height: 844,
+  screenSize: 'regular',
+  isCompact: false,
+  isLarge: false,
+};
+
+const ResponsiveContext = createContext<ResponsiveInfo>(defaultResponsive);
+
+const useResponsive = () => useContext(ResponsiveContext);
 
 const translations = {
   en: {
@@ -761,6 +789,7 @@ export default function App() {
 }
 
 function AppRoot() {
+  const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({
     Poppins_400Regular,
     Poppins_500Medium,
@@ -772,6 +801,17 @@ function AppRoot() {
   const [selectedMonth, setSelectedMonth] = useState(monthStartInput());
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | undefined>();
   const [editingTransactionId, setEditingTransactionId] = useState<string | undefined>();
+  const responsive = useMemo(() => {
+    const screenSize = getScreenSize(width);
+
+    return {
+      width,
+      height,
+      screenSize,
+      isCompact: screenSize === 'compact',
+      isLarge: screenSize === 'large',
+    };
+  }, [height, width]);
 
   useEffect(() => {
     void loadAppData()
@@ -1197,89 +1237,91 @@ function AppRoot() {
   const t = getTranslator(data.settings.language);
 
   return (
-    <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
-      <StatusBar backgroundColor={colors.surface} style="dark" translucent={false} />
-      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <View style={styles.appShell}>
-        {activeTab === 'transactions' ? null : (
-          <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} />
-        )}
-        <View style={styles.content}>
-          {activeTab === 'dashboard' ? (
-            <DashboardScreen
-              data={data}
-              t={t}
-              selectedMonth={selectedMonth}
-              onAddTransaction={() => setActiveTab('transactions')}
-              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-            />
-          ) : null}
-          {activeTab === 'transactions' ? (
-            <TransactionsScreen
-              data={data}
-              t={t}
-              selectedMonth={selectedMonth}
-              onSaveTransaction={handleSaveTransaction}
-              onDeleteTransaction={handleDeleteTransaction}
-              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-              onClose={() => setActiveTab('dashboard')}
-            />
-          ) : null}
-          {activeTab === 'reports' ? (
-            <ReportsScreen
-              data={data}
-              t={t}
-              selectedMonth={selectedMonth}
-              onMonthChange={setSelectedMonth}
-              onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-            />
-          ) : null}
-          {activeTab === 'settings' ? (
-            <SettingsScreen
-              data={data}
-              t={t}
-              selectedMonth={selectedMonth}
-              onSaveBudget={handleSaveBudget}
-              onSetDefaultCurrency={handleSetDefaultCurrency}
-              onSetLanguage={handleSetLanguage}
-              onAddCategory={handleAddCategory}
-              onUpdateCategory={handleUpdateCategory}
-              onAddSubcategory={handleAddSubcategory}
-              onUpdateSubcategory={handleUpdateSubcategory}
-              onDisableCategory={handleDisableCategory}
-              onAddPaymentMethod={handleAddPaymentMethod}
-              onUpdatePaymentMethod={handleUpdatePaymentMethod}
-              onAddPaymentSubmethod={handleAddPaymentSubmethod}
-              onUpdatePaymentSubmethod={handleUpdatePaymentSubmethod}
-              onDisablePaymentMethod={handleDisablePaymentMethod}
-            />
-          ) : null}
+    <ResponsiveContext.Provider value={responsive}>
+      <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
+        <StatusBar backgroundColor={colors.surface} style="dark" translucent={false} />
+        <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.appShell}>
+          {activeTab === 'transactions' ? null : (
+            <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} />
+          )}
+          <View style={styles.content}>
+            {activeTab === 'dashboard' ? (
+              <DashboardScreen
+                data={data}
+                t={t}
+                selectedMonth={selectedMonth}
+                onAddTransaction={() => setActiveTab('transactions')}
+                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+              />
+            ) : null}
+            {activeTab === 'transactions' ? (
+              <TransactionsScreen
+                data={data}
+                t={t}
+                selectedMonth={selectedMonth}
+                onSaveTransaction={handleSaveTransaction}
+                onDeleteTransaction={handleDeleteTransaction}
+                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+                onClose={() => setActiveTab('dashboard')}
+              />
+            ) : null}
+            {activeTab === 'reports' ? (
+              <ReportsScreen
+                data={data}
+                t={t}
+                selectedMonth={selectedMonth}
+                onMonthChange={setSelectedMonth}
+                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+              />
+            ) : null}
+            {activeTab === 'settings' ? (
+              <SettingsScreen
+                data={data}
+                t={t}
+                selectedMonth={selectedMonth}
+                onSaveBudget={handleSaveBudget}
+                onSetDefaultCurrency={handleSetDefaultCurrency}
+                onSetLanguage={handleSetLanguage}
+                onAddCategory={handleAddCategory}
+                onUpdateCategory={handleUpdateCategory}
+                onAddSubcategory={handleAddSubcategory}
+                onUpdateSubcategory={handleUpdateSubcategory}
+                onDisableCategory={handleDisableCategory}
+                onAddPaymentMethod={handleAddPaymentMethod}
+                onUpdatePaymentMethod={handleUpdatePaymentMethod}
+                onAddPaymentSubmethod={handleAddPaymentSubmethod}
+                onUpdatePaymentSubmethod={handleUpdatePaymentSubmethod}
+                onDisablePaymentMethod={handleDisablePaymentMethod}
+              />
+            ) : null}
+          </View>
+          <BottomNavigation activeTab={activeTab} onChange={setActiveTab} t={t} />
         </View>
-        <BottomNavigation activeTab={activeTab} onChange={setActiveTab} t={t} />
-      </View>
-      </KeyboardAvoidingView>
-      <TransactionDetailModal
-        data={data}
-        t={t}
-        transaction={selectedTransaction}
-        onClose={() => setSelectedTransactionId(undefined)}
-        onEdit={(transaction) => setEditingTransactionId(transaction.id)}
-        onDelete={(transaction) => {
-          handleDeleteTransaction(transaction);
-          setSelectedTransactionId(undefined);
-        }}
-      />
-      <TransactionEditModal
-        data={data}
-        t={t}
-        transaction={editingTransaction}
-        onClose={() => setEditingTransactionId(undefined)}
-        onSave={(input, transaction) => {
-          handleSaveTransaction(input, transaction);
-          setEditingTransactionId(undefined);
-        }}
-      />
-    </AppSafeAreaView>
+        </KeyboardAvoidingView>
+        <TransactionDetailModal
+          data={data}
+          t={t}
+          transaction={selectedTransaction}
+          onClose={() => setSelectedTransactionId(undefined)}
+          onEdit={(transaction) => setEditingTransactionId(transaction.id)}
+          onDelete={(transaction) => {
+            handleDeleteTransaction(transaction);
+            setSelectedTransactionId(undefined);
+          }}
+        />
+        <TransactionEditModal
+          data={data}
+          t={t}
+          transaction={editingTransaction}
+          onClose={() => setEditingTransactionId(undefined)}
+          onSave={(input, transaction) => {
+            handleSaveTransaction(input, transaction);
+            setEditingTransactionId(undefined);
+          }}
+        />
+      </AppSafeAreaView>
+    </ResponsiveContext.Provider>
   );
 }
 
@@ -1320,16 +1362,20 @@ function Header({
   onMonthChange: (value: string) => void;
   t: Translator;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <View style={styles.header}>
-      <View>
+    <View style={[styles.header, isCompact ? styles.headerCompact : null]}>
+      <View style={styles.headerTextGroup}>
         <View style={styles.headerBrand}>
           <Image source={appLogo} style={styles.headerLogo} />
-          <Text style={styles.eyebrow}>Expense Control</Text>
+          <Text style={styles.eyebrow} numberOfLines={1}>Expense Control</Text>
         </View>
-        <Text style={styles.headerTitle}>{monthLabel(selectedMonth)}</Text>
+        <Text style={[styles.headerTitle, isCompact ? styles.headerTitleCompact : null]} numberOfLines={2} adjustsFontSizeToFit>
+          {monthLabel(selectedMonth)}
+        </Text>
       </View>
-      <View style={styles.monthControls}>
+      <View style={[styles.monthControls, isCompact ? styles.monthControlsCompact : null]}>
         <IconButton
           accessibilityLabel={t('previousMonth')}
           Icon={ChevronLeft}
@@ -1354,6 +1400,7 @@ function BottomNavigation({
   onChange: (tab: TabKey) => void;
   t: Translator;
 }) {
+  const { isCompact } = useResponsive();
   const tabLabels: Record<TabKey, string> = {
     dashboard: 'Dashboard',
     transactions: t('transactions'),
@@ -1362,7 +1409,7 @@ function BottomNavigation({
   };
 
   return (
-    <View style={styles.bottomNav}>
+    <View style={[styles.bottomNav, isCompact ? styles.bottomNavCompact : null]}>
       {tabs.map(({ key, Icon }) => {
         const active = activeTab === key;
         const label = tabLabels[key];
@@ -1373,10 +1420,16 @@ function BottomNavigation({
             accessibilityRole="button"
             accessibilityLabel={label}
             onPress={() => onChange(key)}
-            style={[styles.navItem, active ? styles.navItemActive : null]}
+            style={[styles.navItem, isCompact ? styles.navItemCompact : null, active ? styles.navItemActive : null]}
           >
-            <Icon color={active ? colors.primary : colors.textMuted} size={22} strokeWidth={2.2} />
-            <Text style={[styles.navLabel, active ? styles.navLabelActive : null]}>{label}</Text>
+            <Icon color={active ? colors.primary : colors.textMuted} size={isCompact ? 20 : 22} strokeWidth={2.2} />
+            <Text
+              style={[styles.navLabel, isCompact ? styles.navLabelCompact : null, active ? styles.navLabelActive : null]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {label}
+            </Text>
           </Pressable>
         );
       })}
@@ -1516,6 +1569,7 @@ function TransactionForm({
   onClose: () => void;
   onSave: (input: TransactionInput) => void;
 }) {
+  const { isCompact, isLarge } = useResponsive();
   const [type, setType] = useState<TransactionType>('expense');
   const switchType = (next: TransactionType) => {
     setType(next);
@@ -1584,6 +1638,7 @@ function TransactionForm({
   );
   const selectedInstallmentCount = installmentsEnabled ? Number.parseInt(installmentCount, 10) : 1;
   const amountDisplay = amount || '0';
+  const categoryItemWidth = isCompact ? '33.3333%' : isLarge ? '20%' : '25%';
 
   useEffect(() => {
     if (editingTransaction) {
@@ -1764,14 +1819,16 @@ function TransactionForm({
   if (isExpenseEntry) {
     return (
       <View style={styles.expenseEntryPanel}>
-        <View style={styles.expenseEntryHeader}>
+        <View style={[styles.expenseEntryHeader, isCompact ? styles.expenseEntryHeaderCompact : null]}>
           <IconButton
             accessibilityLabel={editingTransaction ? t('cancelEdit') : t('backToDashboard')}
             Icon={ChevronLeft}
             onPress={editingTransaction ? onCancelEdit : onClose}
           />
           {editingTransaction ? (
-            <Text style={styles.expenseEntryTitle}>{t('editTransaction')}</Text>
+            <Text style={[styles.expenseEntryTitle, isCompact ? styles.expenseEntryTitleCompact : null]} numberOfLines={1}>
+              {t('editTransaction')}
+            </Text>
           ) : (
             <Pressable
               accessibilityRole="button"
@@ -1779,7 +1836,9 @@ function TransactionForm({
               onPress={() => switchType(type === 'expense' ? 'income' : 'expense')}
               style={styles.expenseEntryTitleGroup}
             >
-              <Text style={styles.expenseEntryTitle}>{t('expenses')}</Text>
+              <Text style={[styles.expenseEntryTitle, isCompact ? styles.expenseEntryTitleCompact : null]} numberOfLines={1}>
+                {t('expenses')}
+              </Text>
               <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
             </Pressable>
           )}
@@ -1805,17 +1864,22 @@ function TransactionForm({
                     setSubcategoryId(subcategory.id);
                     setCategoryId(subcategory.categoryId);
                   }}
-                  style={styles.expenseCategoryItem}
+                  style={[
+                    styles.expenseCategoryItem,
+                    isCompact ? styles.expenseCategoryItemCompact : null,
+                    { width: categoryItemWidth },
+                  ]}
                 >
                   <View
                     style={[
                       styles.expenseCategoryIcon,
+                      isCompact ? styles.expenseCategoryIconCompact : null,
                       selected ? styles.expenseCategoryIconSelected : null,
                     ]}
                   >
                     <Icon
                       color={selected ? colors.surface : colors.textMuted}
-                      size={32}
+                      size={isCompact ? 26 : 32}
                       strokeWidth={2}
                     />
                   </View>
@@ -1838,7 +1902,7 @@ function TransactionForm({
 
         {subcategoryId ? (
           <>
-            <View style={styles.expenseOptionsPanel}>
+            <View style={[styles.expenseOptionsPanel, isCompact ? styles.expenseOptionsPanelCompact : null]}>
               <View style={styles.expenseOptionSection}>
                 <View style={styles.expenseOptionLabelRow}>
                   <Text style={styles.expenseOptionLabel}>{t('currency')}</Text>
@@ -1866,7 +1930,11 @@ function TransactionForm({
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
                         onPress={() => setCurrency(option)}
-                        style={[styles.expenseOptionChip, selected ? styles.expenseOptionChipSelected : null]}
+                        style={[
+                          styles.expenseOptionChip,
+                          isCompact ? styles.expenseOptionChipCompact : null,
+                          selected ? styles.expenseOptionChipSelected : null,
+                        ]}
                       >
                         <Text
                           style={[
@@ -1903,7 +1971,11 @@ function TransactionForm({
                             setPaymentSubmethodId(submethod.id);
                             setPaymentMethodId(submethod.paymentMethodId);
                           }}
-                          style={[styles.expenseOptionChip, selected ? styles.expenseOptionChipSelected : null]}
+                          style={[
+                            styles.expenseOptionChip,
+                            isCompact ? styles.expenseOptionChipCompact : null,
+                            selected ? styles.expenseOptionChipSelected : null,
+                          ]}
                         >
                           <Text
                             style={[
@@ -1940,7 +2012,11 @@ function TransactionForm({
                         accessibilityRole="button"
                         accessibilityState={{ selected }}
                         onPress={() => handleSelectInstallments(count)}
-                        style={[styles.expenseOptionChip, selected ? styles.expenseOptionChipSelected : null]}
+                        style={[
+                          styles.expenseOptionChip,
+                          isCompact ? styles.expenseOptionChipCompact : null,
+                          selected ? styles.expenseOptionChipSelected : null,
+                        ]}
                       >
                         <Text
                           style={[
@@ -1968,7 +2044,7 @@ function TransactionForm({
               </View>}
             </View>
 
-            <View style={styles.expenseEntryComposer}>
+            <View style={[styles.expenseEntryComposer, isCompact ? styles.expenseEntryComposerCompact : null]}>
               <CategoryIconBadge category={currentCategory} subcategory={currentSubcategory} accent />
               <View style={styles.expenseMemoField}>
                 <Pencil color={colors.gray} size={17} strokeWidth={2} />
@@ -1977,16 +2053,20 @@ function TransactionForm({
                   onChangeText={setDescription}
                   placeholder={t('memo')}
                   placeholderTextColor={colors.gray}
-                  style={styles.expenseMemoInput}
+                  style={[styles.expenseMemoInput, isCompact ? styles.expenseMemoInputCompact : null]}
                 />
               </View>
-              <Text style={styles.expenseAmountPreview} numberOfLines={1} adjustsFontSizeToFit>
+              <Text
+                style={[styles.expenseAmountPreview, isCompact ? styles.expenseAmountPreviewCompact : null]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+              >
                 {amountDisplay}
               </Text>
             </View>
 
             <View style={styles.expenseKeypad}>
-              <View style={styles.expenseKeypadRow}>
+              <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
                 <AmountKey label="7" onPress={() => handleAmountKeyPress('7')} />
                 <AmountKey label="8" onPress={() => handleAmountKeyPress('8')} />
                 <AmountKey label="9" onPress={() => handleAmountKeyPress('9')} />
@@ -1996,32 +2076,34 @@ function TransactionForm({
                     setCalendarMonth(monthStartFromInput(date));
                     setCalendarVisible(true);
                   }}
-                  style={styles.expenseKey}
+                  style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null]}
                 >
-                  <Text style={styles.expenseKeyText}>{t('today')}</Text>
+                  <Text style={[styles.expenseKeyText, isCompact ? styles.expenseKeyTextCompact : null]} numberOfLines={1} adjustsFontSizeToFit>
+                    {t('today')}
+                  </Text>
                   <Text style={styles.expenseKeySubtext}>{formatShortInputDate(date)}</Text>
                 </Pressable>
               </View>
-              <View style={styles.expenseKeypadRow}>
+              <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
                 <AmountKey label="4" onPress={() => handleAmountKeyPress('4')} />
                 <AmountKey label="5" onPress={() => handleAmountKeyPress('5')} />
                 <AmountKey label="6" onPress={() => handleAmountKeyPress('6')} />
                 <AmountKey label="+" onPress={() => handleAmountKeyPress('+')} />
               </View>
-              <View style={styles.expenseKeypadRow}>
+              <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
                 <AmountKey label="1" onPress={() => handleAmountKeyPress('1')} />
                 <AmountKey label="2" onPress={() => handleAmountKeyPress('2')} />
                 <AmountKey label="3" onPress={() => handleAmountKeyPress('3')} />
                 <AmountKey label="-" onPress={() => handleAmountKeyPress('-')} />
               </View>
-              <View style={styles.expenseKeypadRow}>
+              <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
                 <AmountKey label="." onPress={() => handleAmountKeyPress('.')} />
                 <AmountKey label="0" onPress={() => handleAmountKeyPress('0')} />
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t('deleteLastDigit')}
                   onPress={() => handleAmountKeyPress('backspace')}
-                  style={styles.expenseKey}
+                  style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null]}
                 >
                   <X color={colors.text} size={24} strokeWidth={2.4} />
                 </Pressable>
@@ -2029,7 +2111,7 @@ function TransactionForm({
                   accessibilityRole="button"
                   accessibilityLabel={t('saveExpense')}
                   onPress={handleSubmit}
-                  style={[styles.expenseKey, styles.expenseConfirmKey]}
+                  style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null, styles.expenseConfirmKey]}
                 >
                   <Check color={colors.surface} size={32} strokeWidth={2.2} />
                 </Pressable>
@@ -2062,7 +2144,7 @@ function TransactionForm({
         <Chip label={t('income')} selected={true} onPress={() => {}} />
       </View>
 
-      <View style={styles.formGrid}>
+      <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
         <Field label={t('amount')} grid>
           <TextInput
             keyboardType="decimal-pad"
@@ -2168,26 +2250,35 @@ function TransactionRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { isCompact } = useResponsive();
   const displayCategory = subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
   const displayPayment =
     paymentSubmethodName(data, transaction.paymentSubmethodId) ||
     paymentMethodName(data, transaction.paymentMethodId);
 
   return (
-    <Pressable accessibilityRole="button" onPress={onView} style={styles.transactionRow}>
+    <Pressable
+      accessibilityRole="button"
+      onPress={onView}
+      style={[styles.transactionRow, isCompact ? styles.transactionRowCompact : null]}
+    >
       <View style={styles.transactionMain}>
-        <Text style={styles.rowTitle}>
+        <Text style={styles.rowTitle} numberOfLines={2}>
           {transaction.description || displayCategory}
         </Text>
-        <Text style={styles.rowMeta}>
+        <Text style={styles.rowMeta} numberOfLines={1}>
           {transaction.date} - {displayCategory}
         </Text>
-        <Text style={styles.rowMeta}>
+        <Text style={styles.rowMeta} numberOfLines={1}>
           {displayPayment}
         </Text>
       </View>
-      <View style={styles.rowActions}>
-        <Text style={[styles.rowAmount, transaction.type === 'expense' ? styles.negativeText : styles.positiveText]}>
+      <View style={[styles.rowActions, isCompact ? styles.rowActionsCompact : null]}>
+        <Text
+          style={[styles.rowAmount, transaction.type === 'expense' ? styles.negativeText : styles.positiveText]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {transaction.type === 'expense' ? '-' : '+'}
           {formatMoney(transaction.amount, transaction.currency)}
         </Text>
@@ -2215,6 +2306,8 @@ function TransactionDetailModal({
   onEdit: (transaction: Transaction) => void;
   onDelete: (transaction: Transaction) => void;
 }) {
+  const { isCompact } = useResponsive();
+
   if (!transaction) {
     return null;
   }
@@ -2229,8 +2322,16 @@ function TransactionDetailModal({
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-      <Pressable accessibilityRole="none" onPress={onClose} style={styles.transactionModalOverlay}>
-        <Pressable accessibilityRole="none" onPress={() => undefined} style={styles.transactionDetailPanel}>
+      <Pressable
+        accessibilityRole="none"
+        onPress={onClose}
+        style={[styles.transactionModalOverlay, isCompact ? styles.transactionModalOverlayCompact : null]}
+      >
+        <Pressable
+          accessibilityRole="none"
+          onPress={() => undefined}
+          style={[styles.transactionDetailPanel, isCompact ? styles.transactionDetailPanelCompact : null]}
+        >
           <View style={styles.transactionDetailHeader}>
             <View style={styles.transactionDetailTitleGroup}>
               <CategoryIconBadge category={category} subcategory={subcategory} accent />
@@ -2247,8 +2348,11 @@ function TransactionDetailModal({
           <Text
             style={[
               styles.transactionDetailAmount,
+              isCompact ? styles.transactionDetailAmountCompact : null,
               transaction.type === 'expense' ? styles.negativeText : styles.positiveText,
             ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
           >
             {amountPrefix}
             {formatMoney(transaction.amount, transaction.currency)}
@@ -2270,7 +2374,7 @@ function TransactionDetailModal({
             ) : null}
           </View>
 
-          <View style={styles.transactionDetailActions}>
+          <View style={[styles.transactionDetailActions, isCompact ? styles.transactionDetailActionsCompact : null]}>
             <AppButton label={t('edit')} Icon={Pencil} onPress={() => onEdit(transaction)} />
             <AppButton label={t('delete')} Icon={Trash2} variant="secondary" onPress={() => onDelete(transaction)} />
           </View>
@@ -2293,15 +2397,21 @@ function TransactionEditModal({
   onClose: () => void;
   onSave: (input: TransactionInput, transaction: Transaction) => void;
 }) {
+  const { isCompact } = useResponsive();
+
   if (!transaction) {
     return null;
   }
 
   return (
     <Modal transparent visible animationType="fade" onRequestClose={onClose}>
-      <View style={styles.transactionModalOverlay}>
-        <View style={styles.transactionEditPanel}>
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <View style={[styles.transactionModalOverlay, isCompact ? styles.transactionModalOverlayCompact : null]}>
+        <View style={[styles.transactionEditPanel, isCompact ? styles.transactionEditPanelCompact : null]}>
+          <ScrollView
+            contentContainerStyle={isCompact ? styles.transactionEditScrollCompact : null}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <TransactionForm
               data={data}
               t={t}
@@ -2350,6 +2460,7 @@ function ReportsScreen({
   onMonthChange: (month: string) => void;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
+  const { isCompact } = useResponsive();
   const [activeReport, setActiveReport] = useState<ReportSection>('menu');
   const [selectedItem, setSelectedItem] = useState<SelectedReportItem>(null);
 
@@ -2565,13 +2676,13 @@ function ReportsScreen({
               key={`${s.submethodId}-${s.currency}`}
               accessibilityRole="button"
               onPress={() => setSelectedItem({ type: 'subpaymethod', id: s.submethodId, currency: s.currency, label: s.name })}
-              style={styles.listRow}
+              style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
             >
               <View style={styles.managementIconBadge}>
                 <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
               </View>
-              <Text style={[styles.rowTitle, styles.reportRowName]}>{s.name}</Text>
-              <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
+              <Text style={[styles.rowTitle, styles.reportRowName]} numberOfLines={2}>{s.name}</Text>
+              <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(s.amount, s.currency)}</Text>
             </Pressable>
           ))
         ) : (
@@ -2618,16 +2729,16 @@ function ReportsScreen({
                 key={`${s.subcategoryId}-${s.currency}`}
                 accessibilityRole="button"
                 onPress={() => setSelectedItem({ type: 'subcategory', id: s.subcategoryId, currency: s.currency, label: s.name })}
-                style={styles.listRow}
+                style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
               >
                 <View style={styles.managementIconBadge}>
                   <SubIcon color={colors.primary} size={18} strokeWidth={2.2} />
                 </View>
                 <View style={styles.reportRowMeta}>
-                  <Text style={styles.rowTitle}>{s.name}</Text>
-                  <Text style={styles.rowMeta}>{parentCategory?.name ?? ''}</Text>
+                  <Text style={styles.rowTitle} numberOfLines={2}>{s.name}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>{parentCategory?.name ?? ''}</Text>
                 </View>
-                <Text style={styles.rowAmount}>{formatMoney(s.amount, s.currency)}</Text>
+                <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(s.amount, s.currency)}</Text>
               </Pressable>
             );
           })
@@ -2651,9 +2762,9 @@ function ReportsScreen({
               onPress={() => setSelectedItem({ type: 'installments', id: g.groupId, label: g.description })}
               style={styles.installmentRow}
             >
-              <View style={styles.installmentRowTop}>
-                <Text style={styles.rowTitle} numberOfLines={1}>{g.description}</Text>
-                <Text style={styles.rowAmount}>{formatMoney(g.installmentAmount, g.currency)}</Text>
+              <View style={[styles.installmentRowTop, isCompact ? styles.installmentRowTopCompact : null]}>
+                <Text style={styles.rowTitle} numberOfLines={2}>{g.description}</Text>
+                <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(g.installmentAmount, g.currency)}</Text>
               </View>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${Math.round((g.current / g.total) * 100)}%` }]} />
@@ -2708,6 +2819,7 @@ function SettingsScreen({
   onUpdatePaymentSubmethod: (paymentSubmethodId: string, paymentMethodId: string, name: string) => void;
   onDisablePaymentMethod: (paymentMethodId: string) => void;
 }) {
+  const { isCompact } = useResponsive();
   const [defaultCurrency, setDefaultCurrency] = useState(data.settings.defaultCurrency);
   const [budgetCategoryId, setBudgetCategoryId] = useState(
     data.categories.find((category) => category.type === 'expense' && category.active)?.id ?? '',
@@ -2975,7 +3087,7 @@ function SettingsScreen({
             ))}
           </View>
         </Field>
-        <View style={styles.formGrid}>
+        <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
           <Field label={t('amount')} grid>
             <TextInput
               keyboardType="decimal-pad"
@@ -3422,28 +3534,26 @@ function InflatrackLogoMark({ size }: { size: number }) {
 }
 
 function DashboardSummaryCard({ summary, t }: { summary: CurrencySummary; t: Translator }) {
+  const { isCompact } = useResponsive();
+  const metrics = [
+    { label: t('income'), value: formatDashboardMoney(summary.income, summary.currency) },
+    { label: t('expenses'), value: formatDashboardMoney(summary.expenses, summary.currency) },
+    { label: t('balance'), value: formatDashboardMoney(summary.balance, summary.currency) },
+  ];
+
   return (
-    <View style={styles.dashboardSummaryCard}>
-      <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>{t('income')}</Text>
-        <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
-          {formatDashboardMoney(summary.income, summary.currency)}
-        </Text>
-      </View>
-      <View style={styles.dashboardMetricDivider} />
-      <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>{t('expenses')}</Text>
-        <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
-          {formatDashboardMoney(summary.expenses, summary.currency)}
-        </Text>
-      </View>
-      <View style={styles.dashboardMetricDivider} />
-      <View style={styles.dashboardMetric}>
-        <Text style={styles.dashboardMetricLabel}>{t('balance')}</Text>
-        <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
-          {formatDashboardMoney(summary.balance, summary.currency)}
-        </Text>
-      </View>
+    <View style={[styles.dashboardSummaryCard, isCompact ? styles.dashboardSummaryCardCompact : null]}>
+      {metrics.map((metric, index) => (
+        <View key={metric.label} style={styles.dashboardMetricGroup}>
+          {index > 0 && !isCompact ? <View style={styles.dashboardMetricDivider} /> : null}
+          <View style={[styles.dashboardMetric, isCompact ? styles.dashboardMetricCompact : null]}>
+            <Text style={styles.dashboardMetricLabel}>{metric.label}</Text>
+            <Text style={styles.dashboardMetricValue} numberOfLines={1} adjustsFontSizeToFit>
+              {metric.value}
+            </Text>
+          </View>
+        </View>
+      ))}
     </View>
   );
 }
@@ -3491,6 +3601,7 @@ function DashboardExpenseRow({
   withDivider: boolean;
   onPress: () => void;
 }) {
+  const { isCompact } = useResponsive();
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
   const title = transaction.description || subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
@@ -3499,7 +3610,11 @@ function DashboardExpenseRow({
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={[styles.dashboardExpenseRow, withDivider ? styles.dashboardExpenseRowDivider : null]}
+      style={[
+        styles.dashboardExpenseRow,
+        isCompact ? styles.dashboardExpenseRowCompact : null,
+        withDivider ? styles.dashboardExpenseRowDivider : null,
+      ]}
     >
       <View style={styles.dashboardExpenseMain}>
         <CategoryIconBadge category={category} subcategory={subcategory} accent />
@@ -3507,7 +3622,7 @@ function DashboardExpenseRow({
           {title}
         </Text>
       </View>
-      <Text style={styles.dashboardExpenseAmount} numberOfLines={1}>
+      <Text style={[styles.dashboardExpenseAmount, isCompact ? styles.dashboardExpenseAmountCompact : null]} numberOfLines={1}>
         - {formatMoney(transaction.amount, transaction.currency)}
       </Text>
     </Pressable>
@@ -3535,17 +3650,20 @@ function CategoryIconBadge({
 }
 
 function CategorySummaryRow({ data, summary }: { data: AppData; summary: CategorySummary }) {
+  const { isCompact } = useResponsive();
   const category = data.categories.find((item) => item.id === summary.categoryId);
 
   return (
-    <View style={styles.listRow}>
+    <View style={[styles.listRow, isCompact ? styles.listRowCompact : null]}>
       <View style={styles.categoryRowLabel}>
         <CategoryIconBadge category={category} />
         <Text style={styles.categoryRowTitle} numberOfLines={1}>
           {summary.categoryName}
         </Text>
       </View>
-      <Text style={styles.rowAmount}>{formatMoney(summary.amount, summary.currency)}</Text>
+      <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>
+        {formatMoney(summary.amount, summary.currency)}
+      </Text>
     </View>
   );
 }
@@ -3592,18 +3710,20 @@ function CategoryManagementRow({
   onEdit: () => void;
   onDisable: () => void;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <View style={styles.managementRow}>
+    <View style={[styles.managementRow, isCompact ? styles.managementRowCompact : null]}>
       <View style={styles.managementInfo}>
         <CategoryIconBadge category={category} />
         <View style={styles.managementText}>
-          <Text style={styles.categoryRowTitle} numberOfLines={1}>
+          <Text style={styles.categoryRowTitle} numberOfLines={2}>
             {category.name}
           </Text>
           <Text style={styles.rowMeta}>{category.type}</Text>
         </View>
       </View>
-      <View style={styles.managementActions}>
+      <View style={[styles.managementActions, isCompact ? styles.managementActionsCompact : null]}>
         <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} />
         <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} />
       </View>
@@ -3626,8 +3746,10 @@ function ManagementRow({
   onEdit?: () => void;
   onDisable?: () => void;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <View style={styles.managementRow}>
+    <View style={[styles.managementRow, isCompact ? styles.managementRowCompact : null]}>
       <View style={styles.managementInfo}>
         {Icon ? (
           <View style={styles.managementIconBadge}>
@@ -3635,12 +3757,12 @@ function ManagementRow({
           </View>
         ) : null}
         <View style={styles.managementText}>
-          <Text style={styles.rowTitle}>{title}</Text>
-          <Text style={styles.rowMeta}>{subtitle}</Text>
+          <Text style={styles.rowTitle} numberOfLines={2}>{title}</Text>
+          <Text style={styles.rowMeta} numberOfLines={1}>{subtitle}</Text>
         </View>
       </View>
       {onEdit || onDisable ? (
-        <View style={styles.managementActions}>
+        <View style={[styles.managementActions, isCompact ? styles.managementActionsCompact : null]}>
           {onEdit ? <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} /> : null}
           {onDisable ? <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} /> : null}
         </View>
@@ -3666,15 +3788,17 @@ function PaymentMethodManagementRow({
   onEdit: () => void;
   onDisable: () => void;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <View style={[styles.managementRow, selected ? styles.managementRowSelected : null]}>
+    <View style={[styles.managementRow, isCompact ? styles.managementRowCompact : null, selected ? styles.managementRowSelected : null]}>
       <Pressable accessibilityRole="button" onPress={onSelect} style={styles.managementSelectArea}>
         <View style={styles.managementIconBadge}>
           <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
         </View>
         <View style={styles.managementText}>
-          <Text style={styles.rowTitle}>{methodName}</Text>
-          <Text style={styles.rowMeta}>
+          <Text style={styles.rowTitle} numberOfLines={2}>{methodName}</Text>
+          <Text style={styles.rowMeta} numberOfLines={1}>
             {submethodCount} {submethodCount === 1 ? 'submethod' : 'submethods'}
           </Text>
         </View>
@@ -3684,7 +3808,7 @@ function PaymentMethodManagementRow({
           <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
         )}
       </Pressable>
-      <View style={styles.managementActions}>
+      <View style={[styles.managementActions, isCompact ? styles.managementActionsCompact : null]}>
         <AppButton label={t('edit')} compact variant="secondary" onPress={onEdit} />
         <AppButton label={t('disable')} compact variant="secondary" onPress={onDisable} />
       </View>
@@ -3703,10 +3827,16 @@ function SettingsMenuButton({
   Icon: IconComponent;
   onPress: () => void;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.settingsMenuButton}>
-      <View style={styles.settingsMenuIcon}>
-        <Icon color={colors.primary} size={24} strokeWidth={2.2} />
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={[styles.settingsMenuButton, isCompact ? styles.settingsMenuButtonCompact : null]}
+    >
+      <View style={[styles.settingsMenuIcon, isCompact ? styles.settingsMenuIconCompact : null]}>
+        <Icon color={colors.primary} size={isCompact ? 20 : 24} strokeWidth={2.2} />
       </View>
       <View style={styles.settingsMenuText}>
         <Text style={styles.settingsMenuTitle}>{title}</Text>
@@ -3801,13 +3931,22 @@ function CalendarModal({
   onMonthChange: (dateInput: string) => void;
   onSelectDate: (dateInput: string) => void;
 }) {
+  const { isCompact } = useResponsive();
   const days = calendarDaysForMonth(viewMonth);
   const today = todayInput();
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
-      <Pressable accessibilityRole="none" onPress={onClose} style={styles.calendarOverlay}>
-        <Pressable accessibilityRole="none" onPress={() => undefined} style={styles.calendarPanel}>
+      <Pressable
+        accessibilityRole="none"
+        onPress={onClose}
+        style={[styles.calendarOverlay, isCompact ? styles.calendarOverlayCompact : null]}
+      >
+        <Pressable
+          accessibilityRole="none"
+          onPress={() => undefined}
+          style={[styles.calendarPanel, isCompact ? styles.calendarPanelCompact : null]}
+        >
           <View style={styles.calendarHeader}>
             <IconButton
               accessibilityLabel={t('previousMonth')}
@@ -3841,6 +3980,7 @@ function CalendarModal({
                   onPress={() => onSelectDate(day.dateInput)}
                   style={[
                     styles.calendarDay,
+                    isCompact ? styles.calendarDayCompact : null,
                     !day.currentMonth ? styles.calendarDayOutside : null,
                     isToday ? styles.calendarDayToday : null,
                     selected ? styles.calendarDaySelected : null,
@@ -3866,9 +4006,11 @@ function CalendarModal({
 }
 
 function AmountKey({ label, onPress }: { label: string; onPress: () => void }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.expenseKey}>
-      <Text style={styles.expenseKeyText}>{label}</Text>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null]}>
+      <Text style={[styles.expenseKeyText, isCompact ? styles.expenseKeyTextCompact : null]}>{label}</Text>
     </Pressable>
   );
 }
@@ -3886,6 +4028,7 @@ function AppButton({
   variant?: 'primary' | 'secondary';
   compact?: boolean;
 }) {
+  const { isCompact } = useResponsive();
   const primary = variant === 'primary';
   const iconColor = primary ? colors.surface : colors.primary;
 
@@ -3895,12 +4038,17 @@ function AppButton({
       onPress={onPress}
       style={[
         styles.button,
+        isCompact ? styles.buttonResponsiveCompact : null,
         primary ? styles.buttonPrimary : styles.buttonSecondary,
         compact ? styles.buttonCompact : null,
       ]}
     >
-      {Icon ? <Icon color={iconColor} size={18} strokeWidth={2.4} /> : null}
-      <Text style={[styles.buttonText, primary ? styles.buttonTextPrimary : styles.buttonTextSecondary]}>
+      {Icon ? <Icon color={iconColor} size={compact || isCompact ? 16 : 18} strokeWidth={2.4} /> : null}
+      <Text
+        style={[styles.buttonText, isCompact ? styles.buttonTextCompact : null, primary ? styles.buttonTextPrimary : styles.buttonTextSecondary]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+      >
         {label}
       </Text>
     </Pressable>
@@ -3918,9 +4066,16 @@ function IconButton({
   onPress: () => void;
   danger?: boolean;
 }) {
+  const { isCompact } = useResponsive();
+
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} onPress={onPress} style={styles.iconButton}>
-      <Icon color={danger ? colors.danger : colors.deepBlue} size={20} strokeWidth={2.2} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onPress}
+      style={[styles.iconButton, isCompact ? styles.iconButtonCompact : null]}
+    >
+      <Icon color={danger ? colors.danger : colors.deepBlue} size={isCompact ? 18 : 20} strokeWidth={2.2} />
     </Pressable>
   );
 }
@@ -3934,10 +4089,12 @@ function EmptyState({ title }: { title: string }) {
 }
 
 function ScreenScroll({ children }: { children: React.ReactNode }) {
+  const { isCompact } = useResponsive();
+
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={styles.screenContent}
+      contentContainerStyle={[styles.screenContent, isCompact ? styles.screenContentCompact : null]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -4009,10 +4166,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  headerCompact: {
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  headerTextGroup: {
+    flex: 1,
+    minWidth: 0,
+  },
   headerBrand: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+    minWidth: 0,
   },
   headerLogo: {
     borderRadius: radius.sm,
@@ -4030,9 +4197,17 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 22,
   },
+  headerTitleCompact: {
+    fontSize: 19,
+    lineHeight: 23,
+  },
   monthControls: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  monthControlsCompact: {
+    flexShrink: 0,
+    gap: spacing.xs,
   },
   bottomNav: {
     backgroundColor: colors.surface,
@@ -4042,6 +4217,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
   },
+  bottomNavCompact: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
   navItem: {
     flex: 1,
     alignItems: 'center',
@@ -4050,6 +4229,10 @@ const styles = StyleSheet.create({
     minHeight: 56,
     justifyContent: 'center',
   },
+  navItemCompact: {
+    gap: 2,
+    minHeight: 50,
+  },
   navItemActive: {
     backgroundColor: '#FFEAEA',
   },
@@ -4057,6 +4240,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: fonts.medium,
     fontSize: 11,
+  },
+  navLabelCompact: {
+    fontSize: 10,
+    maxWidth: 74,
   },
   navLabelActive: {
     color: colors.primary,
@@ -4069,6 +4256,11 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  screenContentCompact: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    paddingBottom: spacing.lg,
   },
   expenseEntryPanel: {
     backgroundColor: colors.surface,
@@ -4084,6 +4276,11 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingHorizontal: spacing.md,
   },
+  expenseEntryHeaderCompact: {
+    gap: spacing.md,
+    minHeight: 56,
+    paddingHorizontal: spacing.sm,
+  },
   expenseEntryTitleGroup: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -4093,6 +4290,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fonts.bold,
     fontSize: 22,
+  },
+  expenseEntryTitleCompact: {
+    fontSize: 19,
   },
   expenseCategoryGrid: {
     flexDirection: 'row',
@@ -4110,6 +4310,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
     width: '25%',
   },
+  expenseCategoryItemCompact: {
+    marginBottom: spacing.lg,
+  },
   expenseCategoryIcon: {
     alignItems: 'center',
     backgroundColor: '#F4F4F4',
@@ -4117,6 +4320,11 @@ const styles = StyleSheet.create({
     height: 60,
     justifyContent: 'center',
     width: 60,
+  },
+  expenseCategoryIconCompact: {
+    borderRadius: 26,
+    height: 52,
+    width: 52,
   },
   expenseCategoryIconSelected: {
     backgroundColor: colors.primary,
@@ -4137,6 +4345,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
+  },
+  expenseOptionsPanelCompact: {
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   expenseOptionSection: {
     gap: spacing.xs,
@@ -4169,6 +4382,11 @@ const styles = StyleSheet.create({
     minHeight: 32,
     minWidth: 68,
     paddingHorizontal: spacing.md,
+  },
+  expenseOptionChipCompact: {
+    minHeight: 30,
+    minWidth: 58,
+    paddingHorizontal: spacing.sm,
   },
   expenseOptionChipSelected: {
     backgroundColor: '#FFEAEA',
@@ -4221,6 +4439,11 @@ const styles = StyleSheet.create({
     minHeight: 72,
     paddingHorizontal: spacing.md,
   },
+  expenseEntryComposerCompact: {
+    gap: spacing.sm,
+    minHeight: 62,
+    paddingHorizontal: spacing.sm,
+  },
   expenseMemoField: {
     alignItems: 'center',
     flex: 1,
@@ -4235,6 +4458,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 44,
   },
+  expenseMemoInputCompact: {
+    fontSize: 14,
+    minHeight: 38,
+  },
   expenseAmountPreview: {
     color: colors.text,
     flexShrink: 0,
@@ -4243,6 +4470,10 @@ const styles = StyleSheet.create({
     maxWidth: 140,
     textAlign: 'right',
   },
+  expenseAmountPreviewCompact: {
+    fontSize: 27,
+    maxWidth: 108,
+  },
   expenseKeypad: {
     borderTopColor: colors.border,
     borderTopWidth: 1,
@@ -4250,6 +4481,9 @@ const styles = StyleSheet.create({
   expenseKeypadRow: {
     flexDirection: 'row',
     minHeight: 76,
+  },
+  expenseKeypadRowCompact: {
+    minHeight: 60,
   },
   expenseKey: {
     alignItems: 'center',
@@ -4261,6 +4495,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 76,
   },
+  expenseKeyCompact: {
+    minHeight: 60,
+  },
   expenseConfirmKey: {
     backgroundColor: colors.primary,
   },
@@ -4269,6 +4506,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: 26,
     textAlign: 'center',
+  },
+  expenseKeyTextCompact: {
+    fontSize: 21,
   },
   expenseKeySubtext: {
     color: colors.textMuted,
@@ -4283,6 +4523,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.lg,
   },
+  calendarOverlayCompact: {
+    padding: spacing.md,
+  },
   calendarPanel: {
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -4290,6 +4533,11 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     padding: spacing.lg,
     width: '100%',
+  },
+  calendarPanelCompact: {
+    gap: spacing.sm,
+    maxHeight: '88%',
+    padding: spacing.md,
   },
   calendarHeader: {
     alignItems: 'center',
@@ -4321,6 +4569,9 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     width: `${100 / 7}%`,
+  },
+  calendarDayCompact: {
+    height: 34,
   },
   calendarDayOutside: {
     opacity: 0.38,
@@ -4362,12 +4613,31 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 5,
   },
+  dashboardSummaryCardCompact: {
+    alignItems: 'stretch',
+    gap: spacing.sm,
+    minHeight: 0,
+    padding: spacing.md,
+  },
+  dashboardMetricGroup: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+  },
   dashboardMetric: {
     alignItems: 'center',
     flex: 1,
     gap: spacing.sm,
     minWidth: 0,
     paddingHorizontal: spacing.xs,
+  },
+  dashboardMetricCompact: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 0,
+    width: '100%',
   },
   dashboardMetricDivider: {
     backgroundColor: colors.gray,
@@ -4430,6 +4700,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
   },
+  dashboardExpenseRowCompact: {
+    gap: spacing.sm,
+    minHeight: 68,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
   dashboardExpenseRowDivider: {
     borderTopColor: colors.surfaceAlt,
     borderTopWidth: 1,
@@ -4453,6 +4729,10 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 15,
     textAlign: 'right',
+  },
+  dashboardExpenseAmountCompact: {
+    fontSize: 13,
+    maxWidth: 108,
   },
   dashboardFab: {
     alignItems: 'center',
@@ -4500,6 +4780,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
     padding: spacing.md,
+  },
+  listRowCompact: {
+    gap: spacing.sm,
+    padding: spacing.sm,
   },
   rowTitle: {
     color: colors.text,
@@ -4578,6 +4862,11 @@ const styles = StyleSheet.create({
     minHeight: 72,
     padding: spacing.md,
   },
+  settingsMenuButtonCompact: {
+    gap: spacing.sm,
+    minHeight: 64,
+    padding: spacing.sm,
+  },
   settingsMenuIcon: {
     alignItems: 'center',
     backgroundColor: '#FFEAEA',
@@ -4585,6 +4874,10 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     width: 44,
+  },
+  settingsMenuIconCompact: {
+    height: 38,
+    width: 38,
   },
   settingsMenuText: {
     flex: 1,
@@ -4714,6 +5007,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  formGridCompact: {
+    flexDirection: 'column',
+  },
   field: {
     gap: spacing.sm,
     minWidth: 0,
@@ -4807,12 +5103,19 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
   },
+  transactionRowCompact: {
+    gap: spacing.sm,
+    padding: spacing.sm,
+  },
   transactionModalOverlay: {
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.32)',
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
+  },
+  transactionModalOverlayCompact: {
+    padding: spacing.md,
   },
   transactionDetailPanel: {
     backgroundColor: colors.surface,
@@ -4822,10 +5125,21 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     width: '100%',
   },
+  transactionDetailPanelCompact: {
+    gap: spacing.md,
+    maxHeight: '88%',
+    padding: spacing.md,
+  },
   transactionEditPanel: {
     maxHeight: '90%',
     maxWidth: 460,
     width: '100%',
+  },
+  transactionEditPanelCompact: {
+    maxHeight: '88%',
+  },
+  transactionEditScrollCompact: {
+    flexGrow: 1,
   },
   transactionDetailHeader: {
     alignItems: 'flex-start',
@@ -4852,6 +5166,9 @@ const styles = StyleSheet.create({
   transactionDetailAmount: {
     fontFamily: fonts.bold,
     fontSize: 28,
+  },
+  transactionDetailAmountCompact: {
+    fontSize: 24,
   },
   transactionDetailLines: {
     borderTopColor: colors.border,
@@ -4884,13 +5201,21 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'flex-end',
   },
+  transactionDetailActionsCompact: {
+    flexWrap: 'wrap',
+  },
   transactionMain: {
     flex: 1,
     gap: spacing.xs,
+    minWidth: 0,
   },
   rowActions: {
     alignItems: 'flex-end',
     gap: spacing.sm,
+  },
+  rowActionsCompact: {
+    flexShrink: 0,
+    maxWidth: 116,
   },
   iconRow: {
     flexDirection: 'row',
@@ -4934,6 +5259,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing.md,
   },
+  managementRowCompact: {
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
   managementRowSelected: {
     backgroundColor: '#FFF5F5',
     borderRadius: radius.sm,
@@ -4956,6 +5285,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  managementActionsCompact: {
+    flexShrink: 0,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
   },
   managementSelectArea: {
     alignItems: 'center',
@@ -5011,6 +5345,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
   },
+  buttonResponsiveCompact: {
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
   buttonCompact: {
     height: 38,
     paddingHorizontal: spacing.md,
@@ -5027,6 +5365,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 14,
   },
+  buttonTextCompact: {
+    fontSize: 13,
+  },
   buttonTextPrimary: {
     color: colors.surface,
   },
@@ -5040,6 +5381,10 @@ const styles = StyleSheet.create({
     height: 38,
     justifyContent: 'center',
     width: 38,
+  },
+  iconButtonCompact: {
+    height: 34,
+    width: 34,
   },
   emptyState: {
     alignItems: 'center',
@@ -5100,6 +5445,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  installmentRowTopCompact: {
+    gap: spacing.sm,
   },
   managementIconBadge: {
     alignItems: 'center',

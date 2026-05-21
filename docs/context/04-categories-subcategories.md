@@ -22,21 +22,21 @@ Default expense categories:
 - Housing.
 - Services.
 - Health.
-- Entertainment.
 - Shopping.
-- Education.
 - Subscriptions.
+- Sports.
+- Insurance.
+- Pets.
+- Personal.
 - Other.
 
 Default income categories:
 
 - Salary.
-- Freelance.
-- Sales.
-- Refunds.
-- Other.
 
-Default subcategories are included for common first-use paths such as groceries, fuel, rent, internet, payroll, and projects.
+Default subcategories are included for common first-use paths such as groceries, delivery, meals, rides, public transit, home goods, mobile phone, personal care, clothing, laundry, subscriptions, soccer, bike insurance, pet food, personal transfers, and payroll.
+
+The default seed must not include the removed drug/cannabis category or sample rows.
 
 ## Current management UI
 
@@ -55,7 +55,5 @@ Hard delete is not exposed. Disable is used for categories.
 
 ## Known gaps
 
-- Category edit/rename is not implemented.
-- Subcategory disable/edit is not implemented in the UI.
 - No validation prevents duplicate names.
 - No reassign flow exists for historical transactions.

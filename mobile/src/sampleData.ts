@@ -97,7 +97,6 @@ const subcategories: Subcategory[] = [
   subcategory('sub-insurance-bike', 'cat-exp-insurance', 'Bike Insurance'),
   subcategory('sub-pets-food', 'cat-exp-pets', 'Pet Food'),
   subcategory('sub-personal-ana', 'cat-exp-personal', 'Ana'),
-  subcategory('sub-other-cannabis', 'cat-exp-other', 'Cannabis'),
   subcategory('sub-income-payroll', 'cat-inc-salary', 'Payroll'),
 ];
 
@@ -151,14 +150,12 @@ const sourceRows: SourceRow[] = [
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Casa', description: 'Portalamparad x4 indoor amex g 6cuotas', amount: 17000 },
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Servicios', description: 'Primevideo', amount: 8000 },
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Ana', description: 'Transferencia', amount: 50000 },
-  { date: '2026-05-09', type: 'expense', sourceCategory: 'Droga', description: 'Indoor', amount: 47700 },
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Desayuno', description: 'Pan y facturas visa g', amount: 5050 },
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Ropa', description: 'Lavadero', amount: 20000 },
   { date: '2026-05-09', type: 'expense', sourceCategory: 'Transporte', description: 'Didi lavadero', amount: 7600 },
   { date: '2026-05-08', type: 'expense', sourceCategory: 'Cena', description: 'Pizza py visa g', amount: 13300 },
   { date: '2026-05-08', type: 'expense', sourceCategory: 'Transporte', description: 'Uber unq visa g', amount: 5700 },
   { date: '2026-05-08', type: 'expense', sourceCategory: 'Servicios', description: 'Pedidosya plus visa g', amount: 6000 },
-  { date: '2026-05-07', type: 'expense', sourceCategory: 'Droga', description: 'Macetas y tierra visa g', amount: 36200 },
   { date: '2026-05-07', type: 'expense', sourceCategory: 'Transporte', description: 'Uber lavadero visa g', amount: 10000 },
   { date: '2026-05-06', type: 'expense', sourceCategory: 'Transporte', description: 'Uber visa g solano', amount: 4500 },
   { date: '2026-05-06', type: 'expense', sourceCategory: 'Servicios', description: 'Uber one visa g', amount: 8000 },
@@ -177,7 +174,6 @@ const sourceRows: SourceRow[] = [
   { date: '2026-05-04', type: 'expense', sourceCategory: 'Transporte', description: 'Uber de villa Mitre', amount: 5400 },
   { date: '2026-05-04', type: 'expense', sourceCategory: 'Transporte', description: 'Uber villa mitre', amount: 5000 },
   { date: '2026-05-03', type: 'expense', sourceCategory: 'Ana', description: 'Efectivo', amount: 2500 },
-  { date: '2026-05-03', type: 'expense', sourceCategory: 'Droga', description: 'Papelillo y coca', amount: 5000 },
   { date: '2026-05-03', type: 'expense', sourceCategory: 'Hamburguesa', description: 'Hamburguesa con lauti y coca', amount: 13100 },
   { date: '2026-05-02', type: 'expense', sourceCategory: 'Bebida', description: 'Coca cola', amount: 4000 },
   { date: '2026-05-02', type: 'expense', sourceCategory: 'Bebida', description: 'Coca cola', amount: 2500 },
@@ -263,8 +259,6 @@ const subcategoryFor = (row: SourceRow): string => {
         return 'sub-subscriptions-rides';
       }
       return 'sub-services-mobile-phone';
-    case 'Droga':
-      return 'sub-other-cannabis';
     case 'Desayuno':
       return 'sub-food-breakfast';
     case 'Merienda':

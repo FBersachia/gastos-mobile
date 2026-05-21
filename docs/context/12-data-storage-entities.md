@@ -19,6 +19,7 @@ Current seed note:
 
 - Defaults are loaded from the May 2026 sample dataset in `mobile/src/sampleData.ts`.
 - The seed expands the CSV row marked `6cuotas` into six monthly installment transactions.
+- The default seed excludes the removed drug/cannabis subcategory and related sample rows.
 
 ## Current entities
 

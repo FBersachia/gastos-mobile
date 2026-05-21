@@ -29,10 +29,18 @@ Typography:
 - Header with app name and selected month.
 - Four bottom tabs: Dashboard, Transactions, Reports, Settings.
 - Reusable controls in `App.tsx`: `AppButton`, `IconButton`, `Chip`, `Field`, `EmptyState`, `ScreenScroll`.
+- Responsive helpers in `App.tsx` classify mobile widths as compact, regular, or large through `useWindowDimensions`.
 - Brand red is used for primary actions.
 - Deep blue is used for dashboard summary bands.
 - Cards use small radius and restrained borders.
 - Settings uses individual menu buttons that open one management screen at a time.
+
+## Responsive behavior
+
+- Compact mobile is width below `360`; regular is `360` to `429`; large mobile is `430` and above.
+- Header, bottom navigation, dashboard summary, forms, transaction rows, report rows, settings management rows, expense keypad, calendar, and transaction modals adapt spacing, wrapping, and sizing for compact screens.
+- Form grids collapse from two columns to one column on compact screens.
+- The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile.
 
 ## Transaction creation UX
 

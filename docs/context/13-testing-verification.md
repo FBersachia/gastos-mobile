@@ -7,7 +7,7 @@ The current implementation has been verified with:
 - `npx tsc --noEmit`
 - `npx expo-doctor`
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
-- May 2026 sample data validation: 72 CSV rows produce 77 transactions, including six generated installments and no missing category/payment references.
+- May 2026 sample data validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
 
 At the time of initial implementation, the Android bundle request returned HTTP 200.
 
@@ -35,6 +35,12 @@ Transactions:
 - Create an installment expense and confirm one transaction per month.
 - Delete an installment and confirm the full group is removed.
 - Confirm the May 2026 default seed shows the salary income, imported expenses, Visa/Amex/Transfer/Cash methods, and generated future installments.
+- Confirm the May 2026 default seed does not include the removed drug/cannabis category or related sample transactions.
+
+Responsive mobile:
+
+- Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
+- Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
 
 Categories and payment methods:
 
