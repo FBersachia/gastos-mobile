@@ -2,7 +2,7 @@
 
 ## Requirement
 
-The app must be simple, fast, mobile-first, low clutter, and optimized for daily transaction registration. The interface language is English.
+The app must be simple, fast, mobile-first, low clutter, and optimized for daily transaction registration. The interface supports English and Spanish Argentina.
 
 ## Brand system
 
@@ -41,6 +41,8 @@ Typography:
 - Header, bottom navigation, dashboard summary, forms, transaction rows, report rows, settings management rows, expense keypad, calendar, and transaction modals adapt spacing, wrapping, and sizing for compact screens.
 - Form grids collapse from two columns to one column on compact screens.
 - The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile.
+- The edit transaction flow keeps category/subcategory collapsed by default to prioritize amount and memo edits.
+- Settings subcategories are grouped under parent-category accordions so unrelated subcategories are not mixed in one list.
 
 ## Transaction creation UX
 
@@ -53,6 +55,7 @@ The new expense entry screen is designed to keep daily capture on one screen:
 - Date key that opens an in-app calendar selector.
 - Fixed numeric keypad.
 - Brand-colored confirm action.
+- The keypad delete key uses the lucide `Delete` icon to match a backspace-style affordance.
 
 Category rows and category selector chips include an icon, with the category name rendered smaller than the icon.
 

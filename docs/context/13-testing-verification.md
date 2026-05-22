@@ -18,6 +18,7 @@ Authentication:
 - App blocks access until biometric authentication succeeds.
 - Failed authentication keeps financial data hidden.
 - Retry action opens authentication again.
+- Disabling biometric access in Settings allows the next app start to enter without an authentication prompt.
 
 Dashboard:
 
@@ -31,11 +32,13 @@ Transactions:
 - Create an expense with required fields.
 - Create an income with required fields.
 - Edit a non-installment transaction.
+- Edit a transaction with Transfer or Credit Card payment and confirm saving without payment changes preserves the original payment submethod.
 - Delete a transaction after confirmation.
 - Create an installment expense and confirm one transaction per month.
 - Delete an installment and confirm the full group is removed.
 - Confirm the May 2026 default seed shows the salary income, imported expenses, Visa/Amex/Transfer/Cash methods, and generated future installments.
 - Confirm the May 2026 default seed does not include the removed drug/cannabis category or related sample transactions.
+- Switch language to Spanish and confirm the calendar month, weekday labels, payment defaults, and subcategory/payment lists display in Spanish without renaming stored custom data.
 
 Responsive mobile:
 
@@ -46,6 +49,7 @@ Categories and payment methods:
 
 - Add a category and use it in a transaction.
 - Add a subcategory and use it in a transaction.
+- In Settings > Subcategories, switch between expense and income and confirm parent category choices update before creating the subcategory.
 - Disable a category and confirm it no longer appears in active form choices.
 - Add a payment method/submethod and use it in a transaction.
 

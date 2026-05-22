@@ -31,6 +31,8 @@ Default payment submethods:
 - Credit card > Mastercard.
 - Debit card > Bank debit.
 
+Built-in default payment method and submethod names are stored in English and translated at display time by stable id when the app language changes. User-created or renamed payment data is shown exactly as stored.
+
 ## Current management UI
 
 Implemented in `SettingsScreen`:
@@ -39,6 +41,7 @@ Implemented in `SettingsScreen`:
 - Add payment submethod.
 - Disable payment method.
 - Active payment methods and submethods are shown in transaction forms.
+- Default payment labels follow the active app language in forms, transaction detail, reports, and settings.
 
 ## Current behavior
 

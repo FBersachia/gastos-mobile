@@ -15,6 +15,7 @@ Implemented in `mobile/App.tsx`:
 - If available, it calls `LocalAuthentication.authenticateAsync`.
 - The biometric prompt allows device fallback through `fallbackLabel: 'Use device passcode'` and `disableDeviceFallback: false`.
 - On web, authentication is bypassed to keep local development possible.
+- Authentication is decided after local data loads. If `settings.biometricLockEnabled` is `false`, the app enters directly without prompting.
 
 ## UX surface
 
@@ -24,9 +25,8 @@ Implemented in `mobile/App.tsx`:
 
 ## Current policy decisions
 
-- Biometric lock is mandatory in settings.
+- Biometric lock defaults to enabled and can be disabled from Core settings.
 - Device passcode fallback is currently allowed.
-- The app does not allow disabling biometric lock.
 
 ## Known gaps
 

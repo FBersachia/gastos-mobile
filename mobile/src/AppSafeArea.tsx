@@ -11,7 +11,7 @@ export function AppSafeAreaView({
   style,
 }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
   return (
-    <SafeAreaView edges={Platform.OS === 'web' ? [] : ['top', 'right', 'bottom', 'left']} style={style}>
+    <SafeAreaView edges={Platform.OS === 'web' ? [] : ['top', 'right', 'left']} style={style}>
       {children}
     </SafeAreaView>
   );

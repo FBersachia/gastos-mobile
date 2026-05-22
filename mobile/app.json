@@ -2,7 +2,7 @@
   "expo": {
     "name": "Expense Control",
     "slug": "expense-control",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
       "supportsTablet": true
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 4,
       "package": "com.suats.gastoscontrol",
       "edgeToEdgeEnabled": false,
       "adaptiveIcon": {

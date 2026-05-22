@@ -14,12 +14,11 @@ From the requirements document:
 - Budget alert thresholds.
 - Whether currencies require manual exchange rates.
 - Whether dashboard totals should be grouped by currency or converted to default currency.
-- Whether biometric lock is mandatory or optional.
 
 ## Defaults currently chosen in code
 
 - App working name: Expense Control.
-- Biometric lock: mandatory.
+- Biometric lock: optional, default enabled.
 - Device passcode fallback: allowed.
 - Category deletion: disable only.
 - Payment method deletion: disable only.

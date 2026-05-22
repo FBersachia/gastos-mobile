@@ -20,6 +20,8 @@ Supported fields:
 
 The default Transactions tab surface is optimized for adding a new expense: header, scrollable subcategory grid, currency, payment and installment controls after subcategory selection, memo row, amount preview, fixed numeric keypad, and an in-app calendar selector opened from the date key.
 
+The in-app calendar follows the active app language. Spanish uses localized month/day labels and a Monday-first week.
+
 ## Validation
 
 The form validates:
@@ -43,7 +45,9 @@ Each transaction receives:
 
 ## Editing
 
-Editing is currently allowed only for non-installment transactions. The edit flow uses the same `TransactionForm`.
+Editing is currently allowed only for non-installment transactions. Expense editing uses a compact selected-subcategory row by default, with grouped category/subcategory choices opened only when the user taps the row.
+
+When editing, the existing payment method and submethod are preserved unless the user explicitly selects another payment option.
 
 Installment transactions are not individually editable in the current UI.
 

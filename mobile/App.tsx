@@ -28,6 +28,7 @@ import {
   Cookie,
   Croissant,
   CupSoda,
+  Delete,
   DollarSign,
   Dumbbell,
   Film,
@@ -71,7 +72,7 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -88,7 +89,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { loadAppData, saveAppData } from './src/storage';
@@ -100,6 +101,8 @@ import {
   Category,
   CategorySummary,
   CurrencySummary,
+  PaymentMethod,
+  PaymentSubmethod,
   Subcategory,
   TabKey,
   Transaction,
@@ -108,7 +111,6 @@ import {
 } from './src/types';
 import {
   addMonths,
-  categoryName,
   formatMoney,
   generateId,
   getMonthParts,
@@ -116,12 +118,9 @@ import {
   monthStartInput,
   monthlyTransactions,
   normalizeCurrency,
-  paymentMethodName,
-  paymentSubmethodName,
   roundMoney,
   shiftMonth,
   splitInstallments,
-  subcategoryName,
   summarizeBudgets,
   summarizeByCurrency,
   summarizeExpensesByCategory,
@@ -186,7 +185,10 @@ const translations = {
     backToDashboard: 'Back to dashboard',
     backToReports: 'Back to reports',
     backToSettings: 'Back to settings',
-    biometricMandatory: 'Biometric lock is mandatory for the MVP.',
+    biometricLock: 'Biometric access',
+    biometricLockDescription: 'Require device authentication when opening the app.',
+    biometricLockDisabled: 'Off',
+    biometricLockEnabled: 'On',
     budgetInvalidMessage: 'Select a category and enter an amount greater than zero.',
     budgetInvalidTitle: 'Invalid budget',
     budgets: 'Monthly budgets',
@@ -197,6 +199,8 @@ const translations = {
     cancelEdit: 'Cancel edit',
     categories: 'Categories',
     categoryName: 'Category name',
+    changeSubcategory: 'Change subcategory',
+    chooseSubcategory: 'Choose subcategory',
     closeTransactionDetail: 'Close transaction detail',
     closeTransactionForm: 'Close transaction form',
     coreSettings: 'Core settings',
@@ -235,6 +239,7 @@ const translations = {
     newSubcategory: 'New subcategory',
     newSubmethod: 'New submethod',
     newTransaction: 'New transaction',
+    noActiveCategories: 'No active categories available',
     nextMonth: 'Next month',
     noActivePaymentSubmethods: 'No active payment submethods available.',
     noActiveSubcategories: 'No active subcategories available',
@@ -312,7 +317,10 @@ const translations = {
     backToDashboard: 'Volver al tablero',
     backToReports: 'Volver a reportes',
     backToSettings: 'Volver a ajustes',
-    biometricMandatory: 'El bloqueo biométrico es obligatorio para el MVP.',
+    biometricLock: 'Acceso biometrico',
+    biometricLockDescription: 'Solicitar autenticacion del dispositivo al abrir la app.',
+    biometricLockDisabled: 'Desactivado',
+    biometricLockEnabled: 'Activado',
     budgetInvalidMessage: 'Seleccioná una categoría e ingresá un importe mayor que cero.',
     budgetInvalidTitle: 'Presupuesto inválido',
     budgets: 'Presupuestos mensuales',
@@ -323,6 +331,8 @@ const translations = {
     cancelEdit: 'Cancelar edición',
     categories: 'Categorías',
     categoryName: 'Nombre de categoría',
+    changeSubcategory: 'Cambiar subcategoria',
+    chooseSubcategory: 'Elegir subcategoria',
     closeTransactionDetail: 'Cerrar detalle del movimiento',
     closeTransactionForm: 'Cerrar formulario de movimiento',
     coreSettings: 'Ajustes principales',
@@ -361,6 +371,7 @@ const translations = {
     newSubcategory: 'Nueva subcategoría',
     newSubmethod: 'Nuevo submétodo',
     newTransaction: 'Nuevo movimiento',
+    noActiveCategories: 'No hay categorías activas disponibles',
     nextMonth: 'Mes siguiente',
     noActivePaymentSubmethods: 'No hay submétodos de pago activos.',
     noActiveSubcategories: 'No hay subcategorías activas disponibles',
@@ -422,11 +433,95 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
+type LocalizedDefaultName = Record<AppLanguage, string>;
+
+const localeForLanguage = (language: AppLanguage): string => (language === 'es-AR' ? 'es-AR' : 'en-US');
+
+const defaultCategoryNames: Record<string, LocalizedDefaultName> = {
+  'cat-exp-food': { en: 'Food', 'es-AR': 'Comida' },
+  'cat-exp-transport': { en: 'Transport', 'es-AR': 'Transporte' },
+  'cat-exp-housing': { en: 'Housing', 'es-AR': 'Hogar' },
+  'cat-exp-services': { en: 'Services', 'es-AR': 'Servicios' },
+  'cat-exp-health': { en: 'Health', 'es-AR': 'Salud' },
+  'cat-exp-entertainment': { en: 'Entertainment', 'es-AR': 'Entretenimiento' },
+  'cat-exp-shopping': { en: 'Shopping', 'es-AR': 'Compras' },
+  'cat-exp-education': { en: 'Education', 'es-AR': 'Educación' },
+  'cat-exp-sports': { en: 'Sports', 'es-AR': 'Deporte' },
+  'cat-exp-insurance': { en: 'Insurance', 'es-AR': 'Seguros' },
+  'cat-exp-pets': { en: 'Pets', 'es-AR': 'Mascotas' },
+  'cat-exp-personal': { en: 'Personal', 'es-AR': 'Personal' },
+  'cat-exp-other': { en: 'Other', 'es-AR': 'Otros' },
+  'cat-inc-salary': { en: 'Salary', 'es-AR': 'Salario' },
+  'cat-inc-freelance': { en: 'Freelance', 'es-AR': 'Prestaciones' },
+  'cat-inc-sales': { en: 'Sales', 'es-AR': 'Ventas' },
+  'cat-inc-refunds': { en: 'Refunds', 'es-AR': 'Reembolsos' },
+  'cat-inc-other': { en: 'Other', 'es-AR': 'Otros' },
+};
+
+const defaultSubcategoryNames: Record<string, LocalizedDefaultName> = {
+  'sub-food-groceries': { en: 'Groceries', 'es-AR': 'Mercado' },
+  'sub-food-delivery': { en: 'Delivery', 'es-AR': 'Delivery' },
+  'sub-food-breakfast': { en: 'Breakfast', 'es-AR': 'Desayuno' },
+  'sub-food-lunch': { en: 'Lunch', 'es-AR': 'Almuerzo' },
+  'sub-food-dinner': { en: 'Dinner', 'es-AR': 'Cena' },
+  'sub-food-snacks': { en: 'Snacks', 'es-AR': 'Aperitivos' },
+  'sub-food-burgers': { en: 'Burgers', 'es-AR': 'Hamburguesas' },
+  'sub-food-beverages': { en: 'Beverages', 'es-AR': 'Bebidas' },
+  'sub-food-drinks': { en: 'Drinks', 'es-AR': 'Tragos' },
+  'sub-food-cravings': { en: 'Cravings', 'es-AR': 'Bajon' },
+  'sub-transport-rides': { en: 'Rides', 'es-AR': 'Auto' },
+  'sub-transport-public-transit': { en: 'Public Transit', 'es-AR': 'Transporte público' },
+  'sub-housing-home-goods': { en: 'Home Goods', 'es-AR': 'Insumos hogar' },
+  'sub-housing-repairments': { en: 'Repairments', 'es-AR': 'Arreglos' },
+  'sub-services-mobile-phone': { en: 'Mobile Phone', 'es-AR': 'Celular' },
+  'sub-services-subscriptions': { en: 'Subscriptions', 'es-AR': 'Suscripciones' },
+  'sub-health-personal-care': { en: 'Personal Care', 'es-AR': 'Cuidado Personal' },
+  'sub-health-hospital': { en: 'Hospital', 'es-AR': 'Hospital' },
+  'sub-health-meds': { en: 'Meds', 'es-AR': 'Medicación' },
+  'sub-entertainment-movies': { en: 'Movies', 'es-AR': 'Cine' },
+  'sub-entertainment-games': { en: 'Games', 'es-AR': 'Juegos' },
+  'sub-entertainment-concerts': { en: 'Concerts', 'es-AR': 'Recitales' },
+  'sub-shopping-clothing': { en: 'Clothing', 'es-AR': 'Ropa' },
+  'sub-shopping-laundry': { en: 'Laundry', 'es-AR': 'Lavadero' },
+  'sub-education-books': { en: 'Books', 'es-AR': 'Libros' },
+  'sub-education-courses': { en: 'Courses', 'es-AR': 'Cursos' },
+  'sub-education-university': { en: 'University', 'es-AR': 'Universidad' },
+  'sub-sports-football': { en: 'Football', 'es-AR': 'Futbol' },
+  'sub-sports-gym': { en: 'Gym', 'es-AR': 'Gimnasio' },
+  'sub-insurance-car': { en: 'Car Insurance', 'es-AR': 'Seguro auto' },
+  'sub-pets-food': { en: 'Pet Food', 'es-AR': 'Comida mascotas' },
+  'sub-personal-drugs': { en: 'Drugs', 'es-AR': 'Drogas' },
+  'sub-other-interests': { en: 'Interests', 'es-AR': 'Intereses' },
+  'sub-income-payroll': { en: 'Payroll', 'es-AR': 'Sueldo' },
+  'sub-income-freelance-projects': { en: 'Projects', 'es-AR': 'Trabajos' },
+  'sub-income-sales-sales': { en: 'Sales', 'es-AR': 'Ventas' },
+  'sub-income-refunds-reimbursements': { en: 'Reimbursements', 'es-AR': 'Reembolsos' },
+  'sub-income-other-misc': { en: 'Misc Income', 'es-AR': 'Ingresos varios' },
+};
+
+const defaultPaymentMethodNames: Record<string, LocalizedDefaultName> = {
+  'pay-cash': { en: 'Cash', 'es-AR': 'Efectivo' },
+  'pay-transfer': { en: 'Transfer', 'es-AR': 'Transferencia' },
+  'pay-credit-card': { en: 'Credit Card', 'es-AR': 'Tarjeta de credito' },
+  'pay-debit-card': { en: 'Debit Card', 'es-AR': 'Tarjeta de debito' },
+};
+
+const defaultPaymentSubmethodNames: Record<string, LocalizedDefaultName> = {
+  'subpay-cash-wallet': { en: 'Wallet', 'es-AR': 'Billetera' },
+  'subpay-transfer-mercado-pago': { en: 'Mercado Pago', 'es-AR': 'Mercado Pago' },
+  'subpay-transfer-bank': { en: 'Bank Transfer', 'es-AR': 'Transferencia bancaria' },
+  'subpay-credit-visa': { en: 'Visa', 'es-AR': 'Visa' },
+  'subpay-credit-mastercard': { en: 'Mastercard', 'es-AR': 'Mastercard' },
+  'subpay-credit-amex': { en: 'Amex', 'es-AR': 'Amex' },
+  'subpay-debit-bank': { en: 'Bank debit', 'es-AR': 'Debito bancario' },
+};
+
 const appLogo = require('./assets/icon.png');
+const inflatrackLogo = require('./assets/inflatrack-icon.png');
 
 const tabs: Array<{ key: TabKey; label: string; Icon: IconComponent }> = [
   { key: 'dashboard', label: 'Dashboard', Icon: Home },
@@ -444,7 +539,6 @@ const categoryIconMap: Record<string, IconComponent> = {
   'cat-exp-entertainment': Film,
   'cat-exp-shopping': ShoppingBag,
   'cat-exp-education': GraduationCap,
-  'cat-exp-subscriptions': Repeat,
   'cat-exp-sports': Dumbbell,
   'cat-exp-insurance': ShieldCheck,
   'cat-exp-pets': PawPrint,
@@ -464,28 +558,38 @@ const subcategoryIconMap: Record<string, IconComponent> = {
   'sub-food-lunch': UtensilsCrossed,
   'sub-food-dinner': Pizza,
   'sub-food-snacks': Cookie,
-  'sub-food-bakery': Croissant,
   'sub-food-burgers': Hamburger,
+  'sub-food-beverages': CupSoda,
   'sub-food-drinks': CupSoda,
   'sub-food-cravings': CakeSlice,
   'sub-transport-rides': CarTaxiFront,
   'sub-transport-public-transit': BusFront,
   'sub-housing-home-goods': LampDesk,
+  'sub-housing-repairments': HousePlug,
   'sub-services-mobile-phone': Phone,
+  'sub-services-subscriptions': Repeat,
   'sub-health-personal-care': Pill,
+  'sub-health-hospital': HeartPulse,
+  'sub-health-meds': Pill,
+  'sub-entertainment-movies': Film,
+  'sub-entertainment-games': Gamepad2,
+  'sub-entertainment-concerts': Music,
   'sub-shopping-clothing': ShoppingBag,
   'sub-shopping-laundry': WashingMachine,
-  'sub-subscriptions-streaming': Film,
-  'sub-subscriptions-marketplace': Store,
-  'sub-subscriptions-delivery': Package,
-  'sub-subscriptions-music': Music,
-  'sub-subscriptions-rides': CarTaxiFront,
-  'sub-sports-soccer': Trophy,
-  'sub-insurance-bike': Bike,
+  'sub-education-books': GraduationCap,
+  'sub-education-courses': GraduationCap,
+  'sub-education-university': GraduationCap,
+  'sub-sports-football': Trophy,
+  'sub-sports-gym': Dumbbell,
+  'sub-insurance-car': ShieldCheck,
   'sub-pets-food': Bone,
-  'sub-personal-ana': UserRound,
-  'sub-other-cannabis': Cannabis,
+  'sub-personal-drugs': Pill,
+  'sub-other-interests': MoreHorizontal,
   'sub-income-payroll': BadgeDollarSign,
+  'sub-income-freelance-projects': Briefcase,
+  'sub-income-sales-sales': Store,
+  'sub-income-refunds-reimbursements': RefreshCcw,
+  'sub-income-other-misc': MoreHorizontal,
 };
 
 const categoryAccentMap: Record<string, string> = {
@@ -497,7 +601,10 @@ const categoryAccentMap: Record<string, string> = {
   'cat-exp-entertainment': '#55BBD1',
   'cat-exp-shopping': '#F0B84D',
   'cat-exp-education': '#6A8FD8',
-  'cat-exp-subscriptions': '#8F75D6',
+  'cat-exp-sports': '#8F75D6',
+  'cat-exp-insurance': '#6A8FD8',
+  'cat-exp-pets': '#8CCF5F',
+  'cat-exp-personal': '#8F75D6',
   'cat-exp-other': '#7EC8B4',
 };
 
@@ -542,24 +649,31 @@ const subcategoryIconRules: Array<{ keywords: string[]; Icon: IconComponent }> =
   { keywords: ['breakfast', 'coffee'], Icon: Coffee },
   { keywords: ['lunch'], Icon: UtensilsCrossed },
   { keywords: ['dinner'], Icon: Pizza },
-  { keywords: ['snack', 'bakery', 'bread'], Icon: Croissant },
+  { keywords: ['snack'], Icon: Cookie },
+  { keywords: ['bakery', 'bread'], Icon: Croissant },
   { keywords: ['burger', 'hamburger'], Icon: Hamburger },
-  { keywords: ['drink', 'soda'], Icon: CupSoda },
+  { keywords: ['beverage', 'drink', 'soda'], Icon: CupSoda },
   { keywords: ['craving', 'dessert'], Icon: CakeSlice },
   { keywords: ['ride', 'taxi'], Icon: CarTaxiFront },
   { keywords: ['public transit', 'bus', 'sube', 'train'], Icon: BusFront },
   { keywords: ['home goods', 'lamp'], Icon: LampDesk },
+  { keywords: ['repair', 'repairment'], Icon: HousePlug },
   { keywords: ['phone', 'mobile'], Icon: Phone },
-  { keywords: ['personal care', 'pharmacy'], Icon: Pill },
+  { keywords: ['subscription', 'recurring'], Icon: Repeat },
+  { keywords: ['hospital'], Icon: HeartPulse },
+  { keywords: ['personal care', 'pharmacy', 'med', 'medicine'], Icon: Pill },
   { keywords: ['clothing', 'clothes'], Icon: ShoppingBag },
   { keywords: ['laundry'], Icon: WashingMachine },
+  { keywords: ['concert'], Icon: Music },
   { keywords: ['streaming'], Icon: Film },
   { keywords: ['marketplace'], Icon: Store },
   { keywords: ['music'], Icon: Music },
+  { keywords: ['gym'], Icon: Dumbbell },
   { keywords: ['soccer', 'football'], Icon: Trophy },
-  { keywords: ['bike insurance'], Icon: Bike },
+  { keywords: ['car insurance', 'insurance'], Icon: ShieldCheck },
   { keywords: ['pet food'], Icon: Bone },
-  { keywords: ['cannabis'], Icon: Cannabis },
+  { keywords: ['drug', 'cannabis'], Icon: Pill },
+  { keywords: ['interest'], Icon: MoreHorizontal },
   { keywords: ['payroll', 'salary'], Icon: BadgeDollarSign },
   { keywords: ['cash', 'wallet'], Icon: HandCoins },
   { keywords: ['home', 'housing'], Icon: HousePlug },
@@ -695,18 +809,25 @@ type ExpenseDayGroup = {
 
 type SettingsSection = 'menu' | 'core' | 'budgets' | 'categories' | 'subcategories' | 'payments' | 'about';
 
-const formatDashboardDate = (dateInput: string): string => {
+const formatDashboardDate = (dateInput: string, language: AppLanguage): string => {
   const [year, month, day] = dateInput.split('-').map(Number);
   const date = new Date(year, month - 1, day);
-  const weekday = new Intl.DateTimeFormat('en', { weekday: 'short' }).format(date);
+  const weekday = new Intl.DateTimeFormat(localeForLanguage(language), { weekday: 'short' }).format(date);
+  const dayMonth =
+    language === 'es-AR'
+      ? `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`
+      : `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}`;
 
-  return `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')} ${weekday}`;
+  return `${dayMonth} ${weekday}`;
 };
 
-const formatShortInputDate = (dateInput: string): string => {
-  const [, month, day] = dateInput.split('-').map(Number);
+const formatShortInputDate = (dateInput: string, language: AppLanguage): string => {
+  const [year, month, day] = dateInput.split('-').map(Number);
 
-  return `${month}/${day}`;
+  return new Intl.DateTimeFormat(localeForLanguage(language), {
+    day: 'numeric',
+    month: 'numeric',
+  }).format(new Date(year, month - 1, day));
 };
 
 const toDateInput = (date: Date): string => {
@@ -725,10 +846,12 @@ const monthStartFromInput = (dateInput: string): string => {
 
 const calendarDaysForMonth = (
   monthInput: string,
+  weekStartsOn: 0 | 1 = 0,
 ): Array<{ dateInput: string; day: number; currentMonth: boolean }> => {
   const { month, year } = getMonthParts(monthInput);
   const firstDay = new Date(year, month - 1, 1);
-  const startDate = new Date(year, month - 1, 1 - firstDay.getDay());
+  const startOffset = (firstDay.getDay() - weekStartsOn + 7) % 7;
+  const startDate = new Date(year, month - 1, 1 - startOffset);
 
   return Array.from({ length: 42 }, (_, index) => {
     const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + index);
@@ -780,6 +903,81 @@ const formatDashboardMoney = (amount: number, currency: string): string =>
     maximumFractionDigits: 0,
   })}`;
 
+const displayDefaultName = <T extends { id: string; name: string }>(
+  item: T | undefined,
+  defaults: Record<string, LocalizedDefaultName>,
+  language: AppLanguage,
+): string | undefined => {
+  if (!item) {
+    return undefined;
+  }
+
+  const defaultName = defaults[item.id];
+
+  return defaultName && item.name === defaultName.en ? defaultName[language] : item.name;
+};
+
+const displayCategoryName = (category: Category | undefined, language: AppLanguage): string | undefined =>
+  displayDefaultName(category, defaultCategoryNames, language);
+
+const displaySubcategoryName = (subcategory: Subcategory | undefined, language: AppLanguage): string | undefined =>
+  displayDefaultName(subcategory, defaultSubcategoryNames, language);
+
+const displayPaymentMethodName = (method: PaymentMethod | undefined, language: AppLanguage): string | undefined =>
+  displayDefaultName(method, defaultPaymentMethodNames, language);
+
+const displayPaymentSubmethodName = (
+  submethod: PaymentSubmethod | undefined,
+  language: AppLanguage,
+): string | undefined => displayDefaultName(submethod, defaultPaymentSubmethodNames, language);
+
+const categoryDisplayName = (data: AppData, categoryId?: string): string | undefined =>
+  displayCategoryName(
+    categoryId ? data.categories.find((category) => category.id === categoryId) : undefined,
+    data.settings.language,
+  );
+
+const subcategoryDisplayName = (data: AppData, subcategoryId?: string): string | undefined =>
+  displaySubcategoryName(
+    subcategoryId ? data.subcategories.find((subcategory) => subcategory.id === subcategoryId) : undefined,
+    data.settings.language,
+  );
+
+const transactionCategoryDisplayName = (data: AppData, transaction: Transaction): string | undefined =>
+  subcategoryDisplayName(data, transaction.subcategoryId) || categoryDisplayName(data, transaction.categoryId);
+
+const paymentMethodDisplayName = (data: AppData, paymentMethodId?: string): string | undefined =>
+  displayPaymentMethodName(
+    paymentMethodId ? data.paymentMethods.find((method) => method.id === paymentMethodId) : undefined,
+    data.settings.language,
+  );
+
+const paymentSubmethodDisplayName = (data: AppData, paymentSubmethodId?: string): string | undefined =>
+  displayPaymentSubmethodName(
+    paymentSubmethodId
+      ? data.paymentSubmethods.find((submethod) => submethod.id === paymentSubmethodId)
+      : undefined,
+    data.settings.language,
+  );
+
+const compareDisplayName =
+  <T extends { id: string; name: string }>(defaults: Record<string, LocalizedDefaultName>, language: AppLanguage) =>
+  (left: T, right: T): number => {
+    const leftName = displayDefaultName(left, defaults, language) ?? left.name;
+    const rightName = displayDefaultName(right, defaults, language) ?? right.name;
+
+    return (
+      leftName.localeCompare(rightName, language, { sensitivity: 'base' }) ||
+      left.id.localeCompare(right.id)
+    );
+  };
+
+const compareCategoryDisplayName = (language: AppLanguage) =>
+  compareDisplayName<Category>(defaultCategoryNames, language);
+
+const compareSubcategoryDisplayName = (language: AppLanguage) =>
+  compareDisplayName<Subcategory>(defaultSubcategoryNames, language);
+
 export default function App() {
   return (
     <AppSafeAreaProvider>
@@ -801,6 +999,7 @@ function AppRoot() {
   const [selectedMonth, setSelectedMonth] = useState(monthStartInput());
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | undefined>();
   const [editingTransactionId, setEditingTransactionId] = useState<string | undefined>();
+  const initialAuthResolved = useRef(false);
   const responsive = useMemo(() => {
     const screenSize = getScreenSize(width);
 
@@ -819,10 +1018,6 @@ function AppRoot() {
       .catch(() => {
         Alert.alert(translations.en.storageErrorTitle, translations.en.storageErrorMessage);
       });
-  }, []);
-
-  useEffect(() => {
-    void requestAuthentication();
   }, []);
 
   const requestAuthentication = async () => {
@@ -854,6 +1049,21 @@ function AppRoot() {
       setAuthStatus('locked');
     }
   };
+
+  useEffect(() => {
+    if (!data || initialAuthResolved.current) {
+      return;
+    }
+
+    initialAuthResolved.current = true;
+
+    if (!data.settings.biometricLockEnabled) {
+      setAuthStatus('authenticated');
+      return;
+    }
+
+    void requestAuthentication();
+  }, [data]);
 
   const persistData = (updater: (current: AppData) => AppData) => {
     setData((current) => {
@@ -1010,6 +1220,16 @@ function AppRoot() {
       settings: {
         ...current.settings,
         language,
+      },
+    }));
+  };
+
+  const handleSetBiometricLockEnabled = (enabled: boolean) => {
+    persistData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        biometricLockEnabled: enabled,
       },
     }));
   };
@@ -1243,7 +1463,7 @@ function AppRoot() {
         <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <View style={styles.appShell}>
           {activeTab === 'transactions' ? null : (
-            <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} />
+            <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} language={data.settings.language} />
           )}
           <View style={styles.content}>
             {activeTab === 'dashboard' ? (
@@ -1283,6 +1503,7 @@ function AppRoot() {
                 onSaveBudget={handleSaveBudget}
                 onSetDefaultCurrency={handleSetDefaultCurrency}
                 onSetLanguage={handleSetLanguage}
+                onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
                 onAddCategory={handleAddCategory}
                 onUpdateCategory={handleUpdateCategory}
                 onAddSubcategory={handleAddSubcategory}
@@ -1357,10 +1578,12 @@ function Header({
   selectedMonth,
   onMonthChange,
   t,
+  language,
 }: {
   selectedMonth: string;
   onMonthChange: (value: string) => void;
   t: Translator;
+  language: AppLanguage;
 }) {
   const { isCompact } = useResponsive();
 
@@ -1372,7 +1595,7 @@ function Header({
           <Text style={styles.eyebrow} numberOfLines={1}>Expense Control</Text>
         </View>
         <Text style={[styles.headerTitle, isCompact ? styles.headerTitleCompact : null]} numberOfLines={2} adjustsFontSizeToFit>
-          {monthLabel(selectedMonth)}
+          {monthLabel(selectedMonth, localeForLanguage(language))}
         </Text>
       </View>
       <View style={[styles.monthControls, isCompact ? styles.monthControlsCompact : null]}>
@@ -1401,6 +1624,8 @@ function BottomNavigation({
   t: Translator;
 }) {
   const { isCompact } = useResponsive();
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'web' ? 0 : insets.bottom;
   const tabLabels: Record<TabKey, string> = {
     dashboard: 'Dashboard',
     transactions: t('transactions'),
@@ -1409,7 +1634,7 @@ function BottomNavigation({
   };
 
   return (
-    <View style={[styles.bottomNav, isCompact ? styles.bottomNavCompact : null]}>
+    <View style={[styles.bottomNav, isCompact ? styles.bottomNavCompact : null, { paddingBottom: spacing.sm + bottomInset }]}>
       {tabs.map(({ key, Icon }) => {
         const active = activeTab === key;
         const label = tabLabels[key];
@@ -1589,22 +1814,36 @@ function TransactionForm({
   const [firstInstallmentDate, setFirstInstallmentDate] = useState(todayInput());
   const [calendarVisible, setCalendarVisible] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(monthStartInput());
+  const [categorySelectorExpanded, setCategorySelectorExpanded] = useState(false);
   const isNewExpenseEntry = !editingTransaction && type === 'expense';
   const isExpenseEntry = type === 'expense';
 
   const categories = useMemo(
-    () => data.categories.filter((category) => category.type === type && category.active),
-    [data.categories, type],
+    () =>
+      data.categories
+        .filter((category) => category.type === type && category.active)
+        .sort(compareCategoryDisplayName(data.settings.language)),
+    [data.categories, data.settings.language, type],
   );
   const subcategories = useMemo(
     () => {
       const categoryIds = new Set(categories.map((category) => category.id));
 
-      return data.subcategories.filter(
-        (subcategory) => categoryIds.has(subcategory.categoryId) && subcategory.active,
-      );
+      return data.subcategories
+        .filter((subcategory) => categoryIds.has(subcategory.categoryId) && subcategory.active)
+        .sort(compareSubcategoryDisplayName(data.settings.language));
     },
-    [categories, data.subcategories],
+    [categories, data.settings.language, data.subcategories],
+  );
+  const subcategoryGroups = useMemo(
+    () =>
+      categories
+        .map((category) => ({
+          category,
+          subcategories: subcategories.filter((subcategory) => subcategory.categoryId === category.id),
+        }))
+        .filter((group) => group.subcategories.length > 0),
+    [categories, subcategories],
   );
   const paymentMethods = useMemo(
     () => data.paymentMethods.filter((method) => method.active),
@@ -1622,6 +1861,10 @@ function TransactionForm({
   );
   const currentSubcategory = subcategories.find((subcategory) => subcategory.id === subcategoryId);
   const currentCategory = data.categories.find((category) => category.id === (currentSubcategory?.categoryId ?? categoryId));
+  const currentSubcategoryLabel =
+    displaySubcategoryName(currentSubcategory, data.settings.language) ?? currentSubcategory?.name ?? t('chooseSubcategory');
+  const currentCategoryLabel =
+    displayCategoryName(currentCategory, data.settings.language) ?? currentCategory?.name ?? t('uncategorized');
   const currencyOptions = useMemo(
     () =>
       Array.from(
@@ -1639,6 +1882,7 @@ function TransactionForm({
   const selectedInstallmentCount = installmentsEnabled ? Number.parseInt(installmentCount, 10) : 1;
   const amountDisplay = amount || '0';
   const categoryItemWidth = isCompact ? '33.3333%' : isLarge ? '20%' : '25%';
+  const shouldShowExpenseControls = isNewExpenseEntry ? Boolean(subcategoryId) : true;
 
   useEffect(() => {
     if (editingTransaction) {
@@ -1652,6 +1896,7 @@ function TransactionForm({
       setPaymentSubmethodId(editingTransaction.paymentSubmethodId);
       setDescription(editingTransaction.description);
       setInstallmentsEnabled(false);
+      setCategorySelectorExpanded(false);
       return;
     }
 
@@ -1662,6 +1907,7 @@ function TransactionForm({
     setDescription('');
     setInstallmentsEnabled(false);
     setInstallmentCount('1');
+    setCategorySelectorExpanded(false);
   }, [data.settings.defaultCurrency, editingTransaction]);
 
   useEffect(() => {
@@ -1683,6 +1929,14 @@ function TransactionForm({
       return;
     }
 
+    if (editingTransaction) {
+      if (categoryId && !categories.some((category) => category.id === categoryId)) {
+        setCategoryId('');
+      }
+
+      return;
+    }
+
     const firstSubcategory = subcategories[0];
 
     if (firstSubcategory) {
@@ -1696,7 +1950,7 @@ function TransactionForm({
     }
 
     setSubcategoryId(undefined);
-  }, [categories, categoryId, isNewExpenseEntry, subcategories, subcategoryId]);
+  }, [categories, categoryId, editingTransaction, isNewExpenseEntry, subcategories, subcategoryId]);
 
   useEffect(() => {
     const selectedSubmethod = paymentSubmethods.find((submethod) => submethod.id === paymentSubmethodId);
@@ -1705,6 +1959,14 @@ function TransactionForm({
       if (paymentMethodId !== selectedSubmethod.paymentMethodId) {
         setPaymentMethodId(selectedSubmethod.paymentMethodId);
       }
+      return;
+    }
+
+    if (editingTransaction) {
+      if (paymentMethodId && !paymentMethods.some((method) => method.id === paymentMethodId)) {
+        setPaymentMethodId('');
+      }
+
       return;
     }
 
@@ -1721,7 +1983,7 @@ function TransactionForm({
     }
 
     setPaymentSubmethodId(undefined);
-  }, [paymentMethodId, paymentMethods, paymentSubmethodId, paymentSubmethods]);
+  }, [editingTransaction, paymentMethodId, paymentMethods, paymentSubmethodId, paymentSubmethods]);
 
   const handleAmountKeyPress = (key: string) => {
     if (key === 'backspace') {
@@ -1844,63 +2106,115 @@ function TransactionForm({
           )}
         </View>
 
-        <ScrollView
-          style={styles.expenseCategoryScroller}
-          contentContainerStyle={styles.expenseCategoryGrid}
-          showsVerticalScrollIndicator={false}
-        >
-          {subcategories.length ? (
-            subcategories.map((subcategory) => {
-              const category = data.categories.find((item) => item.id === subcategory.categoryId);
-              const Icon = getSubcategoryIcon(subcategory, category);
-              const selected = subcategoryId === subcategory.id;
+        {isNewExpenseEntry ? (
+          <ScrollView
+            style={styles.expenseCategoryScroller}
+            contentContainerStyle={styles.expenseCategoryGrid}
+            showsVerticalScrollIndicator={false}
+          >
+            {subcategories.length ? (
+              subcategories.map((subcategory) => {
+                const category = data.categories.find((item) => item.id === subcategory.categoryId);
+                const Icon = getSubcategoryIcon(subcategory, category);
+                const selected = subcategoryId === subcategory.id;
 
-              return (
-                <Pressable
-                  key={subcategory.id}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => {
-                    setSubcategoryId(subcategory.id);
-                    setCategoryId(subcategory.categoryId);
-                  }}
-                  style={[
-                    styles.expenseCategoryItem,
-                    isCompact ? styles.expenseCategoryItemCompact : null,
-                    { width: categoryItemWidth },
-                  ]}
-                >
-                  <View
+                return (
+                  <Pressable
+                    key={subcategory.id}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    onPress={() => {
+                      setSubcategoryId(subcategory.id);
+                      setCategoryId(subcategory.categoryId);
+                    }}
                     style={[
-                      styles.expenseCategoryIcon,
-                      isCompact ? styles.expenseCategoryIconCompact : null,
-                      selected ? styles.expenseCategoryIconSelected : null,
+                      styles.expenseCategoryItem,
+                      isCompact ? styles.expenseCategoryItemCompact : null,
+                      { width: categoryItemWidth },
                     ]}
                   >
-                    <Icon
-                      color={selected ? colors.surface : colors.textMuted}
-                      size={isCompact ? 26 : 32}
-                      strokeWidth={2}
-                    />
-                  </View>
-                  <Text
-                    style={[
-                      styles.expenseCategoryLabel,
-                      selected ? styles.expenseCategoryLabelSelected : null,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {subcategory.name}
-                  </Text>
-                </Pressable>
-              );
-            })
-          ) : (
-            <EmptyState title={t('noActiveSubcategories')} />
-          )}
-        </ScrollView>
+                    <View
+                      style={[
+                        styles.expenseCategoryIcon,
+                        isCompact ? styles.expenseCategoryIconCompact : null,
+                        selected ? styles.expenseCategoryIconSelected : null,
+                      ]}
+                    >
+                      <Icon
+                        color={selected ? colors.surface : colors.textMuted}
+                        size={isCompact ? 26 : 32}
+                        strokeWidth={2}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.expenseCategoryLabel,
+                        selected ? styles.expenseCategoryLabelSelected : null,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {displaySubcategoryName(subcategory, data.settings.language)}
+                    </Text>
+                  </Pressable>
+                );
+              })
+            ) : (
+              <EmptyState title={t('noActiveSubcategories')} />
+            )}
+          </ScrollView>
+        ) : (
+          <View style={[styles.expenseEditCategoryPanel, isCompact ? styles.expenseEditCategoryPanelCompact : null]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('changeSubcategory')}
+              onPress={() => setCategorySelectorExpanded((current) => !current)}
+              style={styles.expenseEditCategoryTrigger}
+            >
+              <CategoryIconBadge category={currentCategory} subcategory={currentSubcategory} accent />
+              <View style={styles.expenseEditCategoryText}>
+                <Text style={styles.expenseOptionLabel}>{t('expenseCategory')}</Text>
+                <Text style={styles.rowTitle} numberOfLines={1}>{currentSubcategoryLabel}</Text>
+                <Text style={styles.rowMeta} numberOfLines={1}>{currentCategoryLabel}</Text>
+              </View>
+              {categorySelectorExpanded ? (
+                <ChevronDown color={colors.textMuted} size={20} strokeWidth={2.2} />
+              ) : (
+                <ChevronRight color={colors.textMuted} size={20} strokeWidth={2.2} />
+              )}
+            </Pressable>
+            {categorySelectorExpanded ? (
+              <View style={styles.expenseEditCategoryList}>
+                {subcategoryGroups.length ? (
+                  subcategoryGroups.map((group) => (
+                    <View key={group.category.id} style={styles.expenseEditCategoryGroup}>
+                      <Text style={styles.expenseEditCategoryGroupTitle} numberOfLines={1}>
+                        {displayCategoryName(group.category, data.settings.language)}
+                      </Text>
+                      <View style={styles.chipRow}>
+                        {group.subcategories.map((subcategory) => (
+                          <Chip
+                            key={subcategory.id}
+                            label={displaySubcategoryName(subcategory, data.settings.language) ?? subcategory.name}
+                            selected={subcategoryId === subcategory.id}
+                            onPress={() => {
+                              setSubcategoryId(subcategory.id);
+                              setCategoryId(subcategory.categoryId);
+                              setCategorySelectorExpanded(false);
+                            }}
+                          />
+                        ))}
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.rowMeta}>{t('noActiveSubcategories')}</Text>
+                )}
+              </View>
+            ) : null}
+          </View>
+        )}
 
-        {subcategoryId ? (
+        {shouldShowExpenseControls ? (
           <>
             <View style={[styles.expenseOptionsPanel, isCompact ? styles.expenseOptionsPanelCompact : null]}>
               <View style={styles.expenseOptionSection}>
@@ -1984,7 +2298,7 @@ function TransactionForm({
                             ]}
                             numberOfLines={1}
                           >
-                            {submethod.name}
+                            {displayPaymentSubmethodName(submethod, data.settings.language)}
                           </Text>
                         </Pressable>
                       );
@@ -2081,7 +2395,7 @@ function TransactionForm({
                   <Text style={[styles.expenseKeyText, isCompact ? styles.expenseKeyTextCompact : null]} numberOfLines={1} adjustsFontSizeToFit>
                     {t('today')}
                   </Text>
-                  <Text style={styles.expenseKeySubtext}>{formatShortInputDate(date)}</Text>
+                  <Text style={styles.expenseKeySubtext}>{formatShortInputDate(date, data.settings.language)}</Text>
                 </Pressable>
               </View>
               <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
@@ -2105,7 +2419,7 @@ function TransactionForm({
                   onPress={() => handleAmountKeyPress('backspace')}
                   style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null]}
                 >
-                  <X color={colors.text} size={24} strokeWidth={2.4} />
+                  <Delete color={colors.text} size={24} strokeWidth={2.4} />
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"
@@ -2120,6 +2434,7 @@ function TransactionForm({
             <CalendarModal
               visible={calendarVisible}
               t={t}
+              language={data.settings.language}
               selectedDate={date}
               viewMonth={calendarMonth}
               onClose={() => setCalendarVisible(false)}
@@ -2174,7 +2489,7 @@ function TransactionForm({
             {subcategories.map((subcategory) => (
               <Chip
                 key={subcategory.id}
-                label={subcategory.name}
+                label={displaySubcategoryName(subcategory, data.settings.language) ?? subcategory.name}
                 selected={subcategoryId === subcategory.id}
                 onPress={() => {
                   setSubcategoryId(subcategory.id);
@@ -2194,7 +2509,7 @@ function TransactionForm({
             {paymentSubmethods.map((submethod) => (
               <Chip
                 key={submethod.id}
-                label={submethod.name}
+                label={displayPaymentSubmethodName(submethod, data.settings.language) ?? submethod.name}
                 selected={paymentSubmethodId === submethod.id}
                 onPress={() => {
                   setPaymentSubmethodId(submethod.id);
@@ -2251,10 +2566,10 @@ function TransactionRow({
   onDelete: () => void;
 }) {
   const { isCompact } = useResponsive();
-  const displayCategory = subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
+  const displayCategory = transactionCategoryDisplayName(data, transaction) ?? t('uncategorized');
   const displayPayment =
-    paymentSubmethodName(data, transaction.paymentSubmethodId) ||
-    paymentMethodName(data, transaction.paymentMethodId);
+    paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
+    paymentMethodDisplayName(data, transaction.paymentMethodId);
 
   return (
     <Pressable
@@ -2314,10 +2629,11 @@ function TransactionDetailModal({
 
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
-  const displayCategory = subcategory?.name || categoryName(data, transaction.categoryId);
+  const displayCategory = transactionCategoryDisplayName(data, transaction) ?? t('uncategorized');
+  const displayParentCategory = displayCategoryName(category, data.settings.language);
   const displayPayment =
-    paymentSubmethodName(data, transaction.paymentSubmethodId) ||
-    paymentMethodName(data, transaction.paymentMethodId);
+    paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
+    paymentMethodDisplayName(data, transaction.paymentMethodId);
   const amountPrefix = transaction.type === 'expense' ? '-' : '+';
 
   return (
@@ -2360,7 +2676,7 @@ function TransactionDetailModal({
 
           <View style={styles.transactionDetailLines}>
             <TransactionDetailLine label={t('type')} value={transaction.type} />
-            <TransactionDetailLine label={t('categories')} value={category?.name || t('uncategorized')} />
+            <TransactionDetailLine label={t('categories')} value={displayParentCategory || t('uncategorized')} />
             <TransactionDetailLine label={t('subcategories')} value={displayCategory || t('none')} />
             <TransactionDetailLine label={t('payment')} value={displayPayment || t('none')} />
             <TransactionDetailLine label={t('currency')} value={transaction.currency} />
@@ -2499,7 +2815,7 @@ function ReportsScreen({
         const key = `${t.paymentSubmethodId}-${t.currency}`;
         const current = bySubmethod.get(key) ?? {
           submethodId: t.paymentSubmethodId!,
-          name: paymentSubmethodName(data, t.paymentSubmethodId) ?? t.paymentSubmethodId!,
+          name: paymentSubmethodDisplayName(data, t.paymentSubmethodId) ?? t.paymentSubmethodId!,
           amount: 0,
           currency: t.currency,
         };
@@ -2566,7 +2882,10 @@ function ReportsScreen({
 
   const toMonth = (month: string) => {
     const [y, m] = month.split('-');
-    return new Date(Number(y), Number(m) - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    return new Intl.DateTimeFormat(localeForLanguage(data.settings.language), {
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(Number(y), Number(m) - 1));
   };
 
   const prevMonth = () => {
@@ -2591,7 +2910,7 @@ function ReportsScreen({
     subpaymethod: t('byPaymentSubmethod'),
     category: t('byCategory'),
     subcategory: t('bySubcategory'),
-    installments: 'Installments',
+    installments: t('installments'),
   };
 
   const DetailHeader = ({ title }: { title: string }) => (
@@ -2698,15 +3017,19 @@ function ReportsScreen({
         <DetailHeader title={reportTitle.category} />
         <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
         {categorySummaries.length ? (
-          categorySummaries.map((summary) => (
-            <Pressable
-              key={`${summary.categoryId}-${summary.currency}`}
-              accessibilityRole="button"
-              onPress={() => setSelectedItem({ type: 'category', id: summary.categoryId, currency: summary.currency, label: summary.categoryName })}
-            >
-              <CategorySummaryRow data={data} summary={summary} />
-            </Pressable>
-          ))
+          categorySummaries.map((summary) => {
+            const categoryLabel = categoryDisplayName(data, summary.categoryId) ?? summary.categoryName;
+
+            return (
+              <Pressable
+                key={`${summary.categoryId}-${summary.currency}`}
+                accessibilityRole="button"
+                onPress={() => setSelectedItem({ type: 'category', id: summary.categoryId, currency: summary.currency, label: categoryLabel })}
+              >
+                <CategorySummaryRow data={data} summary={summary} />
+              </Pressable>
+            );
+          })
         ) : (
           <EmptyState title={t('noCategoryExpenses')} />
         )}
@@ -2724,19 +3047,21 @@ function ReportsScreen({
             const parentCategory = data.categories.find((c) => c.id === s.categoryId);
             const subcategory = data.subcategories.find((sub) => sub.id === s.subcategoryId);
             const SubIcon = getSubcategoryIcon(subcategory, parentCategory);
+            const subcategoryLabel = displaySubcategoryName(subcategory, data.settings.language) ?? s.name;
+            const parentCategoryLabel = displayCategoryName(parentCategory, data.settings.language) ?? '';
             return (
               <Pressable
                 key={`${s.subcategoryId}-${s.currency}`}
                 accessibilityRole="button"
-                onPress={() => setSelectedItem({ type: 'subcategory', id: s.subcategoryId, currency: s.currency, label: s.name })}
+                onPress={() => setSelectedItem({ type: 'subcategory', id: s.subcategoryId, currency: s.currency, label: subcategoryLabel })}
                 style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
               >
                 <View style={styles.managementIconBadge}>
                   <SubIcon color={colors.primary} size={18} strokeWidth={2.2} />
                 </View>
                 <View style={styles.reportRowMeta}>
-                  <Text style={styles.rowTitle} numberOfLines={2}>{s.name}</Text>
-                  <Text style={styles.rowMeta} numberOfLines={1}>{parentCategory?.name ?? ''}</Text>
+                  <Text style={styles.rowTitle} numberOfLines={2}>{subcategoryLabel}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>{parentCategoryLabel}</Text>
                 </View>
                 <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(s.amount, s.currency)}</Text>
               </Pressable>
@@ -2791,6 +3116,7 @@ function SettingsScreen({
   onSaveBudget,
   onSetDefaultCurrency,
   onSetLanguage,
+  onSetBiometricLockEnabled,
   onAddCategory,
   onUpdateCategory,
   onAddSubcategory,
@@ -2808,6 +3134,7 @@ function SettingsScreen({
   onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
+  onSetBiometricLockEnabled: (enabled: boolean) => void;
   onAddCategory: (type: TransactionType, name: string) => void;
   onUpdateCategory: (categoryId: string, type: TransactionType, name: string) => void;
   onAddSubcategory: (categoryId: string, name: string, icon?: string) => void;
@@ -2828,8 +3155,9 @@ function SettingsScreen({
   const [budgetCurrency, setBudgetCurrency] = useState(data.settings.defaultCurrency);
   const [categoryType, setCategoryType] = useState<TransactionType>('expense');
   const [categoryNameInput, setCategoryNameInput] = useState('');
+  const [subcategoryType, setSubcategoryType] = useState<TransactionType>('expense');
   const [subcategoryCategoryId, setSubcategoryCategoryId] = useState(
-    data.categories.find((category) => category.active)?.id ?? '',
+    data.categories.find((category) => category.type === 'expense' && category.active)?.id ?? '',
   );
   const [subcategoryNameInput, setSubcategoryNameInput] = useState('');
   const [subcategoryIconInput, setSubcategoryIconInput] = useState<string | undefined>();
@@ -2851,10 +3179,40 @@ function SettingsScreen({
   const [editingPaymentSubmethodId, setEditingPaymentSubmethodId] = useState<string | undefined>();
   const [editingPaymentSubmethodName, setEditingPaymentSubmethodName] = useState('');
   const [editingPaymentSubmethodMethodId, setEditingPaymentSubmethodMethodId] = useState('');
+  const [expandedSubcategoryCategoryId, setExpandedSubcategoryCategoryId] = useState(
+    data.categories.find((category) => category.active)?.id ?? '',
+  );
 
-  const activeCategories = data.categories.filter((category) => category.active);
-  const expenseCategories = activeCategories.filter((category) => category.type === 'expense');
-  const activeSubcategories = data.subcategories.filter((subcategory) => subcategory.active);
+  const activeCategories = useMemo(
+    () =>
+      data.categories
+        .filter((category) => category.active)
+        .sort(compareCategoryDisplayName(data.settings.language)),
+    [data.categories, data.settings.language],
+  );
+  const expenseCategories = useMemo(
+    () => activeCategories.filter((category) => category.type === 'expense'),
+    [activeCategories],
+  );
+  const subcategoryParentCategories = useMemo(
+    () => activeCategories.filter((category) => category.type === subcategoryType),
+    [activeCategories, subcategoryType],
+  );
+  const activeSubcategories = useMemo(
+    () =>
+      data.subcategories
+        .filter((subcategory) => subcategory.active)
+        .sort(compareSubcategoryDisplayName(data.settings.language)),
+    [data.settings.language, data.subcategories],
+  );
+  const subcategoryGroups = useMemo(
+    () =>
+      activeCategories.map((category) => ({
+        category,
+        subcategories: activeSubcategories.filter((subcategory) => subcategory.categoryId === category.id),
+      })),
+    [activeCategories, activeSubcategories],
+  );
   const activePaymentMethods = data.paymentMethods.filter((method) => method.active);
   const selectedPaymentMethod =
     activePaymentMethods.find((method) => method.id === paymentSubmethodMethodId) ?? activePaymentMethods[0];
@@ -2868,6 +3226,12 @@ function SettingsScreen({
     payments: t('paymentMethods'),
     about: t('about'),
   };
+
+  useEffect(() => {
+    if (!subcategoryParentCategories.some((category) => category.id === subcategoryCategoryId)) {
+      setSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
+    }
+  }, [subcategoryCategoryId, subcategoryParentCategories]);
 
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
@@ -2993,7 +3357,7 @@ function SettingsScreen({
           />
           <SettingsMenuButton
             title={t('budgets')}
-            subtitle={monthLabel(selectedMonth)}
+            subtitle={monthLabel(selectedMonth, localeForLanguage(data.settings.language))}
             Icon={BarChart3}
             onPress={() => setActiveSettingsSection('budgets')}
           />
@@ -3063,10 +3427,37 @@ function SettingsScreen({
           />
         </Field>
         <AppButton label={t('saveCurrency')} Icon={Save} onPress={() => onSetDefaultCurrency(defaultCurrency)} />
-        <View style={styles.lockSettingRow}>
-          <Lock color={colors.primary} size={20} />
-          <Text style={styles.rowMeta}>{t('biometricMandatory')}</Text>
-        </View>
+        <Field label={t('biometricLock')}>
+          <Pressable
+            accessibilityRole="switch"
+            accessibilityState={{ checked: data.settings.biometricLockEnabled }}
+            onPress={() => onSetBiometricLockEnabled(!data.settings.biometricLockEnabled)}
+            style={styles.toggleSettingRow}
+          >
+            <View style={styles.toggleSettingInfo}>
+              <Lock color={colors.primary} size={20} />
+              <View style={styles.managementText}>
+                <Text style={styles.rowTitle}>
+                  {data.settings.biometricLockEnabled ? t('biometricLockEnabled') : t('biometricLockDisabled')}
+                </Text>
+                <Text style={styles.rowMeta}>{t('biometricLockDescription')}</Text>
+              </View>
+            </View>
+            <View
+              style={[
+                styles.switchTrack,
+                data.settings.biometricLockEnabled ? styles.switchTrackEnabled : null,
+              ]}
+            >
+              <View
+                style={[
+                  styles.switchThumb,
+                  data.settings.biometricLockEnabled ? styles.switchThumbEnabled : null,
+                ]}
+              />
+            </View>
+          </Pressable>
+        </Field>
         </View>
       ) : null}
 
@@ -3074,13 +3465,14 @@ function SettingsScreen({
 
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
-        <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth)}</Text>
+        <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth, localeForLanguage(data.settings.language))}</Text>
         <Field label={t('expenseCategory')}>
           <View style={styles.chipRow}>
             {expenseCategories.map((category) => (
               <CategoryChip
                 key={category.id}
                 category={category}
+                language={data.settings.language}
                 selected={budgetCategoryId === category.id}
                 onPress={() => setBudgetCategoryId(category.id)}
               />
@@ -3115,6 +3507,7 @@ function SettingsScreen({
             key={budget.budget.id}
             summary={budget}
             category={data.categories.find((category) => category.id === budget.budget.categoryId)}
+            language={data.settings.language}
           />
         ))}
         </View>
@@ -3149,6 +3542,7 @@ function SettingsScreen({
             <CategoryManagementRow
               category={category}
               t={t}
+              language={data.settings.language}
               onEdit={() => startCategoryEdit(category)}
               onDisable={() => onDisableCategory(category.id)}
             />
@@ -3188,17 +3582,25 @@ function SettingsScreen({
 
       {activeSettingsSection === 'subcategories' ? (
         <View style={styles.formPanel}>
+        <View style={styles.chipRow}>
+          <Chip label={t('expense')} selected={subcategoryType === 'expense'} onPress={() => setSubcategoryType('expense')} />
+          <Chip label={t('income')} selected={subcategoryType === 'income'} onPress={() => setSubcategoryType('income')} />
+        </View>
         <Field label={t('parentCategory')}>
           <View style={styles.chipRow}>
-            {activeCategories.map((category) => (
+            {subcategoryParentCategories.map((category) => (
               <CategoryChip
                 key={category.id}
                 category={category}
+                language={data.settings.language}
                 selected={subcategoryCategoryId === category.id}
                 onPress={() => setSubcategoryCategoryId(category.id)}
               />
             ))}
           </View>
+          {subcategoryParentCategories.length ? null : (
+            <Text style={styles.rowMeta}>{t('noActiveCategories')}</Text>
+          )}
         </Field>
         <Field label={t('newSubcategory')}>
           <TextInput
@@ -3237,67 +3639,103 @@ function SettingsScreen({
           }}
         />
 
-        {activeSubcategories.map((subcategory) => {
-          const parentCategory = data.categories.find((category) => category.id === subcategory.categoryId);
-          const SubcatIcon = getSubcategoryIcon(subcategory, parentCategory);
+        {subcategoryGroups.map(({ category, subcategories }) => {
+          const expanded = expandedSubcategoryCategoryId === category.id;
 
           return (
-            <View key={subcategory.id} style={styles.managementEditGroup}>
-              <ManagementRow
-                Icon={SubcatIcon}
-                t={t}
-                title={subcategory.name}
-                subtitle={parentCategory ? parentCategory.name : t('noParentCategory')}
-                onEdit={() => startSubcategoryEdit(subcategory)}
-              />
-              {editingSubcategoryId === subcategory.id ? (
-                <View style={styles.inlineEditPanel}>
-                  <Field label={t('parentCategory')}>
-                    <View style={styles.chipRow}>
-                      {activeCategories.map((category) => (
-                        <CategoryChip
-                          key={category.id}
-                          category={category}
-                          selected={editingSubcategoryCategoryId === category.id}
-                          onPress={() => setEditingSubcategoryCategoryId(category.id)}
-                        />
-                      ))}
-                    </View>
-                  </Field>
-                  <Field label={t('subcategoryName')}>
-                    <TextInput
-                      value={editingSubcategoryName}
-                      onChangeText={setEditingSubcategoryName}
-                      placeholder={t('subcategoryName')}
-                      placeholderTextColor={colors.gray}
-                      style={styles.input}
-                    />
-                  </Field>
-                  <Field label={t('icon')}>
-                    <View style={styles.iconPickerGrid}>
-                      {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
-                        <Pressable
-                          key={key}
-                          accessibilityRole="button"
-                          onPress={() => setEditingSubcategoryIcon(editingSubcategoryIcon === key ? undefined : key)}
-                          style={[
-                            styles.iconPickerItem,
-                            editingSubcategoryIcon === key && styles.iconPickerItemSelected,
-                          ]}
-                        >
-                          <Icon
-                            color={editingSubcategoryIcon === key ? colors.primary : colors.textMuted}
-                            size={20}
-                            strokeWidth={2.2}
+            <View key={category.id} style={styles.subcategoryAccordionGroup}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setExpandedSubcategoryCategoryId(expanded ? '' : category.id)}
+                style={styles.subcategoryAccordionHeader}
+              >
+                <CategoryIconBadge category={category} />
+                <View style={styles.managementText}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {displayCategoryName(category, data.settings.language)}
+                  </Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>
+                    {subcategories.length} {t('activeSubcategories')}
+                  </Text>
+                </View>
+                {expanded ? (
+                  <ChevronDown color={colors.textMuted} size={18} strokeWidth={2.2} />
+                ) : (
+                  <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
+                )}
+              </Pressable>
+              {expanded ? (
+                <View style={styles.subcategoryAccordionList}>
+                  {subcategories.length ? (
+                    subcategories.map((subcategory) => {
+                      const SubcatIcon = getSubcategoryIcon(subcategory, category);
+
+                      return (
+                        <View key={subcategory.id} style={styles.managementEditGroup}>
+                          <ManagementRow
+                            Icon={SubcatIcon}
+                            t={t}
+                            title={displaySubcategoryName(subcategory, data.settings.language) ?? subcategory.name}
+                            subtitle={displayCategoryName(category, data.settings.language) ?? t('noParentCategory')}
+                            onEdit={() => startSubcategoryEdit(subcategory)}
                           />
-                        </Pressable>
-                      ))}
-                    </View>
-                  </Field>
-                  <View style={styles.inlineEditActions}>
-                    <AppButton label={t('cancel')} compact variant="secondary" onPress={clearSubcategoryEdit} />
-                    <AppButton label={t('save')} compact Icon={Save} onPress={saveSubcategoryEdit} />
-                  </View>
+                          {editingSubcategoryId === subcategory.id ? (
+                            <View style={styles.inlineEditPanel}>
+                              <Field label={t('parentCategory')}>
+                                <View style={styles.chipRow}>
+                                  {activeCategories.map((item) => (
+                                    <CategoryChip
+                                      key={item.id}
+                                      category={item}
+                                      language={data.settings.language}
+                                      selected={editingSubcategoryCategoryId === item.id}
+                                      onPress={() => setEditingSubcategoryCategoryId(item.id)}
+                                    />
+                                  ))}
+                                </View>
+                              </Field>
+                              <Field label={t('subcategoryName')}>
+                                <TextInput
+                                  value={editingSubcategoryName}
+                                  onChangeText={setEditingSubcategoryName}
+                                  placeholder={t('subcategoryName')}
+                                  placeholderTextColor={colors.gray}
+                                  style={styles.input}
+                                />
+                              </Field>
+                              <Field label={t('icon')}>
+                                <View style={styles.iconPickerGrid}>
+                                  {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
+                                    <Pressable
+                                      key={key}
+                                      accessibilityRole="button"
+                                      onPress={() => setEditingSubcategoryIcon(editingSubcategoryIcon === key ? undefined : key)}
+                                      style={[
+                                        styles.iconPickerItem,
+                                        editingSubcategoryIcon === key && styles.iconPickerItemSelected,
+                                      ]}
+                                    >
+                                      <Icon
+                                        color={editingSubcategoryIcon === key ? colors.primary : colors.textMuted}
+                                        size={20}
+                                        strokeWidth={2.2}
+                                      />
+                                    </Pressable>
+                                  ))}
+                                </View>
+                              </Field>
+                              <View style={styles.inlineEditActions}>
+                                <AppButton label={t('cancel')} compact variant="secondary" onPress={clearSubcategoryEdit} />
+                                <AppButton label={t('save')} compact Icon={Save} onPress={saveSubcategoryEdit} />
+                              </View>
+                            </View>
+                          ) : null}
+                        </View>
+                      );
+                    })
+                  ) : (
+                    <Text style={styles.rowMeta}>{t('noActiveSubcategories')}</Text>
+                  )}
                 </View>
               ) : null}
             </View>
@@ -3331,7 +3769,7 @@ function SettingsScreen({
             {activePaymentMethods.map((method) => (
               <Chip
                 key={method.id}
-                label={method.name}
+                label={displayPaymentMethodName(method, data.settings.language) ?? method.name}
                 selected={selectedPaymentMethodId === method.id}
                 onPress={() => setPaymentSubmethodMethodId(method.id)}
               />
@@ -3363,7 +3801,7 @@ function SettingsScreen({
           return (
             <View key={method.id} style={styles.paymentMethodGroup}>
               <PaymentMethodManagementRow
-                methodName={method.name}
+                methodName={displayPaymentMethodName(method, data.settings.language) ?? method.name}
                 t={t}
                 submethodCount={submethods.length}
                 selected={selected}
@@ -3397,7 +3835,7 @@ function SettingsScreen({
                           <View style={styles.managementIconBadge}>
                             <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
                           </View>
-                          <Text style={styles.rowTitle}>{submethod.name}</Text>
+                          <Text style={styles.rowTitle}>{displayPaymentSubmethodName(submethod, data.settings.language) ?? submethod.name}</Text>
                           <AppButton
                             label={t('edit')}
                             compact
@@ -3412,7 +3850,7 @@ function SettingsScreen({
                                 {activePaymentMethods.map((paymentMethod) => (
                                   <Chip
                                     key={paymentMethod.id}
-                                    label={paymentMethod.name}
+                                    label={displayPaymentMethodName(paymentMethod, data.settings.language) ?? paymentMethod.name}
                                     selected={editingPaymentSubmethodMethodId === paymentMethod.id}
                                     onPress={() => setEditingPaymentSubmethodMethodId(paymentMethod.id)}
                                   />
@@ -3454,7 +3892,7 @@ function AboutPanel({ t }: { t: Translator }) {
   return (
     <View style={styles.aboutPanel}>
       <View style={styles.aboutHero}>
-        <InflatrackLogoMark size={88} />
+        <Image source={inflatrackLogo} style={styles.aboutLogo} />
         <View style={styles.aboutHeroText}>
           <Text style={styles.aboutBrand}>Inflatrack</Text>
           <Text style={styles.rowMeta}>{t('aboutAppByInflatrack')}</Text>
@@ -3493,43 +3931,6 @@ function AboutLegalSection({ title, body }: { title: string; body: string }) {
       <Text style={styles.aboutLegalTitle}>{title}</Text>
       <Text style={styles.aboutBody}>{body}</Text>
     </View>
-  );
-}
-
-function InflatrackLogoMark({ size }: { size: number }) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 1024 1024">
-      <Rect x={28} y={28} width={968} height={968} rx={150} fill="#C90027" />
-      <Path
-        d="M28 255C84 105 220 28 390 28H996V115H390C260 115 158 176 105 290L28 255Z"
-        fill="#FFFFFF"
-      />
-      <Path
-        d="M182 520V320C182 218 265 135 367 135H705"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeLinecap="round"
-        strokeWidth={118}
-      />
-      <Path
-        d="M367 135C268 135 182 221 182 320H367V135Z"
-        fill="#D6D6D6"
-      />
-      <Path
-        d="M632 410V760"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeLinecap="round"
-        strokeWidth={118}
-      />
-      <Path
-        d="M632 410H820"
-        fill="none"
-        stroke="#FFFFFF"
-        strokeLinecap="round"
-        strokeWidth={118}
-      />
-    </Svg>
   );
 }
 
@@ -3572,7 +3973,7 @@ function ExpenseDayCard({
   return (
     <View style={styles.expenseDayCard}>
       <View style={styles.expenseDayHeader}>
-        <Text style={styles.expenseDayDate}>{formatDashboardDate(group.date)}</Text>
+        <Text style={styles.expenseDayDate}>{formatDashboardDate(group.date, data.settings.language)}</Text>
         <Text style={styles.expenseDayTotal} numberOfLines={1}>
           {t('expenses')}: {formatExpenseTotals(group.totalsByCurrency)}
         </Text>
@@ -3604,7 +4005,7 @@ function DashboardExpenseRow({
   const { isCompact } = useResponsive();
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
-  const title = transaction.description || subcategoryName(data, transaction.subcategoryId) || categoryName(data, transaction.categoryId);
+  const title = transaction.description || transactionCategoryDisplayName(data, transaction) || '';
 
   return (
     <Pressable
@@ -3652,13 +4053,14 @@ function CategoryIconBadge({
 function CategorySummaryRow({ data, summary }: { data: AppData; summary: CategorySummary }) {
   const { isCompact } = useResponsive();
   const category = data.categories.find((item) => item.id === summary.categoryId);
+  const categoryLabel = displayCategoryName(category, data.settings.language) ?? summary.categoryName;
 
   return (
     <View style={[styles.listRow, isCompact ? styles.listRowCompact : null]}>
       <View style={styles.categoryRowLabel}>
         <CategoryIconBadge category={category} />
         <Text style={styles.categoryRowTitle} numberOfLines={1}>
-          {summary.categoryName}
+          {categoryLabel}
         </Text>
       </View>
       <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>
@@ -3668,7 +4070,15 @@ function CategorySummaryRow({ data, summary }: { data: AppData; summary: Categor
   );
 }
 
-function BudgetStatusRow({ summary, category }: { summary: BudgetSummary; category?: Category }) {
+function BudgetStatusRow({
+  summary,
+  category,
+  language,
+}: {
+  summary: BudgetSummary;
+  category?: Category;
+  language: AppLanguage;
+}) {
   const statusColor =
     summary.status === 'exceeded'
       ? colors.danger
@@ -3683,7 +4093,7 @@ function BudgetStatusRow({ summary, category }: { summary: BudgetSummary; catego
         <View style={styles.categoryRowLabel}>
           <CategoryIconBadge category={category} />
           <Text style={styles.categoryRowTitle} numberOfLines={1}>
-            {summary.categoryName}
+            {displayCategoryName(category, language) ?? summary.categoryName}
           </Text>
         </View>
         <Text style={[styles.budgetStatus, { color: statusColor }]}>{summary.status}</Text>
@@ -3702,11 +4112,13 @@ function BudgetStatusRow({ summary, category }: { summary: BudgetSummary; catego
 function CategoryManagementRow({
   category,
   t,
+  language,
   onEdit,
   onDisable,
 }: {
   category: Category;
   t: Translator;
+  language: AppLanguage;
   onEdit: () => void;
   onDisable: () => void;
 }) {
@@ -3718,7 +4130,7 @@ function CategoryManagementRow({
         <CategoryIconBadge category={category} />
         <View style={styles.managementText}>
           <Text style={styles.categoryRowTitle} numberOfLines={2}>
-            {category.name}
+            {displayCategoryName(category, language)}
           </Text>
           <Text style={styles.rowMeta}>{category.type}</Text>
         </View>
@@ -3868,10 +4280,12 @@ function Field({
 
 function CategoryChip({
   category,
+  language,
   selected,
   onPress,
 }: {
   category: Category;
+  language: AppLanguage;
   selected: boolean;
   onPress: () => void;
 }) {
@@ -3887,7 +4301,7 @@ function CategoryChip({
     >
       <Icon color={contentColor} size={26} strokeWidth={2.2} />
       <Text style={[styles.categoryChipText, selected ? styles.categoryChipTextSelected : null]} numberOfLines={1}>
-        {category.name}
+        {displayCategoryName(category, language)}
       </Text>
     </Pressable>
   );
@@ -3917,6 +4331,7 @@ function Chip({
 function CalendarModal({
   visible,
   t,
+  language,
   selectedDate,
   viewMonth,
   onClose,
@@ -3925,6 +4340,7 @@ function CalendarModal({
 }: {
   visible: boolean;
   t: Translator;
+  language: AppLanguage;
   selectedDate: string;
   viewMonth: string;
   onClose: () => void;
@@ -3932,8 +4348,11 @@ function CalendarModal({
   onSelectDate: (dateInput: string) => void;
 }) {
   const { isCompact } = useResponsive();
-  const days = calendarDaysForMonth(viewMonth);
+  const days = calendarDaysForMonth(viewMonth, language === 'es-AR' ? 1 : 0);
   const today = todayInput();
+  const weekdays = language === 'es-AR'
+    ? ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
@@ -3953,7 +4372,7 @@ function CalendarModal({
               Icon={ChevronLeft}
               onPress={() => onMonthChange(shiftMonth(viewMonth, -1))}
             />
-            <Text style={styles.calendarTitle}>{monthLabel(viewMonth)}</Text>
+            <Text style={styles.calendarTitle}>{monthLabel(viewMonth, localeForLanguage(language))}</Text>
             <IconButton
               accessibilityLabel={t('nextMonth')}
               Icon={ChevronRight}
@@ -3961,7 +4380,7 @@ function CalendarModal({
             />
           </View>
           <View style={styles.calendarWeekdays}>
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((weekday) => (
+            {weekdays.map((weekday) => (
               <Text key={weekday} style={styles.calendarWeekday}>
                 {weekday}
               </Text>
@@ -4338,6 +4757,43 @@ const styles = StyleSheet.create({
   expenseCategoryLabelSelected: {
     color: colors.primary,
     fontFamily: fonts.medium,
+  },
+  expenseEditCategoryPanel: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  expenseEditCategoryPanelCompact: {
+    padding: spacing.sm,
+  },
+  expenseEditCategoryTrigger: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 64,
+    padding: spacing.sm,
+  },
+  expenseEditCategoryText: {
+    flex: 1,
+    gap: 2,
+    minWidth: 0,
+  },
+  expenseEditCategoryList: {
+    gap: spacing.md,
+    paddingTop: spacing.xs,
+  },
+  expenseEditCategoryGroup: {
+    gap: spacing.sm,
+  },
+  expenseEditCategoryGroupTitle: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 12,
   },
   expenseOptionsPanel: {
     borderTopColor: colors.border,
@@ -4920,6 +5376,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
+  aboutLogo: {
+    borderRadius: radius.sm,
+    height: 88,
+    width: 88,
+  },
   aboutHeroText: {
     flex: 1,
     gap: spacing.xs,
@@ -5305,6 +5766,23 @@ const styles = StyleSheet.create({
   managementEditGroup: {
     gap: spacing.sm,
   },
+  subcategoryAccordionGroup: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+  },
+  subcategoryAccordionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 48,
+  },
+  subcategoryAccordionList: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+    paddingLeft: spacing.lg,
+  },
   inlineEditPanel: {
     backgroundColor: colors.surfaceAlt,
     borderRadius: radius.sm,
@@ -5331,10 +5809,39 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 38,
   },
-  lockSettingRow: {
+  toggleSettingRow: {
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 56,
+  },
+  toggleSettingInfo: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minWidth: 0,
+  },
+  switchTrack: {
+    backgroundColor: colors.border,
+    borderRadius: 999,
+    height: 26,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+    width: 48,
+  },
+  switchTrackEnabled: {
+    backgroundColor: colors.primary,
+  },
+  switchThumb: {
+    backgroundColor: colors.surface,
+    borderRadius: 11,
+    height: 22,
+    width: 22,
+  },
+  switchThumbEnabled: {
+    transform: [{ translateX: 22 }],
   },
   button: {
     alignItems: 'center',

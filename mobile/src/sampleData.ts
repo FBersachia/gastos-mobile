@@ -60,14 +60,19 @@ const categories: Category[] = [
   category('cat-exp-housing', 'Housing', 'expense'),
   category('cat-exp-services', 'Services', 'expense'),
   category('cat-exp-health', 'Health', 'expense'),
+  category('cat-exp-entertainment', 'Entertainment', 'expense'),
   category('cat-exp-shopping', 'Shopping', 'expense'),
-  category('cat-exp-subscriptions', 'Subscriptions', 'expense'),
+  category('cat-exp-education', 'Education', 'expense'),
   category('cat-exp-sports', 'Sports', 'expense'),
   category('cat-exp-insurance', 'Insurance', 'expense'),
   category('cat-exp-pets', 'Pets', 'expense'),
   category('cat-exp-personal', 'Personal', 'expense'),
   category('cat-exp-other', 'Other', 'expense'),
   category('cat-inc-salary', 'Salary', 'income'),
+  category('cat-inc-freelance', 'Freelance', 'income'),
+  category('cat-inc-sales', 'Sales', 'income'),
+  category('cat-inc-refunds', 'Refunds', 'income'),
+  category('cat-inc-other', 'Other', 'income'),
 ];
 
 const subcategories: Subcategory[] = [
@@ -77,27 +82,37 @@ const subcategories: Subcategory[] = [
   subcategory('sub-food-lunch', 'cat-exp-food', 'Lunch'),
   subcategory('sub-food-dinner', 'cat-exp-food', 'Dinner'),
   subcategory('sub-food-snacks', 'cat-exp-food', 'Snacks'),
-  subcategory('sub-food-bakery', 'cat-exp-food', 'Bakery'),
   subcategory('sub-food-burgers', 'cat-exp-food', 'Burgers'),
+  subcategory('sub-food-beverages', 'cat-exp-food', 'Beverages'),
   subcategory('sub-food-drinks', 'cat-exp-food', 'Drinks'),
   subcategory('sub-food-cravings', 'cat-exp-food', 'Cravings'),
   subcategory('sub-transport-rides', 'cat-exp-transport', 'Rides'),
   subcategory('sub-transport-public-transit', 'cat-exp-transport', 'Public Transit'),
   subcategory('sub-housing-home-goods', 'cat-exp-housing', 'Home Goods'),
+  subcategory('sub-housing-repairments', 'cat-exp-housing', 'Repairments'),
   subcategory('sub-services-mobile-phone', 'cat-exp-services', 'Mobile Phone'),
+  subcategory('sub-services-subscriptions', 'cat-exp-services', 'Subscriptions'),
   subcategory('sub-health-personal-care', 'cat-exp-health', 'Personal Care'),
+  subcategory('sub-health-hospital', 'cat-exp-health', 'Hospital'),
+  subcategory('sub-health-meds', 'cat-exp-health', 'Meds'),
+  subcategory('sub-entertainment-movies', 'cat-exp-entertainment', 'Movies'),
+  subcategory('sub-entertainment-games', 'cat-exp-entertainment', 'Games'),
+  subcategory('sub-entertainment-concerts', 'cat-exp-entertainment', 'Concerts'),
   subcategory('sub-shopping-clothing', 'cat-exp-shopping', 'Clothing'),
   subcategory('sub-shopping-laundry', 'cat-exp-shopping', 'Laundry'),
-  subcategory('sub-subscriptions-streaming', 'cat-exp-subscriptions', 'Streaming'),
-  subcategory('sub-subscriptions-marketplace', 'cat-exp-subscriptions', 'Marketplace'),
-  subcategory('sub-subscriptions-delivery', 'cat-exp-subscriptions', 'Delivery Plus'),
-  subcategory('sub-subscriptions-music', 'cat-exp-subscriptions', 'Music'),
-  subcategory('sub-subscriptions-rides', 'cat-exp-subscriptions', 'Ride Subscription'),
-  subcategory('sub-sports-soccer', 'cat-exp-sports', 'Soccer'),
-  subcategory('sub-insurance-bike', 'cat-exp-insurance', 'Bike Insurance'),
+  subcategory('sub-education-books', 'cat-exp-education', 'Books'),
+  subcategory('sub-education-courses', 'cat-exp-education', 'Courses'),
+  subcategory('sub-education-university', 'cat-exp-education', 'University'),
+  subcategory('sub-sports-football', 'cat-exp-sports', 'Football'),
+  subcategory('sub-sports-gym', 'cat-exp-sports', 'Gym'),
+  subcategory('sub-insurance-car', 'cat-exp-insurance', 'Car Insurance'),
   subcategory('sub-pets-food', 'cat-exp-pets', 'Pet Food'),
-  subcategory('sub-personal-ana', 'cat-exp-personal', 'Ana'),
+  subcategory('sub-other-interests', 'cat-exp-other', 'Interests'),
   subcategory('sub-income-payroll', 'cat-inc-salary', 'Payroll'),
+  subcategory('sub-income-freelance-projects', 'cat-inc-freelance', 'Projects'),
+  subcategory('sub-income-sales-sales', 'cat-inc-sales', 'Sales'),
+  subcategory('sub-income-refunds-reimbursements', 'cat-inc-refunds', 'Reimbursements'),
+  subcategory('sub-income-other-misc', 'cat-inc-other', 'Misc Income'),
 ];
 
 const paymentMethods: PaymentMethod[] = [
@@ -221,17 +236,17 @@ const subcategoryFor = (row: SourceRow): string => {
     case 'Transporte':
       return description.includes('sube') ? 'sub-transport-public-transit' : 'sub-transport-rides';
     case 'Deporte':
-      return 'sub-sports-soccer';
+      return 'sub-sports-football';
     case 'Supermercado':
       return 'sub-food-groceries';
     case 'Ana':
-      return description.includes('perros') ? 'sub-pets-food' : 'sub-personal-ana';
+      return description.includes('perros') ? 'sub-pets-food' : 'sub-other-interests';
     case 'Cena':
       return description.includes('delivery') ? 'sub-food-delivery' : 'sub-food-dinner';
     case 'Bebida':
-      return 'sub-food-drinks';
+      return 'sub-food-beverages';
     case 'Comida':
-      return 'sub-food-bakery';
+      return 'sub-food-snacks';
     case 'Almuerzo':
       return 'sub-food-lunch';
     case 'Bajonazo':
@@ -244,19 +259,19 @@ const subcategoryFor = (row: SourceRow): string => {
       return 'sub-housing-home-goods';
     case 'Servicios':
       if (description.includes('prime')) {
-        return 'sub-subscriptions-streaming';
+        return 'sub-services-subscriptions';
       }
       if (description.includes('mercadolibre')) {
-        return 'sub-subscriptions-marketplace';
+        return 'sub-services-subscriptions';
       }
       if (description.includes('pedidosya')) {
-        return 'sub-subscriptions-delivery';
+        return 'sub-services-subscriptions';
       }
       if (description.includes('spotify')) {
-        return 'sub-subscriptions-music';
+        return 'sub-services-subscriptions';
       }
       if (description.includes('uber one')) {
-        return 'sub-subscriptions-rides';
+        return 'sub-services-subscriptions';
       }
       return 'sub-services-mobile-phone';
     case 'Desayuno':
@@ -266,7 +281,7 @@ const subcategoryFor = (row: SourceRow): string => {
     case 'Hamburguesa':
       return 'sub-food-burgers';
     case 'Seguros':
-      return 'sub-insurance-bike';
+      return 'sub-insurance-car';
     default:
       return 'sub-food-snacks';
   }

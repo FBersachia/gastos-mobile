@@ -9,10 +9,11 @@ All data must be stored locally on the device. There is no cloud sync, multi-use
 Implemented in `mobile/src/storage.ts`.
 
 - Storage provider: AsyncStorage.
-- Storage key: `expense-control-app-data-v2-may-2026-seed`.
+- Storage key: `expense-control-app-data-v3`.
 - Persisted shape: one `AppData` JSON object.
 - `loadAppData` returns defaults when no data exists.
 - `withDefaults` merges missing stored sections with default data.
+- `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
 - `saveAppData` writes the full app data object after mutations.
 
 Current seed note:

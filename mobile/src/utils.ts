@@ -34,10 +34,10 @@ export const isInMonth = (dateInput: string, selectedMonth: string): boolean => 
   return item.month === selected.month && item.year === selected.year;
 };
 
-export const monthLabel = (dateInput: string): string => {
+export const monthLabel = (dateInput: string, locale = 'en-US'): string => {
   const [year, month] = dateInput.split('-').map(Number);
 
-  return new Intl.DateTimeFormat('en', {
+  return new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
   }).format(new Date(year, month - 1, 1));

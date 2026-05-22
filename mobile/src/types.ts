@@ -74,7 +74,7 @@ export interface Budget {
 export interface AppSettings {
   defaultCurrency: string;
   language: AppLanguage;
-  biometricLockEnabled: true;
+  biometricLockEnabled: boolean;
   budgetNearLimitThreshold: number;
 }
 
