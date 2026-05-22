@@ -17,6 +17,7 @@ Supported fields:
 - Payment submethod selector in the new expense screen.
 - Description.
 - Installment selector in the new expense screen, including suggested values and a custom numeric input.
+- Numeric keypad with inline addition and subtraction support for quick amount calculation.
 
 The default Transactions tab surface is optimized for adding a new expense: header, scrollable subcategory grid, currency, payment and installment controls after subcategory selection, memo row, amount preview, fixed numeric keypad, and an in-app calendar selector opened from the date key.
 
@@ -27,6 +28,7 @@ The in-app calendar follows the active app language. Spanish uses localized mont
 The form validates:
 
 - Amount must be numeric and greater than zero.
+- Amount can be entered as a simple `+`/`-` expression and is evaluated before saving.
 - Date must match `YYYY-MM-DD`.
 - Subcategory is required.
 - Payment submethod is required.

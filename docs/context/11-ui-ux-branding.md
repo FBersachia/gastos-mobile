@@ -43,6 +43,7 @@ Typography:
 - The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile.
 - The edit transaction flow keeps category/subcategory collapsed by default to prioritize amount and memo edits.
 - Settings subcategories are grouped under parent-category accordions so unrelated subcategories are not mixed in one list.
+- Android hardware back navigates inside the app: detail/edit modals close, report/settings detail screens go back to their menu, and top-level tabs return to Dashboard instead of exiting.
 
 ## Transaction creation UX
 

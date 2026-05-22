@@ -10,7 +10,7 @@ Implemented in `SettingsScreen`.
 
 Settings currently includes:
 
-- A settings menu with individual buttons for each management area.
+- A settings menu with individual buttons for each management area. Language is managed inside Core settings, not as a separate menu item.
 - Core settings screen: language selection, default currency update, and biometric lock toggle.
 - Monthly budgets screen: monthly budget creation and update.
 - Categories screen: category creation and category disable.

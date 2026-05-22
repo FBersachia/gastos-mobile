@@ -76,6 +76,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState } from 
 import {
   ActivityIndicator,
   Alert,
+  BackHandler,
   Image,
   KeyboardAvoidingView,
   Linking,
@@ -433,7 +434,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -862,6 +863,24 @@ const calendarDaysForMonth = (
       currentMonth: date.getMonth() === month - 1,
     };
   });
+};
+
+const amountOperatorPattern = /[+-]$/;
+
+const evaluateAmountExpression = (expression: string): number => {
+  const normalized = expression.replace(/,/g, '.').trim().replace(/[+-]+$/, '');
+
+  if (!normalized || /[^0-9.+-]/.test(normalized)) {
+    return Number.NaN;
+  }
+
+  const terms = normalized.match(/(?:^|[+-])\d+(?:\.\d*)?/g);
+
+  if (!terms || terms.join('') !== normalized) {
+    return Number.NaN;
+  }
+
+  return terms.reduce((total, term) => total + Number(term), 0);
 };
 
 const groupExpensesByDate = (transactions: Transaction[]): ExpenseDayGroup[] => {
@@ -1444,6 +1463,37 @@ function AppRoot() {
     }));
   };
 
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (editingTransactionId) {
+        setEditingTransactionId(undefined);
+        return true;
+      }
+
+      if (selectedTransactionId) {
+        setSelectedTransactionId(undefined);
+        return true;
+      }
+
+      if (activeTab === 'reports' || activeTab === 'settings') {
+        return false;
+      }
+
+      if (activeTab !== 'dashboard') {
+        setActiveTab('dashboard');
+        return true;
+      }
+
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [activeTab, editingTransactionId, selectedTransactionId]);
+
   if (!fontsLoaded || !data) {
     return <LoadingScreen />;
   }
@@ -1491,7 +1541,9 @@ function AppRoot() {
                 data={data}
                 t={t}
                 selectedMonth={selectedMonth}
+                deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
                 onMonthChange={setSelectedMonth}
+                onBackToDashboard={() => setActiveTab('dashboard')}
                 onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
               />
             ) : null}
@@ -1500,6 +1552,8 @@ function AppRoot() {
                 data={data}
                 t={t}
                 selectedMonth={selectedMonth}
+                deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
+                onBackToDashboard={() => setActiveTab('dashboard')}
                 onSaveBudget={handleSaveBudget}
                 onSetDefaultCurrency={handleSetDefaultCurrency}
                 onSetLanguage={handleSetLanguage}
@@ -1992,16 +2046,32 @@ function TransactionForm({
     }
 
     if (key === '+' || key === '-') {
+      setAmount((current) => {
+        if (!current || current === '0') {
+          return current;
+        }
+
+        return amountOperatorPattern.test(current) ? `${current.slice(0, -1)}${key}` : `${current}${key}`;
+      });
       return;
     }
 
     if (key === '.') {
-      setAmount((current) => (current.includes('.') ? current : `${current || '0'}.`));
+      setAmount((current) => {
+        const amountParts = current.split(/[+-]/);
+        const currentTerm = amountParts[amountParts.length - 1] ?? '';
+
+        if (currentTerm.includes('.')) {
+          return current;
+        }
+
+        return !current || amountOperatorPattern.test(current) ? `${current}0.` : `${current}.`;
+      });
       return;
     }
 
     setAmount((current) => {
-      if (current.replace('.', '').length >= 10) {
+      if (current.replace(/\D/g, '').length >= 15) {
         return current;
       }
 
@@ -2029,7 +2099,7 @@ function TransactionForm({
   };
 
   const handleSubmit = () => {
-    const parsedAmount = Number(amount.replace(',', '.'));
+    const parsedAmount = evaluateAmountExpression(amount);
     const parsedInstallments = Number.parseInt(installmentCount, 10);
 
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
@@ -2767,13 +2837,17 @@ function ReportsScreen({
   data,
   t,
   selectedMonth,
+  deferHardwareBack,
   onMonthChange,
+  onBackToDashboard,
   onSelectTransaction,
 }: {
   data: AppData;
   t: Translator;
   selectedMonth: string;
+  deferHardwareBack: boolean;
   onMonthChange: (month: string) => void;
+  onBackToDashboard: () => void;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
   const { isCompact } = useResponsive();
@@ -2912,6 +2986,33 @@ function ReportsScreen({
     subcategory: t('bySubcategory'),
     installments: t('installments'),
   };
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (deferHardwareBack) {
+        return false;
+      }
+
+      if (selectedItem) {
+        setSelectedItem(null);
+        return true;
+      }
+
+      if (activeReport !== 'menu') {
+        setActiveReport('menu');
+        return true;
+      }
+
+      onBackToDashboard();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [activeReport, deferHardwareBack, onBackToDashboard, selectedItem]);
 
   const DetailHeader = ({ title }: { title: string }) => (
     <View style={styles.settingsDetailHeader}>
@@ -3113,6 +3214,8 @@ function SettingsScreen({
   data,
   t,
   selectedMonth,
+  deferHardwareBack,
+  onBackToDashboard,
   onSaveBudget,
   onSetDefaultCurrency,
   onSetLanguage,
@@ -3131,6 +3234,8 @@ function SettingsScreen({
   data: AppData;
   t: Translator;
   selectedMonth: string;
+  deferHardwareBack: boolean;
+  onBackToDashboard: () => void;
   onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
@@ -3232,6 +3337,28 @@ function SettingsScreen({
       setSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
     }
   }, [subcategoryCategoryId, subcategoryParentCategories]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') {
+      return undefined;
+    }
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (deferHardwareBack) {
+        return false;
+      }
+
+      if (activeSettingsSection !== 'menu') {
+        setActiveSettingsSection('menu');
+        return true;
+      }
+
+      onBackToDashboard();
+      return true;
+    });
+
+    return () => subscription.remove();
+  }, [activeSettingsSection, deferHardwareBack, onBackToDashboard]);
 
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
@@ -3347,12 +3474,6 @@ function SettingsScreen({
             title={t('coreSettings')}
             subtitle={`${t('defaultCurrency')}: ${data.settings.defaultCurrency} · ${t('language')}: ${t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')}`}
             Icon={SettingsIcon}
-            onPress={() => setActiveSettingsSection('core')}
-          />
-          <SettingsMenuButton
-            title={t('language')}
-            subtitle={t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')}
-            Icon={Globe2}
             onPress={() => setActiveSettingsSection('core')}
           />
           <SettingsMenuButton

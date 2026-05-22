@@ -31,6 +31,7 @@ Transactions:
 
 - Create an expense with required fields.
 - Create an income with required fields.
+- Enter an amount using `+` and `-` in the keypad and confirm the saved value matches the calculated result.
 - Edit a non-installment transaction.
 - Edit a transaction with Transfer or Credit Card payment and confirm saving without payment changes preserves the original payment submethod.
 - Delete a transaction after confirmation.
@@ -44,6 +45,7 @@ Responsive mobile:
 
 - Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
+- On Android, press hardware Back from transaction detail/edit, Reports detail, Settings detail, and non-dashboard tabs; confirm it navigates back inside the app instead of exiting.
 
 Categories and payment methods:
 
