@@ -26,6 +26,7 @@ Dashboard:
 - Previous/next month buttons change the selected month.
 - Income, expenses, and balance are grouped by currency.
 - Budget rows change visual status based on spending.
+- Daily dashboard movement cards show both expenses and income, with expenses as negative amounts and income as positive amounts.
 
 Transactions:
 

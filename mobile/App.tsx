@@ -452,7 +452,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -820,10 +820,10 @@ const getCategoryAccentColor = (category?: Category): string => {
   return categoryAccentPalette[hash % categoryAccentPalette.length];
 };
 
-type ExpenseDayGroup = {
+type TransactionDayGroup = {
   date: string;
   transactions: Transaction[];
-  totalsByCurrency: Array<{ currency: string; amount: number }>;
+  totalsByCurrency: Array<{ currency: string; income: number; expenses: number; balance: number }>;
 };
 
 type SettingsSection = 'menu' | 'core' | 'budgets' | 'categories' | 'subcategories' | 'payments' | 'about';
@@ -901,39 +901,67 @@ const evaluateAmountExpression = (expression: string): number => {
   return terms.reduce((total, term) => total + Number(term), 0);
 };
 
-const groupExpensesByDate = (transactions: Transaction[]): ExpenseDayGroup[] => {
-  const groups = new Map<string, { transactions: Transaction[]; totalsByCurrency: Map<string, number> }>();
+const groupTransactionsByDate = (transactions: Transaction[]): TransactionDayGroup[] => {
+  const groups = new Map<
+    string,
+    {
+      transactions: Transaction[];
+      totalsByCurrency: Map<string, { income: number; expenses: number; balance: number }>;
+    }
+  >();
 
-  transactions
-    .filter((transaction) => transaction.type === 'expense')
-    .forEach((transaction) => {
-      const current =
-        groups.get(transaction.date) ??
-        ({
-          transactions: [],
-          totalsByCurrency: new Map<string, number>(),
-        } satisfies { transactions: Transaction[]; totalsByCurrency: Map<string, number> });
+  transactions.forEach((transaction) => {
+    const current =
+      groups.get(transaction.date) ??
+      ({
+        transactions: [],
+        totalsByCurrency: new Map<string, { income: number; expenses: number; balance: number }>(),
+      } satisfies {
+        transactions: Transaction[];
+        totalsByCurrency: Map<string, { income: number; expenses: number; balance: number }>;
+      });
 
-      current.transactions.push(transaction);
-      current.totalsByCurrency.set(
-        transaction.currency,
-        roundMoney((current.totalsByCurrency.get(transaction.currency) ?? 0) + transaction.amount),
-      );
-      groups.set(transaction.date, current);
-    });
+    const totals =
+      current.totalsByCurrency.get(transaction.currency) ??
+      ({
+        income: 0,
+        expenses: 0,
+        balance: 0,
+      } satisfies { income: number; expenses: number; balance: number });
+
+    if (transaction.type === 'income') {
+      totals.income = roundMoney(totals.income + transaction.amount);
+    } else {
+      totals.expenses = roundMoney(totals.expenses + transaction.amount);
+    }
+
+    totals.balance = roundMoney(totals.income - totals.expenses);
+    current.transactions.push(transaction);
+    current.totalsByCurrency.set(transaction.currency, totals);
+    groups.set(transaction.date, current);
+  });
 
   return Array.from(groups.entries()).map(([date, group]) => ({
     date,
     transactions: group.transactions,
-    totalsByCurrency: Array.from(group.totalsByCurrency.entries()).map(([currency, amount]) => ({
+    totalsByCurrency: Array.from(group.totalsByCurrency.entries()).map(([currency, totals]) => ({
       currency,
-      amount,
+      ...totals,
     })),
   }));
 };
 
-const formatExpenseTotals = (totals: ExpenseDayGroup['totalsByCurrency']): string =>
-  totals.map((total) => formatMoney(total.amount, total.currency)).join(' | ');
+const formatExpenseTotals = (totals: TransactionDayGroup['totalsByCurrency']): string =>
+  totals.map((total) => formatMoney(total.expenses, total.currency)).join(' | ');
+
+const formatMovementTotals = (totals: TransactionDayGroup['totalsByCurrency']): string =>
+  totals
+    .flatMap((total) => [
+      total.income > 0 ? `+ ${formatMoney(total.income, total.currency)}` : undefined,
+      total.expenses > 0 ? `- ${formatMoney(total.expenses, total.currency)}` : undefined,
+    ])
+    .filter((item): item is string => Boolean(item))
+    .join(' | ');
 
 const formatDashboardMoney = (amount: number, currency: string): string =>
   `${currency} ${Math.round(amount).toLocaleString('en', {
@@ -1772,7 +1800,7 @@ function DashboardScreen({
 }) {
   const transactions = useMemo(() => monthlyTransactions(data, selectedMonth), [data, selectedMonth]);
   const currencySummaries = useMemo(() => summarizeByCurrency(transactions), [transactions]);
-  const expenseGroups = useMemo(() => groupExpensesByDate(transactions), [transactions]);
+  const transactionGroups = useMemo(() => groupTransactionsByDate(transactions), [transactions]);
 
   return (
     <View style={styles.dashboardRoot}>
@@ -1785,18 +1813,19 @@ function DashboardScreen({
           <EmptyState title={t('noMovements')} />
         )}
 
-        {expenseGroups.length ? (
-          expenseGroups.map((group) => (
+        {transactionGroups.length ? (
+          transactionGroups.map((group) => (
             <ExpenseDayCard
               key={group.date}
               data={data}
               t={t}
               group={group}
+              showAllMovements
               onSelectTransaction={onSelectTransaction}
             />
           ))
         ) : (
-          <EmptyState title={t('noExpenses')} />
+          <EmptyState title={t('noMovements')} />
         )}
         <View style={styles.dashboardFabSpacer} />
       </ScreenScroll>
@@ -3005,7 +3034,7 @@ function ReportsScreen({
     });
   }, [selectedItem, transactions, data.transactions]);
 
-  const drillGroups = useMemo(() => groupExpensesByDate(drillTransactions), [drillTransactions]);
+  const drillGroups = useMemo(() => groupTransactionsByDate(drillTransactions), [drillTransactions]);
 
   const toMonth = (month: string) => {
     const [y, m] = month.split('-');
@@ -4217,19 +4246,23 @@ function ExpenseDayCard({
   data,
   t,
   group,
+  showAllMovements,
   onSelectTransaction,
 }: {
   data: AppData;
   t: Translator;
-  group: ExpenseDayGroup;
+  group: TransactionDayGroup;
+  showAllMovements?: boolean;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
   return (
     <View style={styles.expenseDayCard}>
       <View style={styles.expenseDayHeader}>
         <Text style={styles.expenseDayDate}>{formatDashboardDate(group.date, data.settings.language)}</Text>
-        <Text style={styles.expenseDayTotal} numberOfLines={1}>
-          {t('expenses')}: {formatExpenseTotals(group.totalsByCurrency)}
+        <Text style={styles.expenseDayTotal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+          {showAllMovements
+            ? `${t('transactions')}: ${formatMovementTotals(group.totalsByCurrency)}`
+            : `${t('expenses')}: ${formatExpenseTotals(group.totalsByCurrency)}`}
         </Text>
       </View>
       {group.transactions.map((transaction, index) => (
@@ -4260,6 +4293,7 @@ function DashboardExpenseRow({
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
   const title = transaction.description || transactionCategoryDisplayName(data, transaction) || '';
+  const amountPrefix = transaction.type === 'expense' ? '-' : '+';
 
   return (
     <Pressable
@@ -4277,8 +4311,17 @@ function DashboardExpenseRow({
           {title}
         </Text>
       </View>
-      <Text style={[styles.dashboardExpenseAmount, isCompact ? styles.dashboardExpenseAmountCompact : null]} numberOfLines={1}>
-        - {formatMoney(transaction.amount, transaction.currency)}
+      <Text
+        style={[
+          styles.dashboardExpenseAmount,
+          isCompact ? styles.dashboardExpenseAmountCompact : null,
+          transaction.type === 'expense' ? styles.negativeText : styles.positiveText,
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+      >
+        {amountPrefix} {formatMoney(transaction.amount, transaction.currency)}
       </Text>
     </Pressable>
   );
