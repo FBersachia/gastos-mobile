@@ -47,20 +47,47 @@ const deactivateDeprecatedDefaults = <T extends { id: string; name: string; acti
       : item,
   );
 
+const normalizeBudgets = (stored: Partial<AppData>, defaults: AppData, subcategories: AppData['subcategories']) =>
+  (stored.budgets ?? defaults.budgets).map((budget) => {
+    if (budget.subcategoryId) {
+      const subcategory = subcategories.find((item) => item.id === budget.subcategoryId);
+
+      return {
+        ...budget,
+        categoryId: subcategory?.categoryId ?? budget.categoryId,
+      };
+    }
+
+    const firstSubcategory = budget.categoryId
+      ? subcategories.find((subcategory) => subcategory.categoryId === budget.categoryId && subcategory.active) ??
+        subcategories.find((subcategory) => subcategory.categoryId === budget.categoryId)
+      : undefined;
+
+    return firstSubcategory
+      ? {
+          ...budget,
+          subcategoryId: firstSubcategory.id,
+          categoryId: firstSubcategory.categoryId,
+        }
+      : budget;
+  });
+
 const withDefaults = (stored: Partial<AppData>): AppData => {
   const defaults = createDefaultData();
   const categories = mergeMissingDefaults(stored.categories, defaults.categories);
   const subcategories = mergeMissingDefaults(stored.subcategories, defaults.subcategories);
+  const normalizedCategories = deactivateDeprecatedDefaults(categories, deprecatedDefaultCategoryNames);
+  const normalizedSubcategories = deactivateDeprecatedDefaults(subcategories, deprecatedDefaultSubcategoryNames);
 
   return {
     transactions: stored.transactions ?? defaults.transactions,
-    categories: deactivateDeprecatedDefaults(categories, deprecatedDefaultCategoryNames),
-    subcategories: deactivateDeprecatedDefaults(subcategories, deprecatedDefaultSubcategoryNames),
+    categories: normalizedCategories,
+    subcategories: normalizedSubcategories,
     paymentMethods: stored.paymentMethods?.length ? stored.paymentMethods : defaults.paymentMethods,
     paymentSubmethods: stored.paymentSubmethods?.length
       ? stored.paymentSubmethods
       : defaults.paymentSubmethods,
-    budgets: stored.budgets ?? defaults.budgets,
+    budgets: normalizeBudgets(stored, defaults, normalizedSubcategories),
     settings: {
       ...defaults.settings,
       ...stored.settings,

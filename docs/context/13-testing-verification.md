@@ -60,9 +60,10 @@ Categories and payment methods:
 
 Budgets:
 
-- Add a monthly category budget.
+- Add a monthly expense subcategory budget.
 - Add expenses below 80 percent, above 80 percent, and above 100 percent.
 - Confirm available, near-limit, and exceeded statuses.
+- Confirm spending from sibling subcategories does not affect the selected subcategory budget.
 - Switch language to Spanish and confirm budget status/progress text is translated.
 - Edit an existing budget and confirm only the amount changes.
 - Delete a budget and confirm it is removed after confirmation.

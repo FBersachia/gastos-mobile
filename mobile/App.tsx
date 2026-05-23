@@ -192,7 +192,7 @@ const translations = {
     biometricLockDescription: 'Require device authentication when opening the app.',
     biometricLockDisabled: 'Off',
     biometricLockEnabled: 'On',
-    budgetInvalidMessage: 'Select a category and enter an amount greater than zero.',
+    budgetInvalidMessage: 'Select a subcategory and enter an amount greater than zero.',
     budgetInvalidTitle: 'Invalid budget',
     budgetProgressOf: 'of',
     budgetStatusAvailable: 'Available',
@@ -227,6 +227,7 @@ const translations = {
     editTransaction: 'Edit transaction',
     expense: 'Expense',
     expenseCategory: 'Expense category',
+    expenseSubcategory: 'Expense subcategory',
     expenses: 'Expenses',
     icon: 'Icon',
     income: 'Income',
@@ -332,7 +333,7 @@ const translations = {
     biometricLockDescription: 'Solicitar autenticacion del dispositivo al abrir la app.',
     biometricLockDisabled: 'Desactivado',
     biometricLockEnabled: 'Activado',
-    budgetInvalidMessage: 'Seleccioná una categoría e ingresá un importe mayor que cero.',
+    budgetInvalidMessage: 'Selecciona una subcategoria e ingresa un importe mayor que cero.',
     budgetInvalidTitle: 'Presupuesto inválido',
     budgetProgressOf: 'de',
     budgetStatusAvailable: 'Disponible',
@@ -367,6 +368,7 @@ const translations = {
     editTransaction: 'Editar movimiento',
     expense: 'Gasto',
     expenseCategory: 'Categoría de gasto',
+    expenseSubcategory: 'Subcategoria de gasto',
     expenses: 'Gastos',
     icon: 'Ícono',
     income: 'Ingreso',
@@ -452,7 +454,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.7';
+const APP_VERSION = '1.0.8';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -1226,15 +1228,36 @@ function AppRoot() {
     ]);
   };
 
-  const handleSaveBudget = (categoryId: string, amount: number, currency: string) => {
+  const handleSaveBudget = (subcategoryId: string, amount: number, currency: string, budgetId?: string) => {
     const timestamp = new Date().toISOString();
     const { month, year } = getMonthParts(selectedMonth);
     const normalizedCurrency = normalizeCurrency(currency);
 
     persistData((current) => {
+      if (budgetId) {
+        return {
+          ...current,
+          budgets: current.budgets.map((budget) =>
+            budget.id === budgetId
+              ? {
+                  ...budget,
+                  amount: roundMoney(amount),
+                  updatedAt: timestamp,
+                }
+              : budget,
+          ),
+        };
+      }
+
+      const subcategory = current.subcategories.find((item) => item.id === subcategoryId);
+
+      if (!subcategory) {
+        return current;
+      }
+
       const existing = current.budgets.find(
         (budget) =>
-          budget.categoryId === categoryId &&
+          budget.subcategoryId === subcategoryId &&
           budget.currency === normalizedCurrency &&
           budget.month === month &&
           budget.year === year,
@@ -1261,7 +1284,8 @@ function AppRoot() {
           ...current.budgets,
           {
             id: generateId('budget'),
-            categoryId,
+            subcategoryId,
+            categoryId: subcategory.categoryId,
             amount: roundMoney(amount),
             currency: normalizedCurrency,
             month,
@@ -3319,7 +3343,7 @@ function SettingsScreen({
   selectedMonth: string;
   deferHardwareBack: boolean;
   onBackToDashboard: () => void;
-  onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
+  onSaveBudget: (subcategoryId: string, amount: number, currency: string, budgetId?: string) => void;
   onDeleteBudget: (budgetId: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
@@ -3337,8 +3361,14 @@ function SettingsScreen({
 }) {
   const { isCompact } = useResponsive();
   const [defaultCurrency, setDefaultCurrency] = useState(data.settings.defaultCurrency);
-  const [budgetCategoryId, setBudgetCategoryId] = useState(
-    data.categories.find((category) => category.type === 'expense' && category.active)?.id ?? '',
+  const [budgetSubcategoryId, setBudgetSubcategoryId] = useState(
+    data.subcategories.find((subcategory) =>
+      subcategory.active &&
+      data.categories.some(
+        (category) =>
+          category.id === subcategory.categoryId && category.type === 'expense' && category.active,
+      ),
+    )?.id ?? '',
   );
   const [budgetAmount, setBudgetAmount] = useState('');
   const [budgetCurrency, setBudgetCurrency] = useState(data.settings.defaultCurrency);
@@ -3399,6 +3429,24 @@ function SettingsScreen({
         .sort(compareSubcategoryDisplayName(data.settings.language)),
     [data.settings.language, data.subcategories],
   );
+  const expenseCategoryIds = useMemo(
+    () => new Set(expenseCategories.map((category) => category.id)),
+    [expenseCategories],
+  );
+  const expenseSubcategories = useMemo(
+    () => activeSubcategories.filter((subcategory) => expenseCategoryIds.has(subcategory.categoryId)),
+    [activeSubcategories, expenseCategoryIds],
+  );
+  const budgetSubcategoryGroups = useMemo(
+    () =>
+      expenseCategories
+        .map((category) => ({
+          category,
+          subcategories: expenseSubcategories.filter((subcategory) => subcategory.categoryId === category.id),
+        }))
+        .filter((group) => group.subcategories.length > 0),
+    [expenseCategories, expenseSubcategories],
+  );
   const subcategoryGroups = useMemo(
     () =>
       subcategoryParentCategories.map((category) => ({
@@ -3413,7 +3461,12 @@ function SettingsScreen({
   const selectedPaymentMethodId = selectedPaymentMethod?.id ?? '';
   const budgets = summarizeBudgets(data, selectedMonth);
   const editingBudget = budgets.find((budget) => budget.budget.id === editingBudgetId);
-  const editingBudgetCategory = data.categories.find((category) => category.id === editingBudget?.budget.categoryId);
+  const editingBudgetSubcategory = data.subcategories.find(
+    (subcategory) => subcategory.id === editingBudget?.budget.subcategoryId,
+  );
+  const editingBudgetCategory = data.categories.find(
+    (category) => category.id === (editingBudgetSubcategory?.categoryId ?? editingBudget?.budget.categoryId),
+  );
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: t('coreSettings'),
     budgets: t('budgets'),
@@ -3428,10 +3481,10 @@ function SettingsScreen({
       return;
     }
 
-    if (!expenseCategories.some((category) => category.id === budgetCategoryId)) {
-      setBudgetCategoryId(expenseCategories[0]?.id ?? '');
+    if (!expenseSubcategories.some((subcategory) => subcategory.id === budgetSubcategoryId)) {
+      setBudgetSubcategoryId(expenseSubcategories[0]?.id ?? '');
     }
-  }, [budgetCategoryId, editingBudgetId, expenseCategories]);
+  }, [budgetSubcategoryId, editingBudgetId, expenseSubcategories]);
 
   useEffect(() => {
     if (!subcategoryParentCategories.some((category) => category.id === subcategoryCategoryId)) {
@@ -3469,12 +3522,12 @@ function SettingsScreen({
     setEditingBudgetId(undefined);
     setBudgetAmount('');
     setBudgetCurrency(data.settings.defaultCurrency);
-    setBudgetCategoryId(expenseCategories[0]?.id ?? '');
+    setBudgetSubcategoryId(expenseSubcategories[0]?.id ?? '');
   };
 
   const startBudgetEdit = (budget: BudgetSummary) => {
     setEditingBudgetId(budget.budget.id);
-    setBudgetCategoryId(budget.budget.categoryId);
+    setBudgetSubcategoryId(budget.budget.subcategoryId ?? '');
     setBudgetCurrency(budget.budget.currency);
     setBudgetAmount(String(budget.budget.amount));
   };
@@ -3482,12 +3535,12 @@ function SettingsScreen({
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
 
-    if (!budgetCategoryId || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    if ((!editingBudgetId && !budgetSubcategoryId) || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       Alert.alert(t('budgetInvalidTitle'), t('budgetInvalidMessage'));
       return;
     }
 
-    onSaveBudget(budgetCategoryId, parsedAmount, budgetCurrency);
+    onSaveBudget(budgetSubcategoryId, parsedAmount, budgetCurrency, editingBudgetId);
     if (editingBudgetId) {
       clearBudgetEdit();
       return;
@@ -3728,29 +3781,46 @@ function SettingsScreen({
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
         <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth, localeForLanguage(data.settings.language))}</Text>
-        <Field label={t('expenseCategory')}>
+        <Field label={t('expenseSubcategory')}>
           {editingBudget ? (
             <View style={styles.budgetLockedSelection}>
-              <CategoryIconBadge category={editingBudgetCategory} />
+              <CategoryIconBadge category={editingBudgetCategory} subcategory={editingBudgetSubcategory} />
               <View style={styles.managementText}>
                 <Text style={styles.rowTitle} numberOfLines={1}>
-                  {displayCategoryName(editingBudgetCategory, data.settings.language) ?? editingBudget.categoryName}
+                  {displaySubcategoryName(editingBudgetSubcategory, data.settings.language) ||
+                    editingBudget.subcategoryName ||
+                    displayCategoryName(editingBudgetCategory, data.settings.language) ||
+                    editingBudget.categoryName}
                 </Text>
-                <Text style={styles.rowMeta}>{t('editBudget')}</Text>
+                {editingBudgetSubcategory || editingBudget.subcategoryName ? (
+                  <Text style={styles.rowMeta}>
+                    {displayCategoryName(editingBudgetCategory, data.settings.language) ?? editingBudget.categoryName}
+                  </Text>
+                ) : null}
               </View>
             </View>
-          ) : (
-            <View style={styles.chipRow}>
-              {expenseCategories.map((category) => (
-                <CategoryChip
-                  key={category.id}
-                  category={category}
-                  language={data.settings.language}
-                  selected={budgetCategoryId === category.id}
-                  onPress={() => setBudgetCategoryId(category.id)}
-                />
+          ) : budgetSubcategoryGroups.length ? (
+            <View style={styles.budgetSubcategoryGroups}>
+              {budgetSubcategoryGroups.map((group) => (
+                <View key={group.category.id} style={styles.budgetSubcategoryGroup}>
+                  <Text style={styles.rowMeta}>{displayCategoryName(group.category, data.settings.language)}</Text>
+                  <View style={styles.chipRow}>
+                    {group.subcategories.map((subcategory) => (
+                      <SubcategoryChip
+                        key={subcategory.id}
+                        subcategory={subcategory}
+                        category={group.category}
+                        language={data.settings.language}
+                        selected={budgetSubcategoryId === subcategory.id}
+                        onPress={() => setBudgetSubcategoryId(subcategory.id)}
+                      />
+                    ))}
+                  </View>
+                </View>
               ))}
             </View>
+          ) : (
+            <EmptyState title={t('noActiveSubcategories')} />
           )}
         </Field>
         <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
@@ -3780,17 +3850,25 @@ function SettingsScreen({
           <AppButton label={t('cancelBudgetEdit')} variant="secondary" onPress={clearBudgetEdit} />
         ) : null}
 
-        {budgets.map((budget) => (
-          <BudgetStatusRow
-            key={budget.budget.id}
-            summary={budget}
-            category={data.categories.find((category) => category.id === budget.budget.categoryId)}
-            t={t}
-            language={data.settings.language}
-            onEdit={() => startBudgetEdit(budget)}
-            onDelete={() => onDeleteBudget(budget.budget.id)}
-          />
-        ))}
+        {budgets.map((budget) => {
+          const subcategory = data.subcategories.find((item) => item.id === budget.budget.subcategoryId);
+          const category = data.categories.find(
+            (item) => item.id === (subcategory?.categoryId ?? budget.budget.categoryId),
+          );
+
+          return (
+            <BudgetStatusRow
+              key={budget.budget.id}
+              summary={budget}
+              category={category}
+              subcategory={subcategory}
+              t={t}
+              language={data.settings.language}
+              onEdit={() => startBudgetEdit(budget)}
+              onDelete={() => onDeleteBudget(budget.budget.id)}
+            />
+          );
+        })}
         </View>
       ) : null}
 
@@ -4370,6 +4448,7 @@ function CategorySummaryRow({ data, summary }: { data: AppData; summary: Categor
 function BudgetStatusRow({
   summary,
   category,
+  subcategory,
   t,
   language,
   onEdit,
@@ -4377,6 +4456,7 @@ function BudgetStatusRow({
 }: {
   summary: BudgetSummary;
   category?: Category;
+  subcategory?: Subcategory;
   t: Translator;
   language: AppLanguage;
   onEdit: () => void;
@@ -4394,10 +4474,20 @@ function BudgetStatusRow({
     <View style={styles.budgetRow}>
       <View style={styles.budgetHeader}>
         <View style={styles.categoryRowLabel}>
-          <CategoryIconBadge category={category} />
-          <Text style={styles.categoryRowTitle} numberOfLines={1}>
-            {displayCategoryName(category, language) ?? summary.categoryName}
-          </Text>
+          <CategoryIconBadge category={category} subcategory={subcategory} />
+          <View style={styles.managementText}>
+            <Text style={styles.categoryRowTitle} numberOfLines={1}>
+              {displaySubcategoryName(subcategory, language) ||
+                summary.subcategoryName ||
+                displayCategoryName(category, language) ||
+                summary.categoryName}
+            </Text>
+            {subcategory || summary.subcategoryName ? (
+              <Text style={styles.rowMeta} numberOfLines={1}>
+                {displayCategoryName(category, language) ?? summary.categoryName}
+              </Text>
+            ) : null}
+          </View>
         </View>
         <Text style={[styles.budgetStatus, { color: statusColor }]}>
           {summary.status === 'exceeded'
@@ -4615,6 +4705,37 @@ function CategoryChip({
       <Icon color={contentColor} size={26} strokeWidth={2.2} />
       <Text style={[styles.categoryChipText, selected ? styles.categoryChipTextSelected : null]} numberOfLines={1}>
         {displayCategoryName(category, language)}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SubcategoryChip({
+  subcategory,
+  category,
+  language,
+  selected,
+  onPress,
+}: {
+  subcategory: Subcategory;
+  category?: Category;
+  language: AppLanguage;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  const Icon = getSubcategoryIcon(subcategory, category);
+  const contentColor = selected ? colors.primary : colors.deepBlue;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.categoryChip, selected ? styles.categoryChipSelected : null]}
+    >
+      <Icon color={contentColor} size={24} strokeWidth={2.2} />
+      <Text style={[styles.categoryChipText, selected ? styles.categoryChipTextSelected : null]} numberOfLines={1}>
+        {displaySubcategoryName(subcategory, language) ?? subcategory.name}
       </Text>
     </Pressable>
   );
@@ -6037,6 +6158,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     justifyContent: 'flex-end',
+  },
+  budgetSubcategoryGroups: {
+    gap: spacing.md,
+  },
+  budgetSubcategoryGroup: {
+    gap: spacing.xs,
   },
   budgetLockedSelection: {
     alignItems: 'center',

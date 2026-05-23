@@ -66,8 +66,10 @@ export const formatMoney = (amount: number, currency: string): string =>
     maximumFractionDigits: 2,
   })}`;
 
-export const categoryName = (data: AppData, categoryId: string): string =>
-  data.categories.find((category) => category.id === categoryId)?.name ?? 'Uncategorized';
+export const categoryName = (data: AppData, categoryId?: string): string =>
+  categoryId
+    ? data.categories.find((category) => category.id === categoryId)?.name ?? 'Uncategorized'
+    : 'Uncategorized';
 
 export const subcategoryName = (data: AppData, subcategoryId?: string): string =>
   subcategoryId
@@ -161,7 +163,10 @@ export const summarizeBudgets = (data: AppData, selectedMonth: string): BudgetSu
         monthTransactions
           .filter(
             (transaction) =>
-              transaction.categoryId === budget.categoryId && transaction.currency === budget.currency,
+              (budget.subcategoryId
+                ? transaction.subcategoryId === budget.subcategoryId
+                : transaction.categoryId === budget.categoryId) &&
+              transaction.currency === budget.currency,
           )
           .reduce((total, transaction) => total + transaction.amount, 0),
       );
@@ -176,6 +181,7 @@ export const summarizeBudgets = (data: AppData, selectedMonth: string): BudgetSu
       return {
         budget,
         categoryName: categoryName(data, budget.categoryId),
+        subcategoryName: subcategoryName(data, budget.subcategoryId),
         spent,
         usage,
         status,

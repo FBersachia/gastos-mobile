@@ -2,23 +2,24 @@
 
 ## Requirement
 
-The app must support monthly budgets by expense category and visually show available, near-limit, or exceeded status.
+The app must support monthly budgets by expense subcategory and visually show available, near-limit, or exceeded status.
 
 ## Current data model
 
 Defined in `mobile/src/types.ts`:
 
-- `Budget` has `id`, `categoryId`, `amount`, `currency`, `month`, `year`, `createdAt`, `updatedAt`.
-- `BudgetSummary` adds category name, spent amount, usage, and status.
+- `Budget` has `id`, `subcategoryId`, optional legacy `categoryId`, `amount`, `currency`, `month`, `year`, `createdAt`, `updatedAt`.
+- `BudgetSummary` adds category name, subcategory name, spent amount, usage, and status.
 
 ## Current behavior
 
 Implemented in `SettingsScreen`, `DashboardScreen`, and `summarizeBudgets`.
 
 - Budgets are created, edited, or deleted from Settings for the currently selected month.
-- Budgets are category and currency specific.
-- Editing a budget changes only its amount; category, currency, month, and year remain the budget identity.
-- Spending is calculated from selected-month expense transactions matching category and currency.
+- New budgets are subcategory and currency specific.
+- Editing a budget changes only its amount; subcategory, currency, month, and year remain the budget identity.
+- Spending is calculated from selected-month expense transactions matching subcategory and currency.
+- Stored legacy category budgets are migrated to the first matching subcategory when possible; otherwise they remain readable as category budgets until edited or deleted.
 - Dashboard and Settings both show budget status rows.
 
 ## Thresholds
