@@ -6,6 +6,7 @@ The current implementation has been verified with:
 
 - `npx tsc --noEmit`
 - `npx expo-doctor`
+- Local Android release APK build with Gradle using JDK 17 and the local Android SDK.
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
 - May 2026 sample data validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
 
@@ -65,6 +66,13 @@ Budgets:
 - Switch language to Spanish and confirm budget status/progress text is translated.
 - Edit an existing budget and confirm only the amount changes.
 - Delete a budget and confirm it is removed after confirmation.
+
+Local Android APK builds:
+
+- `mobile/android` can produce an internal APK with `.\gradlew.bat clean assembleRelease` when `JAVA_HOME` points to JDK 17 and `ANDROID_HOME` / `ANDROID_SDK_ROOT` point to the local SDK.
+- Native Android `versionName` and `versionCode` are read from `mobile/app.json`.
+- Native edge-to-edge flags stay disabled to match `app.json` and avoid extra Android bottom navigation spacing.
+- Internal release APKs use the project debug keystore; do not commit production signing credentials or generated APK artifacts.
 
 CSV export:
 

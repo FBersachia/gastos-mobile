@@ -7,6 +7,7 @@ mobile/node_modules/
 mobile/.expo/
 dist/
 web-build/
+mobile/builds/
 expo-env.d.ts
 mobile/expo-env.d.ts
 ios/
