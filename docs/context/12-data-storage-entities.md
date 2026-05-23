@@ -47,6 +47,7 @@ Defined in `mobile/src/types.ts`.
 - Currencies are stored as uppercase 3-character strings.
 - Money is rounded to two decimals.
 - Installment splitting is done in cents to avoid visible rounding drift.
+- `paymentMethodId` and `paymentSubmethodId` are optional on transactions; expenses require them in the UI, incomes leave them empty.
 
 ## Known gaps
 

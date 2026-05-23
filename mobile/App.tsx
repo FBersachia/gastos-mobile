@@ -84,11 +84,13 @@ import {
   Platform,
   Pressable,
   ScrollView,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
+  ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -192,6 +194,10 @@ const translations = {
     biometricLockEnabled: 'On',
     budgetInvalidMessage: 'Select a category and enter an amount greater than zero.',
     budgetInvalidTitle: 'Invalid budget',
+    budgetProgressOf: 'of',
+    budgetStatusAvailable: 'Available',
+    budgetStatusExceeded: 'Exceeded',
+    budgetStatusNearLimit: 'Near limit',
     budgets: 'Monthly budgets',
     byCategory: 'By category',
     byPaymentSubmethod: 'By payment submethod',
@@ -210,12 +216,14 @@ const translations = {
     date: 'Date',
     defaultCurrency: 'Default currency',
     delete: 'Delete',
+    deleteBudget: 'Delete budget',
     deleteInstallmentGroup: 'Delete installment group',
     deleteLastDigit: 'Delete last digit',
     deleteTransaction: 'Delete transaction',
     description: 'Description',
     disable: 'Disable',
     edit: 'Edit',
+    editBudget: 'Edit budget',
     editTransaction: 'Edit transaction',
     expense: 'Expense',
     expenseCategory: 'Expense category',
@@ -233,7 +241,7 @@ const translations = {
     languageEnglish: 'English',
     languageSpanishArgentina: 'Español (Argentina)',
     memo: 'Memo',
-    missingFieldsMessage: 'Subcategory and payment submethod are required.',
+    missingFieldsMessage: 'Category and subcategory are required. Expenses also need a payment submethod.',
     missingFieldsTitle: 'Missing fields',
     newCategory: 'New category',
     newMethod: 'New method',
@@ -268,6 +276,7 @@ const translations = {
     saveBudget: 'Save budget',
     saveCurrency: 'Save currency',
     saveExpense: 'Save expense',
+    cancelBudgetEdit: 'Cancel budget edit',
     settings: 'Settings',
     single: 'Single',
     storageErrorMessage: 'The local data store could not be loaded.',
@@ -286,6 +295,7 @@ const translations = {
     type: 'Type',
     uncategorized: 'Uncategorized',
     updated: 'Updated',
+    updateBudget: 'Update budget',
     created: 'Created',
     none: 'None',
     installment: 'Installment',
@@ -324,6 +334,10 @@ const translations = {
     biometricLockEnabled: 'Activado',
     budgetInvalidMessage: 'Seleccioná una categoría e ingresá un importe mayor que cero.',
     budgetInvalidTitle: 'Presupuesto inválido',
+    budgetProgressOf: 'de',
+    budgetStatusAvailable: 'Disponible',
+    budgetStatusExceeded: 'Excedido',
+    budgetStatusNearLimit: 'Cerca del límite',
     budgets: 'Presupuestos mensuales',
     byCategory: 'Por categoría',
     byPaymentSubmethod: 'Por submétodo de pago',
@@ -342,12 +356,14 @@ const translations = {
     date: 'Fecha',
     defaultCurrency: 'Moneda predeterminada',
     delete: 'Eliminar',
+    deleteBudget: 'Eliminar presupuesto',
     deleteInstallmentGroup: 'Eliminar grupo de cuotas',
     deleteLastDigit: 'Borrar último dígito',
     deleteTransaction: 'Eliminar movimiento',
     description: 'Descripción',
     disable: 'Desactivar',
     edit: 'Editar',
+    editBudget: 'Editar presupuesto',
     editTransaction: 'Editar movimiento',
     expense: 'Gasto',
     expenseCategory: 'Categoría de gasto',
@@ -365,7 +381,7 @@ const translations = {
     languageEnglish: 'English',
     languageSpanishArgentina: 'Español (Argentina)',
     memo: 'Nota',
-    missingFieldsMessage: 'La subcategoría y el submétodo de pago son obligatorios.',
+    missingFieldsMessage: 'La categoría y la subcategoría son obligatorias. Los gastos también necesitan submétodo de pago.',
     missingFieldsTitle: 'Faltan datos',
     newCategory: 'Nueva categoría',
     newMethod: 'Nuevo método',
@@ -400,6 +416,7 @@ const translations = {
     saveBudget: 'Guardar presupuesto',
     saveCurrency: 'Guardar moneda',
     saveExpense: 'Guardar gasto',
+    cancelBudgetEdit: 'Cancelar edición',
     settings: 'Ajustes',
     single: 'Única',
     storageErrorMessage: 'No se pudo cargar el almacenamiento local.',
@@ -418,6 +435,7 @@ const translations = {
     type: 'Tipo',
     uncategorized: 'Sin categoría',
     updated: 'Actualizado',
+    updateBudget: 'Actualizar presupuesto',
     created: 'Creado',
     none: 'Ninguno',
     installment: 'Cuota',
@@ -434,7 +452,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.4';
+const APP_VERSION = '1.0.5';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -1102,6 +1120,9 @@ function AppRoot() {
 
   const handleSaveTransaction = (input: TransactionInput, editingTransaction?: Transaction) => {
     const timestamp = new Date().toISOString();
+    const normalizedCurrency = normalizeCurrency(input.currency);
+    const paymentMethodId = input.type === 'expense' ? input.paymentMethodId : undefined;
+    const paymentSubmethodId = input.type === 'expense' ? input.paymentSubmethodId : undefined;
 
     if (editingTransaction) {
       persistData((current) => ({
@@ -1112,7 +1133,9 @@ function AppRoot() {
                 ...transaction,
                 ...input,
                 amount: roundMoney(input.amount),
-                currency: normalizeCurrency(input.currency),
+                currency: normalizedCurrency,
+                paymentMethodId,
+                paymentSubmethodId,
                 updatedAt: timestamp,
               }
             : transaction,
@@ -1131,12 +1154,12 @@ function AppRoot() {
       id: generateId('trx'),
       type: input.type,
       amount: roundMoney(amount),
-      currency: normalizeCurrency(input.currency),
+      currency: normalizedCurrency,
       date: isInstallment ? addMonths(startDate, index) : input.date,
       categoryId: input.categoryId,
       subcategoryId: input.subcategoryId,
-      paymentMethodId: input.paymentMethodId,
-      paymentSubmethodId: input.paymentSubmethodId,
+      paymentMethodId,
+      paymentSubmethodId,
       description: isInstallment
         ? `${input.description || 'Installment purchase'} - Installment ${index + 1}/${amounts.length}`
         : input.description,
@@ -1223,6 +1246,23 @@ function AppRoot() {
     });
   };
 
+  const handleDeleteBudget = (budgetId: string) => {
+    const t = getTranslator(data?.settings.language ?? 'en');
+
+    Alert.alert(t('deleteBudget'), t('actionCannotBeUndone'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: () =>
+          persistData((current) => ({
+            ...current,
+            budgets: current.budgets.filter((budget) => budget.id !== budgetId),
+          })),
+      },
+    ]);
+  };
+
   const handleSetDefaultCurrency = (currency: string) => {
     persistData((current) => ({
       ...current,
@@ -1300,7 +1340,7 @@ function AppRoot() {
 
   const handleAddSubcategory = (categoryId: string, name: string, icon?: string) => {
     const trimmed = name.trim();
-    if (!trimmed) {
+    if (!categoryId || !trimmed) {
       return;
     }
 
@@ -1555,6 +1595,7 @@ function AppRoot() {
                 deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
                 onBackToDashboard={() => setActiveTab('dashboard')}
                 onSaveBudget={handleSaveBudget}
+                onDeleteBudget={handleDeleteBudget}
                 onSetDefaultCurrency={handleSetDefaultCurrency}
                 onSetLanguage={handleSetLanguage}
                 onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
@@ -1837,6 +1878,7 @@ function TransactionForm({
   data,
   t,
   editingTransaction,
+  embedded,
   onCancelEdit,
   onClose,
   onSave,
@@ -1844,6 +1886,7 @@ function TransactionForm({
   data: AppData;
   t: Translator;
   editingTransaction?: Transaction;
+  embedded?: boolean;
   onCancelEdit: () => void;
   onClose: () => void;
   onSave: (input: TransactionInput) => void;
@@ -1854,6 +1897,13 @@ function TransactionForm({
     setType(next);
     setCategoryId('');
     setSubcategoryId(undefined);
+    setCategorySelectorExpanded(false);
+    if (next === 'income') {
+      setPaymentMethodId('');
+      setPaymentSubmethodId(undefined);
+      setInstallmentsEnabled(false);
+      setInstallmentCount('1');
+    }
   };
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState(data.settings.defaultCurrency);
@@ -1946,7 +1996,7 @@ function TransactionForm({
       setDate(editingTransaction.date);
       setCategoryId(editingTransaction.categoryId);
       setSubcategoryId(editingTransaction.subcategoryId);
-      setPaymentMethodId(editingTransaction.paymentMethodId);
+      setPaymentMethodId(editingTransaction.paymentMethodId ?? '');
       setPaymentSubmethodId(editingTransaction.paymentSubmethodId);
       setDescription(editingTransaction.description);
       setInstallmentsEnabled(false);
@@ -2007,6 +2057,14 @@ function TransactionForm({
   }, [categories, categoryId, editingTransaction, isNewExpenseEntry, subcategories, subcategoryId]);
 
   useEffect(() => {
+    if (!isExpenseEntry) {
+      if (paymentMethodId || paymentSubmethodId) {
+        setPaymentMethodId('');
+        setPaymentSubmethodId(undefined);
+      }
+      return;
+    }
+
     const selectedSubmethod = paymentSubmethods.find((submethod) => submethod.id === paymentSubmethodId);
 
     if (selectedSubmethod) {
@@ -2037,7 +2095,7 @@ function TransactionForm({
     }
 
     setPaymentSubmethodId(undefined);
-  }, [editingTransaction, paymentMethodId, paymentMethods, paymentSubmethodId, paymentSubmethods]);
+  }, [editingTransaction, isExpenseEntry, paymentMethodId, paymentMethods, paymentSubmethodId, paymentSubmethods]);
 
   const handleAmountKeyPress = (key: string) => {
     if (key === 'backspace') {
@@ -2112,7 +2170,7 @@ function TransactionForm({
       return;
     }
 
-    if (!categoryId || !subcategoryId || !paymentMethodId || !paymentSubmethodId) {
+    if (!categoryId || !subcategoryId || (type === 'expense' && (!paymentMethodId || !paymentSubmethodId))) {
       Alert.alert(t('missingFieldsTitle'), t('missingFieldsMessage'));
       return;
     }
@@ -2129,8 +2187,8 @@ function TransactionForm({
       date,
       categoryId,
       subcategoryId,
-      paymentMethodId,
-      paymentSubmethodId,
+      paymentMethodId: type === 'expense' ? paymentMethodId : undefined,
+      paymentSubmethodId: type === 'expense' ? paymentSubmethodId : undefined,
       description: description.trim(),
       installmentCount: type === 'expense' && installmentsEnabled ? parsedInstallments : undefined,
       firstInstallmentDate: type === 'expense' && installmentsEnabled ? firstInstallmentDate : undefined,
@@ -2517,7 +2575,7 @@ function TransactionForm({
     );
   }
 
-  return (
+  const incomeForm = (
     <View style={styles.formPanel}>
       <View style={styles.formHeader}>
         <Text style={styles.sectionTitle}>{editingTransaction ? t('editTransaction') : t('newTransaction')}</Text>
@@ -2573,26 +2631,6 @@ function TransactionForm({
         )}
       </Field>
 
-      <Field label={t('paymentSubmethod')}>
-        {paymentSubmethods.length ? (
-          <View style={styles.chipRow}>
-            {paymentSubmethods.map((submethod) => (
-              <Chip
-                key={submethod.id}
-                label={displayPaymentSubmethodName(submethod, data.settings.language) ?? submethod.name}
-                selected={paymentSubmethodId === submethod.id}
-                onPress={() => {
-                  setPaymentSubmethodId(submethod.id);
-                  setPaymentMethodId(submethod.paymentMethodId);
-                }}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.rowMeta}>{t('noActivePaymentSubmethods')}</Text>
-        )}
-      </Field>
-
       <Field label={t('date')}>
         <TextInput
           value={date}
@@ -2618,6 +2656,12 @@ function TransactionForm({
       <AppButton label={editingTransaction ? t('save') : t('addTransaction')} Icon={Save} onPress={handleSubmit} />
     </View>
   );
+
+  return embedded ? incomeForm : (
+    <ScreenScroll contentContainerStyle={styles.incomeFormScrollContent}>
+      {incomeForm}
+    </ScreenScroll>
+  );
 }
 
 function TransactionRow({
@@ -2638,8 +2682,10 @@ function TransactionRow({
   const { isCompact } = useResponsive();
   const displayCategory = transactionCategoryDisplayName(data, transaction) ?? t('uncategorized');
   const displayPayment =
-    paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
-    paymentMethodDisplayName(data, transaction.paymentMethodId);
+    transaction.type === 'expense'
+      ? paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
+        paymentMethodDisplayName(data, transaction.paymentMethodId)
+      : undefined;
 
   return (
     <Pressable
@@ -2654,9 +2700,11 @@ function TransactionRow({
         <Text style={styles.rowMeta} numberOfLines={1}>
           {transaction.date} - {displayCategory}
         </Text>
-        <Text style={styles.rowMeta} numberOfLines={1}>
-          {displayPayment}
-        </Text>
+        {displayPayment ? (
+          <Text style={styles.rowMeta} numberOfLines={1}>
+            {displayPayment}
+          </Text>
+        ) : null}
       </View>
       <View style={[styles.rowActions, isCompact ? styles.rowActionsCompact : null]}>
         <Text
@@ -2702,8 +2750,10 @@ function TransactionDetailModal({
   const displayCategory = transactionCategoryDisplayName(data, transaction) ?? t('uncategorized');
   const displayParentCategory = displayCategoryName(category, data.settings.language);
   const displayPayment =
-    paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
-    paymentMethodDisplayName(data, transaction.paymentMethodId);
+    transaction.type === 'expense'
+      ? paymentSubmethodDisplayName(data, transaction.paymentSubmethodId) ||
+        paymentMethodDisplayName(data, transaction.paymentMethodId)
+      : undefined;
   const amountPrefix = transaction.type === 'expense' ? '-' : '+';
 
   return (
@@ -2748,7 +2798,9 @@ function TransactionDetailModal({
             <TransactionDetailLine label={t('type')} value={transaction.type} />
             <TransactionDetailLine label={t('categories')} value={displayParentCategory || t('uncategorized')} />
             <TransactionDetailLine label={t('subcategories')} value={displayCategory || t('none')} />
-            <TransactionDetailLine label={t('payment')} value={displayPayment || t('none')} />
+            {transaction.type === 'expense' ? (
+              <TransactionDetailLine label={t('payment')} value={displayPayment || t('none')} />
+            ) : null}
             <TransactionDetailLine label={t('currency')} value={transaction.currency} />
             <TransactionDetailLine label={t('created')} value={transaction.createdAt.slice(0, 10)} />
             <TransactionDetailLine label={t('updated')} value={transaction.updatedAt.slice(0, 10)} />
@@ -2802,6 +2854,7 @@ function TransactionEditModal({
               data={data}
               t={t}
               editingTransaction={transaction}
+              embedded
               onCancelEdit={onClose}
               onClose={onClose}
               onSave={(input) => onSave(input, transaction)}
@@ -3217,6 +3270,7 @@ function SettingsScreen({
   deferHardwareBack,
   onBackToDashboard,
   onSaveBudget,
+  onDeleteBudget,
   onSetDefaultCurrency,
   onSetLanguage,
   onSetBiometricLockEnabled,
@@ -3237,6 +3291,7 @@ function SettingsScreen({
   deferHardwareBack: boolean;
   onBackToDashboard: () => void;
   onSaveBudget: (categoryId: string, amount: number, currency: string) => void;
+  onDeleteBudget: (budgetId: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
   onSetBiometricLockEnabled: (enabled: boolean) => void;
@@ -3258,6 +3313,7 @@ function SettingsScreen({
   );
   const [budgetAmount, setBudgetAmount] = useState('');
   const [budgetCurrency, setBudgetCurrency] = useState(data.settings.defaultCurrency);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | undefined>();
   const [categoryType, setCategoryType] = useState<TransactionType>('expense');
   const [categoryNameInput, setCategoryNameInput] = useState('');
   const [subcategoryType, setSubcategoryType] = useState<TransactionType>('expense');
@@ -3299,6 +3355,10 @@ function SettingsScreen({
     () => activeCategories.filter((category) => category.type === 'expense'),
     [activeCategories],
   );
+  const visibleCategories = useMemo(
+    () => activeCategories.filter((category) => category.type === categoryType),
+    [activeCategories, categoryType],
+  );
   const subcategoryParentCategories = useMemo(
     () => activeCategories.filter((category) => category.type === subcategoryType),
     [activeCategories, subcategoryType],
@@ -3312,17 +3372,19 @@ function SettingsScreen({
   );
   const subcategoryGroups = useMemo(
     () =>
-      activeCategories.map((category) => ({
+      subcategoryParentCategories.map((category) => ({
         category,
         subcategories: activeSubcategories.filter((subcategory) => subcategory.categoryId === category.id),
       })),
-    [activeCategories, activeSubcategories],
+    [activeSubcategories, subcategoryParentCategories],
   );
   const activePaymentMethods = data.paymentMethods.filter((method) => method.active);
   const selectedPaymentMethod =
     activePaymentMethods.find((method) => method.id === paymentSubmethodMethodId) ?? activePaymentMethods[0];
   const selectedPaymentMethodId = selectedPaymentMethod?.id ?? '';
   const budgets = summarizeBudgets(data, selectedMonth);
+  const editingBudget = budgets.find((budget) => budget.budget.id === editingBudgetId);
+  const editingBudgetCategory = data.categories.find((category) => category.id === editingBudget?.budget.categoryId);
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: t('coreSettings'),
     budgets: t('budgets'),
@@ -3333,10 +3395,24 @@ function SettingsScreen({
   };
 
   useEffect(() => {
+    if (editingBudgetId) {
+      return;
+    }
+
+    if (!expenseCategories.some((category) => category.id === budgetCategoryId)) {
+      setBudgetCategoryId(expenseCategories[0]?.id ?? '');
+    }
+  }, [budgetCategoryId, editingBudgetId, expenseCategories]);
+
+  useEffect(() => {
     if (!subcategoryParentCategories.some((category) => category.id === subcategoryCategoryId)) {
       setSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
     }
-  }, [subcategoryCategoryId, subcategoryParentCategories]);
+
+    if (!subcategoryParentCategories.some((category) => category.id === expandedSubcategoryCategoryId)) {
+      setExpandedSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
+    }
+  }, [expandedSubcategoryCategoryId, subcategoryCategoryId, subcategoryParentCategories]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -3360,6 +3436,20 @@ function SettingsScreen({
     return () => subscription.remove();
   }, [activeSettingsSection, deferHardwareBack, onBackToDashboard]);
 
+  const clearBudgetEdit = () => {
+    setEditingBudgetId(undefined);
+    setBudgetAmount('');
+    setBudgetCurrency(data.settings.defaultCurrency);
+    setBudgetCategoryId(expenseCategories[0]?.id ?? '');
+  };
+
+  const startBudgetEdit = (budget: BudgetSummary) => {
+    setEditingBudgetId(budget.budget.id);
+    setBudgetCategoryId(budget.budget.categoryId);
+    setBudgetCurrency(budget.budget.currency);
+    setBudgetAmount(String(budget.budget.amount));
+  };
+
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
 
@@ -3369,8 +3459,19 @@ function SettingsScreen({
     }
 
     onSaveBudget(budgetCategoryId, parsedAmount, budgetCurrency);
+    if (editingBudgetId) {
+      clearBudgetEdit();
+      return;
+    }
+
     setBudgetAmount('');
   };
+
+  useEffect(() => {
+    if (editingBudgetId && !editingBudget) {
+      clearBudgetEdit();
+    }
+  }, [editingBudget, editingBudgetId]);
 
   const startCategoryEdit = (category: Category) => {
     setEditingCategoryId(category.id);
@@ -3382,6 +3483,11 @@ function SettingsScreen({
     setEditingCategoryId(undefined);
     setEditingCategoryName('');
     setEditingCategoryType('expense');
+  };
+
+  const handleCategoryTypeChange = (next: TransactionType) => {
+    setCategoryType(next);
+    clearCategoryEdit();
   };
 
   const saveCategoryEdit = () => {
@@ -3405,6 +3511,12 @@ function SettingsScreen({
     setEditingSubcategoryName('');
     setEditingSubcategoryCategoryId('');
     setEditingSubcategoryIcon(undefined);
+  };
+
+  const handleSubcategoryTypeChange = (next: TransactionType) => {
+    setSubcategoryType(next);
+    setExpandedSubcategoryCategoryId('');
+    clearSubcategoryEdit();
   };
 
   const saveSubcategoryEdit = () => {
@@ -3588,17 +3700,29 @@ function SettingsScreen({
         <View style={styles.formPanel}>
         <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth, localeForLanguage(data.settings.language))}</Text>
         <Field label={t('expenseCategory')}>
-          <View style={styles.chipRow}>
-            {expenseCategories.map((category) => (
-              <CategoryChip
-                key={category.id}
-                category={category}
-                language={data.settings.language}
-                selected={budgetCategoryId === category.id}
-                onPress={() => setBudgetCategoryId(category.id)}
-              />
-            ))}
-          </View>
+          {editingBudget ? (
+            <View style={styles.budgetLockedSelection}>
+              <CategoryIconBadge category={editingBudgetCategory} />
+              <View style={styles.managementText}>
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {displayCategoryName(editingBudgetCategory, data.settings.language) ?? editingBudget.categoryName}
+                </Text>
+                <Text style={styles.rowMeta}>{t('editBudget')}</Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.chipRow}>
+              {expenseCategories.map((category) => (
+                <CategoryChip
+                  key={category.id}
+                  category={category}
+                  language={data.settings.language}
+                  selected={budgetCategoryId === category.id}
+                  onPress={() => setBudgetCategoryId(category.id)}
+                />
+              ))}
+            </View>
+          )}
         </Field>
         <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
           <Field label={t('amount')} grid>
@@ -3617,18 +3741,25 @@ function SettingsScreen({
               maxLength={3}
               value={budgetCurrency}
               onChangeText={setBudgetCurrency}
-              style={styles.input}
+              editable={!editingBudget}
+              style={[styles.input, editingBudget ? styles.inputDisabled : null]}
             />
           </Field>
         </View>
-        <AppButton label={t('saveBudget')} Icon={Save} onPress={saveBudget} />
+        <AppButton label={editingBudget ? t('updateBudget') : t('saveBudget')} Icon={Save} onPress={saveBudget} />
+        {editingBudget ? (
+          <AppButton label={t('cancelBudgetEdit')} variant="secondary" onPress={clearBudgetEdit} />
+        ) : null}
 
         {budgets.map((budget) => (
           <BudgetStatusRow
             key={budget.budget.id}
             summary={budget}
             category={data.categories.find((category) => category.id === budget.budget.categoryId)}
+            t={t}
             language={data.settings.language}
+            onEdit={() => startBudgetEdit(budget)}
+            onDelete={() => onDeleteBudget(budget.budget.id)}
           />
         ))}
         </View>
@@ -3637,8 +3768,8 @@ function SettingsScreen({
       {activeSettingsSection === 'categories' ? (
         <View style={styles.formPanel}>
         <View style={styles.chipRow}>
-          <Chip label={t('expense')} selected={categoryType === 'expense'} onPress={() => setCategoryType('expense')} />
-          <Chip label={t('income')} selected={categoryType === 'income'} onPress={() => setCategoryType('income')} />
+          <Chip label={t('expense')} selected={categoryType === 'expense'} onPress={() => handleCategoryTypeChange('expense')} />
+          <Chip label={t('income')} selected={categoryType === 'income'} onPress={() => handleCategoryTypeChange('income')} />
         </View>
         <Field label={t('newCategory')}>
           <TextInput
@@ -3658,7 +3789,7 @@ function SettingsScreen({
           }}
         />
 
-        {activeCategories.map((category) => (
+        {visibleCategories.length ? visibleCategories.map((category) => (
           <View key={category.id} style={styles.managementEditGroup}>
             <CategoryManagementRow
               category={category}
@@ -3697,15 +3828,17 @@ function SettingsScreen({
               </View>
             ) : null}
           </View>
-        ))}
+        )) : (
+          <Text style={styles.rowMeta}>{t('noActiveCategories')}</Text>
+        )}
         </View>
       ) : null}
 
       {activeSettingsSection === 'subcategories' ? (
         <View style={styles.formPanel}>
         <View style={styles.chipRow}>
-          <Chip label={t('expense')} selected={subcategoryType === 'expense'} onPress={() => setSubcategoryType('expense')} />
-          <Chip label={t('income')} selected={subcategoryType === 'income'} onPress={() => setSubcategoryType('income')} />
+          <Chip label={t('expense')} selected={subcategoryType === 'expense'} onPress={() => handleSubcategoryTypeChange('expense')} />
+          <Chip label={t('income')} selected={subcategoryType === 'income'} onPress={() => handleSubcategoryTypeChange('income')} />
         </View>
         <Field label={t('parentCategory')}>
           <View style={styles.chipRow}>
@@ -3804,7 +3937,7 @@ function SettingsScreen({
                             <View style={styles.inlineEditPanel}>
                               <Field label={t('parentCategory')}>
                                 <View style={styles.chipRow}>
-                                  {activeCategories.map((item) => (
+                                  {subcategoryParentCategories.map((item) => (
                                     <CategoryChip
                                       key={item.id}
                                       category={item}
@@ -4194,11 +4327,17 @@ function CategorySummaryRow({ data, summary }: { data: AppData; summary: Categor
 function BudgetStatusRow({
   summary,
   category,
+  t,
   language,
+  onEdit,
+  onDelete,
 }: {
   summary: BudgetSummary;
   category?: Category;
+  t: Translator;
   language: AppLanguage;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const statusColor =
     summary.status === 'exceeded'
@@ -4217,15 +4356,25 @@ function BudgetStatusRow({
             {displayCategoryName(category, language) ?? summary.categoryName}
           </Text>
         </View>
-        <Text style={[styles.budgetStatus, { color: statusColor }]}>{summary.status}</Text>
+        <Text style={[styles.budgetStatus, { color: statusColor }]}>
+          {summary.status === 'exceeded'
+            ? t('budgetStatusExceeded')
+            : summary.status === 'near-limit'
+              ? t('budgetStatusNearLimit')
+              : t('budgetStatusAvailable')}
+        </Text>
       </View>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { backgroundColor: statusColor, width: `${Math.min(100, percentage)}%` }]} />
       </View>
       <Text style={styles.rowMeta}>
-        {formatMoney(summary.spent, summary.budget.currency)} of{' '}
+        {formatMoney(summary.spent, summary.budget.currency)} {t('budgetProgressOf')}{' '}
         {formatMoney(summary.budget.amount, summary.budget.currency)} · {percentage}%
       </Text>
+      <View style={styles.budgetActions}>
+        <AppButton label={t('editBudget')} Icon={Pencil} compact variant="secondary" onPress={onEdit} />
+        <AppButton label={t('deleteBudget')} Icon={Trash2} compact variant="secondary" onPress={onDelete} />
+      </View>
     </View>
   );
 }
@@ -4253,7 +4402,7 @@ function CategoryManagementRow({
           <Text style={styles.categoryRowTitle} numberOfLines={2}>
             {displayCategoryName(category, language)}
           </Text>
-          <Text style={styles.rowMeta}>{category.type}</Text>
+          <Text style={styles.rowMeta}>{category.type === 'expense' ? t('expense') : t('income')}</Text>
         </View>
       </View>
       <View style={[styles.managementActions, isCompact ? styles.managementActionsCompact : null]}>
@@ -4628,13 +4777,23 @@ function EmptyState({ title }: { title: string }) {
   );
 }
 
-function ScreenScroll({ children }: { children: React.ReactNode }) {
+function ScreenScroll({
+  children,
+  contentContainerStyle,
+}: {
+  children: React.ReactNode;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+}) {
   const { isCompact } = useResponsive();
 
   return (
     <ScrollView
       style={styles.screen}
-      contentContainerStyle={[styles.screenContent, isCompact ? styles.screenContentCompact : null]}
+      contentContainerStyle={[
+        styles.screenContent,
+        isCompact ? styles.screenContentCompact : null,
+        contentContainerStyle,
+      ]}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
@@ -4801,6 +4960,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.md,
     paddingBottom: spacing.lg,
+  },
+  incomeFormScrollContent: {
+    paddingBottom: spacing.xl * 3,
   },
   expenseEntryPanel: {
     backgroundColor: colors.surface,
@@ -5618,6 +5780,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  inputDisabled: {
+    color: colors.textMuted,
+    opacity: 0.78,
+  },
   multilineInput: {
     height: 72,
     textAlignVertical: 'top',
@@ -5821,6 +5987,24 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 12,
     textTransform: 'uppercase',
+  },
+  budgetActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    justifyContent: 'flex-end',
+  },
+  budgetLockedSelection: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 56,
+    padding: spacing.sm,
   },
   progressTrack: {
     backgroundColor: colors.surfaceAlt,

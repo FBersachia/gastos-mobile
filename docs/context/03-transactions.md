@@ -2,7 +2,7 @@
 
 ## Requirement
 
-The app must allow manual creation, editing, deletion, listing, and detail viewing for expenses and incomes. Required fields are type, amount, currency, date, category, and payment method.
+The app must allow manual creation, editing, deletion, listing, and detail viewing for expenses and incomes. Required fields are type, amount, currency, date, category, and subcategory. Payment method is required only for expenses.
 
 ## Current behavior
 
@@ -14,7 +14,7 @@ Supported fields:
 - Currency selector in the new expense screen and currency input in the fallback form.
 - Date.
 - New expense subcategory grid with icons. The entry controls stay hidden until a subcategory is selected.
-- Payment submethod selector in the new expense screen.
+- Payment submethod selector in the new expense screen. Income creation does not ask for payment.
 - Description.
 - Installment selector in the new expense screen, including suggested values and a custom numeric input.
 - Numeric keypad with inline addition and subtraction support for quick amount calculation.
@@ -31,7 +31,7 @@ The form validates:
 - Amount can be entered as a simple `+`/`-` expression and is evaluated before saving.
 - Date must match `YYYY-MM-DD`.
 - Subcategory is required.
-- Payment submethod is required.
+- Payment submethod is required only for expenses.
 - Installment count must be at least 2 when enabled.
 
 ## Creation
@@ -50,6 +50,8 @@ Each transaction receives:
 Editing is currently allowed only for non-installment transactions. Expense editing uses a compact selected-subcategory row by default, with grouped category/subcategory choices opened only when the user taps the row.
 
 When editing, the existing payment method and submethod are preserved unless the user explicitly selects another payment option.
+
+Income transactions do not display payment in lists, detail, or CSV export. Older income rows that still have payment data are preserved on load, but saving an edited income clears payment fields.
 
 Installment transactions are not individually editable in the current UI.
 

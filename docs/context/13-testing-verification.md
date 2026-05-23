@@ -30,7 +30,7 @@ Dashboard:
 Transactions:
 
 - Create an expense with required fields.
-- Create an income with required fields.
+- Create an income with required fields and confirm no payment method is requested or shown.
 - Enter an amount using `+` and `-` in the keypad and confirm the saved value matches the calculated result.
 - Edit a non-installment transaction.
 - Edit a transaction with Transfer or Credit Card payment and confirm saving without payment changes preserves the original payment submethod.
@@ -52,6 +52,7 @@ Categories and payment methods:
 - Add a category and use it in a transaction.
 - Add a subcategory and use it in a transaction.
 - In Settings > Subcategories, switch between expense and income and confirm parent category choices update before creating the subcategory.
+- In Settings > Categories, switch between expense and income and confirm the visible category list changes.
 - Disable a category and confirm it no longer appears in active form choices.
 - Add a payment method/submethod and use it in a transaction.
 
@@ -60,6 +61,9 @@ Budgets:
 - Add a monthly category budget.
 - Add expenses below 80 percent, above 80 percent, and above 100 percent.
 - Confirm available, near-limit, and exceeded statuses.
+- Switch language to Spanish and confirm budget status/progress text is translated.
+- Edit an existing budget and confirm only the amount changes.
+- Delete a budget and confirm it is removed after confirmation.
 
 CSV export:
 

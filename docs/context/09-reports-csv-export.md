@@ -52,6 +52,8 @@ File creation and sharing are handled with:
 - `expo-file-system/legacy`.
 - `expo-sharing`.
 
+Income rows keep the payment columns empty because income transactions do not use payment methods.
+
 ## Known gaps
 
 - Custom date range export is not implemented.

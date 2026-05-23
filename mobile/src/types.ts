@@ -50,7 +50,7 @@ export interface Transaction {
   date: string;
   categoryId: string;
   subcategoryId?: string;
-  paymentMethodId: string;
+  paymentMethodId?: string;
   paymentSubmethodId?: string;
   description: string;
   installmentGroupId?: string;
@@ -95,7 +95,7 @@ export interface TransactionInput {
   date: string;
   categoryId: string;
   subcategoryId?: string;
-  paymentMethodId: string;
+  paymentMethodId?: string;
   paymentSubmethodId?: string;
   description: string;
   installmentCount?: number;

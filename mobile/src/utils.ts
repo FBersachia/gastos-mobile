@@ -74,8 +74,10 @@ export const subcategoryName = (data: AppData, subcategoryId?: string): string =
     ? data.subcategories.find((subcategory) => subcategory.id === subcategoryId)?.name ?? ''
     : '';
 
-export const paymentMethodName = (data: AppData, paymentMethodId: string): string =>
-  data.paymentMethods.find((method) => method.id === paymentMethodId)?.name ?? 'Payment method';
+export const paymentMethodName = (data: AppData, paymentMethodId?: string): string =>
+  paymentMethodId
+    ? data.paymentMethods.find((method) => method.id === paymentMethodId)?.name ?? 'Payment method'
+    : '';
 
 export const paymentSubmethodName = (data: AppData, paymentSubmethodId?: string): string =>
   paymentSubmethodId
@@ -215,8 +217,8 @@ export const transactionsToCsv = (data: AppData, transactions: Transaction[]): s
     transaction.currency,
     categoryName(data, transaction.categoryId),
     subcategoryName(data, transaction.subcategoryId),
-    paymentMethodName(data, transaction.paymentMethodId),
-    paymentSubmethodName(data, transaction.paymentSubmethodId),
+    transaction.type === 'expense' ? paymentMethodName(data, transaction.paymentMethodId) : '',
+    transaction.type === 'expense' ? paymentSubmethodName(data, transaction.paymentSubmethodId) : '',
     transaction.description,
     transaction.installmentGroupId,
     transaction.installmentNumber,

@@ -65,8 +65,8 @@ The default seed must not include the removed drug/cannabis category or sample r
 
 Implemented in `SettingsScreen`:
 
-- Add category.
-- Add subcategory, choosing whether the parent category comes from expense or income categories.
+- Add category, with the expense/income toggle filtering both creation type and the visible category list.
+- Add subcategory, choosing whether the parent category comes from expense or income categories; the toggle filters parent choices and visible accordions.
 - Disable category.
 - Active categories are shown in forms and settings.
 - Settings shows active subcategories grouped under parent-category accordions instead of one mixed list.

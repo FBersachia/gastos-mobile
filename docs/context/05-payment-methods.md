@@ -45,11 +45,10 @@ Implemented in `SettingsScreen`:
 
 ## Current behavior
 
-Payment methods and submethods are usable for both expenses and incomes. There is no transaction-type restriction.
+Payment methods and submethods are used only by expense transactions. Income transactions do not require or display payment, and CSV export leaves payment columns blank for income rows.
 
 ## Known gaps
 
 - Payment method edit/rename is not implemented.
 - Payment submethod edit/disable is not implemented in the UI.
 - No duplicate-name validation exists.
-- The product decision for expense-only, income-only, or both is still pending in the requirements.

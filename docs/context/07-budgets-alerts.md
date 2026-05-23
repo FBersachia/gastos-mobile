@@ -15,8 +15,9 @@ Defined in `mobile/src/types.ts`:
 
 Implemented in `SettingsScreen`, `DashboardScreen`, and `summarizeBudgets`.
 
-- Budgets are created or updated from Settings for the currently selected month.
+- Budgets are created, edited, or deleted from Settings for the currently selected month.
 - Budgets are category and currency specific.
+- Editing a budget changes only its amount; category, currency, month, and year remain the budget identity.
 - Spending is calculated from selected-month expense transactions matching category and currency.
 - Dashboard and Settings both show budget status rows.
 
@@ -41,6 +42,5 @@ No push notifications are implemented, matching MVP scope.
 ## Known gaps
 
 - Budget threshold is not configurable in the UI.
-- Budget deletion is not implemented.
 - No budget history or carry-over exists.
 - No automated tests cover budget status boundaries.
