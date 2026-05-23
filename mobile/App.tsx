@@ -452,7 +452,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.6';
+const APP_VERSION = '1.0.7';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -1748,7 +1748,7 @@ function BottomNavigation({
 }) {
   const { isCompact } = useResponsive();
   const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === 'web' ? 0 : insets.bottom;
+  const bottomInset = Platform.OS === 'ios' ? insets.bottom : 0;
   const tabLabels: Record<TabKey, string> = {
     dashboard: 'Dashboard',
     transactions: t('transactions'),

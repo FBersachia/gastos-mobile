@@ -44,6 +44,7 @@ Typography:
 - The edit transaction flow keeps category/subcategory collapsed by default to prioritize amount and memo edits.
 - Settings subcategories are grouped under parent-category accordions so unrelated subcategories are not mixed in one list.
 - Android hardware back navigates inside the app: detail/edit modals close, report/settings detail screens go back to their menu, and top-level tabs return to Dashboard instead of exiting.
+- Android runs with edge-to-edge disabled, so the bottom navigation does not add Android safe-area bottom inset; this prevents a duplicated blank margin above the system navigation bar. iOS still uses the bottom inset.
 
 ## Transaction creation UX
 
