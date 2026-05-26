@@ -47,6 +47,7 @@ Responsive mobile:
 
 - Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
+- On Android, open the expense form, focus and close text inputs, return to Dashboard, and confirm no blank space remains below the bottom tabs.
 - On Android, press hardware Back from transaction detail/edit, Reports detail, Settings detail, and non-dashboard tabs; confirm it navigates back inside the app instead of exiting.
 
 Categories and payment methods:
@@ -64,6 +65,7 @@ Budgets:
 - Add expenses below 80 percent, above 80 percent, and above 100 percent.
 - Confirm available, near-limit, and exceeded statuses.
 - Confirm spending from sibling subcategories does not affect the selected subcategory budget.
+- Confirm a legacy category budget without subcategory is shown as requiring subcategory selection and cannot be saved until one is chosen.
 - Switch language to Spanish and confirm budget status/progress text is translated.
 - Edit an existing budget and confirm only the amount changes.
 - Delete a budget and confirm it is removed after confirmation.

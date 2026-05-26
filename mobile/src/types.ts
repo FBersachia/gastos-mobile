@@ -121,6 +121,7 @@ export interface BudgetSummary {
   budget: Budget;
   categoryName: string;
   subcategoryName: string;
+  requiresSubcategory: boolean;
   spent: number;
   usage: number;
   status: BudgetStatus;

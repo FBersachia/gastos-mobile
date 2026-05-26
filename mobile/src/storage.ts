@@ -58,18 +58,7 @@ const normalizeBudgets = (stored: Partial<AppData>, defaults: AppData, subcatego
       };
     }
 
-    const firstSubcategory = budget.categoryId
-      ? subcategories.find((subcategory) => subcategory.categoryId === budget.categoryId && subcategory.active) ??
-        subcategories.find((subcategory) => subcategory.categoryId === budget.categoryId)
-      : undefined;
-
-    return firstSubcategory
-      ? {
-          ...budget,
-          subcategoryId: firstSubcategory.id,
-          categoryId: firstSubcategory.categoryId,
-        }
-      : budget;
+    return budget;
   });
 
 const withDefaults = (stored: Partial<AppData>): AppData => {

@@ -14,7 +14,7 @@ Implemented in `mobile/src/storage.ts`.
 - `loadAppData` returns defaults when no data exists.
 - `withDefaults` merges missing stored sections with default data.
 - `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
-- `withDefaults` normalizes budgets to subcategory budgets when a stored legacy category budget can be matched to an existing subcategory.
+- `withDefaults` preserves legacy category budgets without silently assigning them to a first subcategory; they must be repaired through Settings before saving.
 - `saveAppData` writes the full app data object after mutations.
 
 Current seed note:
@@ -44,7 +44,7 @@ Defined in `mobile/src/types.ts`.
 ## Data rules
 
 - Dates are stored as `YYYY-MM-DD` strings for transactions and selected month.
-- Budget month/year are stored as numbers, and new budgets use `subcategoryId` as their scope.
+- Budget month/year are stored as numbers. Budget operations use `subcategoryId` as the only spending scope; `categoryId` is retained only as legacy/derived context.
 - Currencies are stored as uppercase 3-character strings.
 - Money is rounded to two decimals.
 - Installment splitting is done in cents to avoid visible rounding drift.

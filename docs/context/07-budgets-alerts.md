@@ -8,19 +8,20 @@ The app must support monthly budgets by expense subcategory and visually show av
 
 Defined in `mobile/src/types.ts`:
 
-- `Budget` has `id`, `subcategoryId`, optional legacy `categoryId`, `amount`, `currency`, `month`, `year`, `createdAt`, `updatedAt`.
-- `BudgetSummary` adds category name, subcategory name, spent amount, usage, and status.
+- `Budget` has `id`, required operational `subcategoryId`, optional legacy/derived `categoryId`, `amount`, `currency`, `month`, `year`, `createdAt`, `updatedAt`.
+- `BudgetSummary` adds category name, subcategory name, `requiresSubcategory`, spent amount, usage, and status.
 
 ## Current behavior
 
-Implemented in `SettingsScreen`, `DashboardScreen`, and `summarizeBudgets`.
+Implemented in `SettingsScreen` and `summarizeBudgets`.
 
 - Budgets are created, edited, or deleted from Settings for the currently selected month.
-- New budgets are subcategory and currency specific.
-- Editing a budget changes only its amount; subcategory, currency, month, and year remain the budget identity.
+- New budgets are subcategory and currency specific, and saving always requires a concrete expense subcategory.
+- Editing a valid budget changes only its amount; subcategory, currency, month, and year remain the budget identity.
 - Spending is calculated from selected-month expense transactions matching subcategory and currency.
-- Stored legacy category budgets are migrated to the first matching subcategory when possible; otherwise they remain readable as category budgets until edited or deleted.
-- Dashboard and Settings both show budget status rows.
+- Stored legacy category budgets without `subcategoryId` are not auto-assigned to a first subcategory. They remain visible in Settings as repairable rows and must be assigned to a subcategory before saving.
+- Budget calculations never fall back to category-level spending.
+- Settings shows budget status rows; Dashboard currently does not render legacy budgets without subcategory.
 
 ## Thresholds
 

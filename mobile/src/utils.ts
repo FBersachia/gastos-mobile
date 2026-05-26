@@ -159,16 +159,21 @@ export const summarizeBudgets = (data: AppData, selectedMonth: string): BudgetSu
   return data.budgets
     .filter((budget) => budget.month === month && budget.year === year)
     .map((budget) => {
+      const subcategory = budget.subcategoryId
+        ? data.subcategories.find((item) => item.id === budget.subcategoryId)
+        : undefined;
+      const categoryId = subcategory?.categoryId ?? budget.categoryId;
+      const requiresSubcategory = !subcategory;
       const spent = roundMoney(
-        monthTransactions
-          .filter(
-            (transaction) =>
-              (budget.subcategoryId
-                ? transaction.subcategoryId === budget.subcategoryId
-                : transaction.categoryId === budget.categoryId) &&
-              transaction.currency === budget.currency,
-          )
-          .reduce((total, transaction) => total + transaction.amount, 0),
+        requiresSubcategory
+          ? 0
+          : monthTransactions
+              .filter(
+                (transaction) =>
+                  transaction.subcategoryId === budget.subcategoryId &&
+                  transaction.currency === budget.currency,
+              )
+              .reduce((total, transaction) => total + transaction.amount, 0),
       );
       const usage = budget.amount > 0 ? spent / budget.amount : 0;
       const status =
@@ -180,8 +185,9 @@ export const summarizeBudgets = (data: AppData, selectedMonth: string): BudgetSu
 
       return {
         budget,
-        categoryName: categoryName(data, budget.categoryId),
+        categoryName: categoryName(data, categoryId),
         subcategoryName: subcategoryName(data, budget.subcategoryId),
+        requiresSubcategory,
         spent,
         usage,
         status,

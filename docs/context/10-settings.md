@@ -12,9 +12,9 @@ Settings currently includes:
 
 - A settings menu with individual buttons for each management area. Language is managed inside Core settings, not as a separate menu item.
 - Core settings screen: language selection, default currency update, and biometric lock toggle.
-- Monthly budgets screen: expense subcategory budget creation, amount editing, and deletion.
+- Monthly budgets screen: expense subcategory budget creation, amount editing, deletion, and repair of legacy category budgets by forcing a subcategory selection before save.
 - Categories screen: category creation and category disable, with the expense/income toggle filtering the visible list.
-- Subcategories screen: subcategory creation with expense/income parent-category toggle, plus active subcategories grouped by parent-category accordion filtered by the selected type.
+- Subcategories screen: subcategory creation with expense/income parent-category toggle, plus active subcategories grouped by independent parent-category accordions filtered by the selected type. Parent-category accordions can be fully collapsed after opening and are not auto-opened by category selection effects.
 - Payment methods screen: payment method creation, payment submethod creation, and payment method disable.
 
 CSV export is currently located in Reports, not Settings.

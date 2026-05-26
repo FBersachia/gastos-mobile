@@ -194,6 +194,8 @@ const translations = {
     biometricLockEnabled: 'On',
     budgetInvalidMessage: 'Select a subcategory and enter an amount greater than zero.',
     budgetInvalidTitle: 'Invalid budget',
+    budgetNeedsSubcategoryMessage: 'Choose a subcategory to activate this budget.',
+    budgetNeedsSubcategoryStatus: 'Needs subcategory',
     budgetProgressOf: 'of',
     budgetStatusAvailable: 'Available',
     budgetStatusExceeded: 'Exceeded',
@@ -334,6 +336,8 @@ const translations = {
     biometricLockDisabled: 'Desactivado',
     biometricLockEnabled: 'Activado',
     budgetInvalidMessage: 'Selecciona una subcategoria e ingresa un importe mayor que cero.',
+    budgetNeedsSubcategoryMessage: 'ElegÃ­ una subcategorÃ­a para activar este presupuesto.',
+    budgetNeedsSubcategoryStatus: 'Requiere subcategorÃ­a',
     budgetInvalidTitle: 'Presupuesto inválido',
     budgetProgressOf: 'de',
     budgetStatusAvailable: 'Disponible',
@@ -454,7 +458,7 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.8';
+const APP_VERSION = '1.0.10';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
@@ -1234,25 +1238,65 @@ function AppRoot() {
     const normalizedCurrency = normalizeCurrency(currency);
 
     persistData((current) => {
+      const subcategory = current.subcategories.find((item) => item.id === subcategoryId);
+
+      if (!subcategory) {
+        return current;
+      }
+
       if (budgetId) {
+        const editingBudget = current.budgets.find((budget) => budget.id === budgetId);
+
+        if (!editingBudget) {
+          return current;
+        }
+
+        const targetCurrency = normalizeCurrency(editingBudget.currency || normalizedCurrency);
+        const existing = current.budgets.find(
+          (budget) =>
+            budget.id !== budgetId &&
+            budget.subcategoryId === subcategoryId &&
+            budget.currency === targetCurrency &&
+            budget.month === editingBudget.month &&
+            budget.year === editingBudget.year,
+        );
+
+        if (existing) {
+          return {
+            ...current,
+            budgets: current.budgets.flatMap((budget) => {
+              if (budget.id === existing.id) {
+                return [
+                  {
+                    ...budget,
+                    subcategoryId,
+                    categoryId: subcategory.categoryId,
+                    amount: roundMoney(amount),
+                    updatedAt: timestamp,
+                  },
+                ];
+              }
+
+              return budget.id === budgetId ? [] : [budget];
+            }),
+          };
+        }
+
         return {
           ...current,
           budgets: current.budgets.map((budget) =>
             budget.id === budgetId
               ? {
                   ...budget,
+                  subcategoryId,
+                  categoryId: subcategory.categoryId,
                   amount: roundMoney(amount),
+                  currency: targetCurrency,
                   updatedAt: timestamp,
                 }
               : budget,
           ),
         };
-      }
-
-      const subcategory = current.subcategories.find((item) => item.id === subcategoryId);
-
-      if (!subcategory) {
-        return current;
       }
 
       const existing = current.budgets.find(
@@ -1597,76 +1641,83 @@ function AppRoot() {
   const selectedTransaction = data.transactions.find((transaction) => transaction.id === selectedTransactionId);
   const editingTransaction = data.transactions.find((transaction) => transaction.id === editingTransactionId);
   const t = getTranslator(data.settings.language);
+  const appShell = (
+    <View style={styles.appShell}>
+      {activeTab === 'transactions' ? null : (
+        <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} language={data.settings.language} />
+      )}
+      <View style={styles.content}>
+        {activeTab === 'dashboard' ? (
+          <DashboardScreen
+            data={data}
+            t={t}
+            selectedMonth={selectedMonth}
+            onAddTransaction={() => setActiveTab('transactions')}
+            onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+          />
+        ) : null}
+        {activeTab === 'transactions' ? (
+          <TransactionsScreen
+            data={data}
+            t={t}
+            selectedMonth={selectedMonth}
+            onSaveTransaction={handleSaveTransaction}
+            onDeleteTransaction={handleDeleteTransaction}
+            onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+            onClose={() => setActiveTab('dashboard')}
+          />
+        ) : null}
+        {activeTab === 'reports' ? (
+          <ReportsScreen
+            data={data}
+            t={t}
+            selectedMonth={selectedMonth}
+            deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
+            onMonthChange={setSelectedMonth}
+            onBackToDashboard={() => setActiveTab('dashboard')}
+            onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
+          />
+        ) : null}
+        {activeTab === 'settings' ? (
+          <SettingsScreen
+            data={data}
+            t={t}
+            selectedMonth={selectedMonth}
+            deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
+            onBackToDashboard={() => setActiveTab('dashboard')}
+            onSaveBudget={handleSaveBudget}
+            onDeleteBudget={handleDeleteBudget}
+            onSetDefaultCurrency={handleSetDefaultCurrency}
+            onSetLanguage={handleSetLanguage}
+            onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
+            onAddCategory={handleAddCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onAddSubcategory={handleAddSubcategory}
+            onUpdateSubcategory={handleUpdateSubcategory}
+            onDisableCategory={handleDisableCategory}
+            onAddPaymentMethod={handleAddPaymentMethod}
+            onUpdatePaymentMethod={handleUpdatePaymentMethod}
+            onAddPaymentSubmethod={handleAddPaymentSubmethod}
+            onUpdatePaymentSubmethod={handleUpdatePaymentSubmethod}
+            onDisablePaymentMethod={handleDisablePaymentMethod}
+          />
+        ) : null}
+      </View>
+      <BottomNavigation activeTab={activeTab} onChange={setActiveTab} t={t} />
+    </View>
+  );
 
   return (
     <ResponsiveContext.Provider value={responsive}>
       <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
         <StatusBar backgroundColor={colors.surface} style="dark" translucent={false} />
-        <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={styles.appShell}>
-          {activeTab === 'transactions' ? null : (
-            <Header selectedMonth={selectedMonth} onMonthChange={setSelectedMonth} t={t} language={data.settings.language} />
-          )}
-          <View style={styles.content}>
-            {activeTab === 'dashboard' ? (
-              <DashboardScreen
-                data={data}
-                t={t}
-                selectedMonth={selectedMonth}
-                onAddTransaction={() => setActiveTab('transactions')}
-                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-              />
-            ) : null}
-            {activeTab === 'transactions' ? (
-              <TransactionsScreen
-                data={data}
-                t={t}
-                selectedMonth={selectedMonth}
-                onSaveTransaction={handleSaveTransaction}
-                onDeleteTransaction={handleDeleteTransaction}
-                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-                onClose={() => setActiveTab('dashboard')}
-              />
-            ) : null}
-            {activeTab === 'reports' ? (
-              <ReportsScreen
-                data={data}
-                t={t}
-                selectedMonth={selectedMonth}
-                deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
-                onMonthChange={setSelectedMonth}
-                onBackToDashboard={() => setActiveTab('dashboard')}
-                onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
-              />
-            ) : null}
-            {activeTab === 'settings' ? (
-              <SettingsScreen
-                data={data}
-                t={t}
-                selectedMonth={selectedMonth}
-                deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
-                onBackToDashboard={() => setActiveTab('dashboard')}
-                onSaveBudget={handleSaveBudget}
-                onDeleteBudget={handleDeleteBudget}
-                onSetDefaultCurrency={handleSetDefaultCurrency}
-                onSetLanguage={handleSetLanguage}
-                onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
-                onAddCategory={handleAddCategory}
-                onUpdateCategory={handleUpdateCategory}
-                onAddSubcategory={handleAddSubcategory}
-                onUpdateSubcategory={handleUpdateSubcategory}
-                onDisableCategory={handleDisableCategory}
-                onAddPaymentMethod={handleAddPaymentMethod}
-                onUpdatePaymentMethod={handleUpdatePaymentMethod}
-                onAddPaymentSubmethod={handleAddPaymentSubmethod}
-                onUpdatePaymentSubmethod={handleUpdatePaymentSubmethod}
-                onDisablePaymentMethod={handleDisablePaymentMethod}
-              />
-            ) : null}
-          </View>
-          <BottomNavigation activeTab={activeTab} onChange={setActiveTab} t={t} />
-        </View>
-        </KeyboardAvoidingView>
+        {Platform.OS === 'ios' ? (
+          <KeyboardAvoidingView style={styles.keyboardAvoid} behavior="padding">
+            {appShell}
+          </KeyboardAvoidingView>
+        ) : (
+          appShell
+        )}
         <TransactionDetailModal
           data={data}
           t={t}
@@ -3399,9 +3450,7 @@ function SettingsScreen({
   const [editingPaymentSubmethodId, setEditingPaymentSubmethodId] = useState<string | undefined>();
   const [editingPaymentSubmethodName, setEditingPaymentSubmethodName] = useState('');
   const [editingPaymentSubmethodMethodId, setEditingPaymentSubmethodMethodId] = useState('');
-  const [expandedSubcategoryCategoryId, setExpandedSubcategoryCategoryId] = useState(
-    data.categories.find((category) => category.active)?.id ?? '',
-  );
+  const [expandedSubcategoryCategoryIds, setExpandedSubcategoryCategoryIds] = useState<string[]>([]);
 
   const activeCategories = useMemo(
     () =>
@@ -3467,6 +3516,7 @@ function SettingsScreen({
   const editingBudgetCategory = data.categories.find(
     (category) => category.id === (editingBudgetSubcategory?.categoryId ?? editingBudget?.budget.categoryId),
   );
+  const editingBudgetRequiresSubcategory = Boolean(editingBudget?.requiresSubcategory);
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: t('coreSettings'),
     budgets: t('budgets'),
@@ -3491,10 +3541,15 @@ function SettingsScreen({
       setSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
     }
 
-    if (!subcategoryParentCategories.some((category) => category.id === expandedSubcategoryCategoryId)) {
-      setExpandedSubcategoryCategoryId(subcategoryParentCategories[0]?.id ?? '');
+    const parentCategoryIds = new Set(subcategoryParentCategories.map((category) => category.id));
+    const validExpandedCategoryIds = expandedSubcategoryCategoryIds.filter((categoryId) =>
+      parentCategoryIds.has(categoryId),
+    );
+
+    if (validExpandedCategoryIds.length !== expandedSubcategoryCategoryIds.length) {
+      setExpandedSubcategoryCategoryIds(validExpandedCategoryIds);
     }
-  }, [expandedSubcategoryCategoryId, subcategoryCategoryId, subcategoryParentCategories]);
+  }, [expandedSubcategoryCategoryIds, subcategoryCategoryId, subcategoryParentCategories]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') {
@@ -3535,7 +3590,7 @@ function SettingsScreen({
   const saveBudget = () => {
     const parsedAmount = Number(budgetAmount.replace(',', '.'));
 
-    if ((!editingBudgetId && !budgetSubcategoryId) || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    if (!budgetSubcategoryId || !Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       Alert.alert(t('budgetInvalidTitle'), t('budgetInvalidMessage'));
       return;
     }
@@ -3597,7 +3652,7 @@ function SettingsScreen({
 
   const handleSubcategoryTypeChange = (next: TransactionType) => {
     setSubcategoryType(next);
-    setExpandedSubcategoryCategoryId('');
+    setExpandedSubcategoryCategoryIds([]);
     clearSubcategoryEdit();
   };
 
@@ -3782,7 +3837,7 @@ function SettingsScreen({
         <View style={styles.formPanel}>
         <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth, localeForLanguage(data.settings.language))}</Text>
         <Field label={t('expenseSubcategory')}>
-          {editingBudget ? (
+          {editingBudget && !editingBudgetRequiresSubcategory ? (
             <View style={styles.budgetLockedSelection}>
               <CategoryIconBadge category={editingBudgetCategory} subcategory={editingBudgetSubcategory} />
               <View style={styles.managementText}>
@@ -3801,6 +3856,9 @@ function SettingsScreen({
             </View>
           ) : budgetSubcategoryGroups.length ? (
             <View style={styles.budgetSubcategoryGroups}>
+              {editingBudgetRequiresSubcategory ? (
+                <Text style={styles.rowMeta}>{t('budgetNeedsSubcategoryMessage')}</Text>
+              ) : null}
               {budgetSubcategoryGroups.map((group) => (
                 <View key={group.category.id} style={styles.budgetSubcategoryGroup}>
                   <Text style={styles.rowMeta}>{displayCategoryName(group.category, data.settings.language)}</Text>
@@ -4001,13 +4059,21 @@ function SettingsScreen({
         />
 
         {subcategoryGroups.map(({ category, subcategories }) => {
-          const expanded = expandedSubcategoryCategoryId === category.id;
+          const expanded = expandedSubcategoryCategoryIds.includes(category.id);
 
           return (
             <View key={category.id} style={styles.subcategoryAccordionGroup}>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => setExpandedSubcategoryCategoryId(expanded ? '' : category.id)}
+                accessibilityState={{ expanded }}
+                hitSlop={8}
+                onPress={() =>
+                  setExpandedSubcategoryCategoryIds((current) =>
+                    current.includes(category.id)
+                      ? current.filter((categoryId) => categoryId !== category.id)
+                      : [...current, category.id],
+                  )
+                }
                 style={styles.subcategoryAccordionHeader}
               >
                 <CategoryIconBadge category={category} />
@@ -4462,8 +4528,9 @@ function BudgetStatusRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const statusColor =
-    summary.status === 'exceeded'
+  const statusColor = summary.requiresSubcategory
+    ? colors.warning
+    : summary.status === 'exceeded'
       ? colors.danger
       : summary.status === 'near-limit'
         ? colors.warning
@@ -4490,20 +4557,26 @@ function BudgetStatusRow({
           </View>
         </View>
         <Text style={[styles.budgetStatus, { color: statusColor }]}>
-          {summary.status === 'exceeded'
-            ? t('budgetStatusExceeded')
-            : summary.status === 'near-limit'
-              ? t('budgetStatusNearLimit')
-              : t('budgetStatusAvailable')}
+          {summary.requiresSubcategory
+            ? t('budgetNeedsSubcategoryStatus')
+            : summary.status === 'exceeded'
+              ? t('budgetStatusExceeded')
+              : summary.status === 'near-limit'
+                ? t('budgetStatusNearLimit')
+                : t('budgetStatusAvailable')}
         </Text>
       </View>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { backgroundColor: statusColor, width: `${Math.min(100, percentage)}%` }]} />
       </View>
-      <Text style={styles.rowMeta}>
-        {formatMoney(summary.spent, summary.budget.currency)} {t('budgetProgressOf')}{' '}
-        {formatMoney(summary.budget.amount, summary.budget.currency)} · {percentage}%
-      </Text>
+      {summary.requiresSubcategory ? (
+        <Text style={styles.rowMeta}>{t('budgetNeedsSubcategoryMessage')}</Text>
+      ) : (
+        <Text style={styles.rowMeta}>
+          {formatMoney(summary.spent, summary.budget.currency)} {t('budgetProgressOf')}{' '}
+          {formatMoney(summary.budget.amount, summary.budget.currency)} · {percentage}%
+        </Text>
+      )}
       <View style={styles.budgetActions}>
         <AppButton label={t('editBudget')} Icon={Pencil} compact variant="secondary" onPress={onEdit} />
         <AppButton label={t('deleteBudget')} Icon={Trash2} compact variant="secondary" onPress={onDelete} />
