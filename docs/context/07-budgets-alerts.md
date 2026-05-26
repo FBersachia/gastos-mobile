@@ -17,10 +17,12 @@ Implemented in `SettingsScreen` and `summarizeBudgets`.
 
 - Budgets are created, edited, or deleted from Settings for the currently selected month.
 - New budgets are subcategory and currency specific, and saving always requires a concrete expense subcategory.
-- Editing a valid budget changes only its amount; subcategory, currency, month, and year remain the budget identity.
+- Editing a valid budget can change subcategory, currency, or amount; month and year remain fixed to the selected month.
+- The budget subcategory icon grid is shown only while choosing a subcategory. After selection, the grid collapses into a summary row with a `Change subcategory` action and the amount/currency form remains in focus.
 - Spending is calculated from selected-month expense transactions matching subcategory and currency.
 - Stored legacy category budgets without `subcategoryId` are not auto-assigned to a first subcategory. They remain visible in Settings as repairable rows and must be assigned to a subcategory before saving.
 - Budget calculations never fall back to category-level spending.
+- Budget deletion uses a destructive confirmation that works in native builds and Expo web.
 - Settings shows budget status rows; Dashboard currently does not render legacy budgets without subcategory.
 
 ## Thresholds

@@ -65,17 +65,19 @@ The default seed must not include the removed drug/cannabis category or sample r
 
 Implemented in `SettingsScreen`:
 
-- Add category, with the expense/income toggle filtering both creation type and the visible category list.
-- Add subcategory, choosing whether the parent category comes from expense or income categories; the toggle filters parent choices and visible accordions.
+- Add and edit category, with the expense/income toggle filtering both creation type and the visible category list.
+- Add and edit subcategory, choosing whether the parent category comes from expense or income categories; the toggle filters parent choices and visible accordions.
+- Subcategory creation and editing use compact progressive controls: once a parent category or icon is selected, it collapses into a summary row with an `Edit` action.
 - Disable category.
 - Active categories are shown in forms and settings.
 - Settings shows active subcategories grouped under parent-category accordions instead of one mixed list.
+- Categories and subcategories show visually distinct list subtitles below creation forms.
 - Category UI uses lucide icons for default and keyword-matched categories. Category names are displayed smaller than the icon.
 - Subcategory UI has its own icon map and keyword fallback, so expense entry and dashboard rows can show more specific icons such as groceries, delivery, breakfast, rides, public transit, laundry, music, soccer, bike insurance, pet food, and payroll.
 
 ## Current deletion policy
 
-Hard delete is not exposed. Disable is used for categories.
+Hard delete is not exposed. Disable is used for categories. Subcategory disable is not exposed yet.
 
 ## Known gaps
 

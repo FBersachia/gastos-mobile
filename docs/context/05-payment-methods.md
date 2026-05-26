@@ -37,11 +37,14 @@ Built-in default payment method and submethod names are stored in English and tr
 
 Implemented in `SettingsScreen`:
 
-- Add payment method.
-- Add payment submethod.
+- Add either a payment method or a payment submethod through a segmented creation control, so both ABM forms are not visible at the same time.
+- Edit payment method names.
+- Edit payment submethods and change their parent payment method.
 - Disable payment method.
 - Active payment methods and submethods are shown in transaction forms.
 - Default payment labels follow the active app language in forms, transaction detail, reports, and settings.
+- Payment method lists use one expanded submethod list at a time; opening another method collapses the previous one and clears competing inline edit panels.
+- Payment methods show a visually distinct list subtitle below the creation form.
 
 ## Current behavior
 
@@ -49,6 +52,5 @@ Payment methods and submethods are used only by expense transactions. Income tra
 
 ## Known gaps
 
-- Payment method edit/rename is not implemented.
-- Payment submethod edit/disable is not implemented in the UI.
+- Payment submethod disable is not implemented in the UI.
 - No duplicate-name validation exists.

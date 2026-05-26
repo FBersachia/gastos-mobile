@@ -201,12 +201,14 @@ const translations = {
     budgetStatusExceeded: 'Exceeded',
     budgetStatusNearLimit: 'Near limit',
     budgets: 'Monthly budgets',
+    budgetListTitle: 'Budget list',
     byCategory: 'By category',
     byPaymentSubmethod: 'By payment submethod',
     bySubcategory: 'By subcategory',
     cancel: 'Cancel',
     cancelEdit: 'Cancel edit',
     categories: 'Categories',
+    categoryListTitle: 'Category list',
     categoryName: 'Category name',
     changeSubcategory: 'Change subcategory',
     chooseSubcategory: 'Choose subcategory',
@@ -270,6 +272,7 @@ const translations = {
     parentCategory: 'Parent category',
     parentPaymentMethod: 'Parent payment method',
     payment: 'Payment',
+    paymentMethodListTitle: 'Payment method list',
     paymentMethodName: 'Payment method name',
     paymentMethods: 'Payment methods',
     paymentSubmethod: 'Payment submethod',
@@ -286,6 +289,7 @@ const translations = {
     storageErrorSaveMessage: 'The last change could not be saved locally.',
     storageErrorTitle: 'Storage error',
     subcategories: 'Subcategories',
+    subcategoryListTitle: 'Subcategory list',
     submethodsWithExpenses: 'submethods with expenses',
     categoriesWithExpenses: 'categories with expenses',
     subcategoriesWithExpenses: 'subcategories with expenses',
@@ -344,12 +348,14 @@ const translations = {
     budgetStatusExceeded: 'Excedido',
     budgetStatusNearLimit: 'Cerca del límite',
     budgets: 'Presupuestos mensuales',
+    budgetListTitle: 'Listado de presupuestos',
     byCategory: 'Por categoría',
     byPaymentSubmethod: 'Por submétodo de pago',
     bySubcategory: 'Por subcategoría',
     cancel: 'Cancelar',
     cancelEdit: 'Cancelar edición',
     categories: 'Categorías',
+    categoryListTitle: 'Listado de categorías',
     categoryName: 'Nombre de categoría',
     changeSubcategory: 'Cambiar subcategoria',
     chooseSubcategory: 'Elegir subcategoria',
@@ -413,6 +419,7 @@ const translations = {
     parentCategory: 'Categoría padre',
     parentPaymentMethod: 'Método de pago padre',
     payment: 'Pago',
+    paymentMethodListTitle: 'Listado de métodos de pago',
     paymentMethodName: 'Nombre del método de pago',
     paymentMethods: 'Métodos de pago',
     paymentSubmethod: 'Submétodo de pago',
@@ -429,6 +436,7 @@ const translations = {
     storageErrorSaveMessage: 'No se pudo guardar el último cambio localmente.',
     storageErrorTitle: 'Error de almacenamiento',
     subcategories: 'Subcategorías',
+    subcategoryListTitle: 'Listado de subcategorías',
     submethodsWithExpenses: 'submétodos con gastos',
     categoriesWithExpenses: 'categorías con gastos',
     subcategoriesWithExpenses: 'subcategorías con gastos',
@@ -458,13 +466,44 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.10';
+const APP_VERSION = '1.0.11';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 
 type LocalizedDefaultName = Record<AppLanguage, string>;
 
 const localeForLanguage = (language: AppLanguage): string => (language === 'es-AR' ? 'es-AR' : 'en-US');
+
+const confirmDestructiveAction = ({
+  title,
+  message,
+  cancelLabel,
+  confirmLabel,
+  onConfirm,
+}: {
+  title: string;
+  message: string;
+  cancelLabel: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+}) => {
+  if (Platform.OS === 'web') {
+    const browserConfirm = (globalThis as typeof globalThis & { confirm?: (message?: string) => boolean }).confirm;
+    if (browserConfirm?.(`${title}\n\n${message}`)) {
+      onConfirm();
+    }
+    return;
+  }
+
+  Alert.alert(title, message, [
+    { text: cancelLabel, style: 'cancel' },
+    {
+      text: confirmLabel,
+      style: 'destructive',
+      onPress: onConfirm,
+    },
+  ]);
+};
 
 const defaultCategoryNames: Record<string, LocalizedDefaultName> = {
   'cat-exp-food': { en: 'Food', 'es-AR': 'Comida' },
@@ -1214,22 +1253,21 @@ function AppRoot() {
     const t = getTranslator(data?.settings.language ?? 'en');
     const deleteLabel = transaction.installmentGroupId ? t('deleteInstallmentGroup') : t('deleteTransaction');
 
-    Alert.alert(deleteLabel, t('actionCannotBeUndone'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'),
-        style: 'destructive',
-        onPress: () =>
-          persistData((current) => ({
-            ...current,
-            transactions: current.transactions.filter((item) =>
-              transaction.installmentGroupId
-                ? item.installmentGroupId !== transaction.installmentGroupId
-                : item.id !== transaction.id,
-            ),
-          })),
-      },
-    ]);
+    confirmDestructiveAction({
+      title: deleteLabel,
+      message: t('actionCannotBeUndone'),
+      cancelLabel: t('cancel'),
+      confirmLabel: t('delete'),
+      onConfirm: () =>
+        persistData((current) => ({
+          ...current,
+          transactions: current.transactions.filter((item) =>
+            transaction.installmentGroupId
+              ? item.installmentGroupId !== transaction.installmentGroupId
+              : item.id !== transaction.id,
+          ),
+        })),
+    });
   };
 
   const handleSaveBudget = (subcategoryId: string, amount: number, currency: string, budgetId?: string) => {
@@ -1251,7 +1289,7 @@ function AppRoot() {
           return current;
         }
 
-        const targetCurrency = normalizeCurrency(editingBudget.currency || normalizedCurrency);
+        const targetCurrency = normalizedCurrency;
         const existing = current.budgets.find(
           (budget) =>
             budget.id !== budgetId &&
@@ -1345,18 +1383,17 @@ function AppRoot() {
   const handleDeleteBudget = (budgetId: string) => {
     const t = getTranslator(data?.settings.language ?? 'en');
 
-    Alert.alert(t('deleteBudget'), t('actionCannotBeUndone'), [
-      { text: t('cancel'), style: 'cancel' },
-      {
-        text: t('delete'),
-        style: 'destructive',
-        onPress: () =>
-          persistData((current) => ({
-            ...current,
-            budgets: current.budgets.filter((budget) => budget.id !== budgetId),
-          })),
-      },
-    ]);
+    confirmDestructiveAction({
+      title: t('deleteBudget'),
+      message: t('actionCannotBeUndone'),
+      cancelLabel: t('cancel'),
+      confirmLabel: t('delete'),
+      onConfirm: () =>
+        persistData((current) => ({
+          ...current,
+          budgets: current.budgets.filter((budget) => budget.id !== budgetId),
+        })),
+    });
   };
 
   const handleSetDefaultCurrency = (currency: string) => {
@@ -1673,7 +1710,6 @@ function AppRoot() {
             t={t}
             selectedMonth={selectedMonth}
             deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
-            onMonthChange={setSelectedMonth}
             onBackToDashboard={() => setActiveTab('dashboard')}
             onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
           />
@@ -1823,7 +1859,10 @@ function BottomNavigation({
 }) {
   const { isCompact } = useResponsive();
   const insets = useSafeAreaInsets();
-  const bottomInset = Platform.OS === 'ios' ? insets.bottom : 0;
+  // Android 15+ can place system navigation over tappable UI even with edge-to-edge disabled.
+  const androidNeedsBottomInset = Platform.OS === 'android' && Number(Platform.Version) >= 35;
+  const bottomInset = Platform.OS === 'ios' || androidNeedsBottomInset ? insets.bottom : 0;
+  const baseBottomPadding = isCompact ? spacing.xs : spacing.sm;
   const tabLabels: Record<TabKey, string> = {
     dashboard: 'Dashboard',
     transactions: t('transactions'),
@@ -1832,7 +1871,13 @@ function BottomNavigation({
   };
 
   return (
-    <View style={[styles.bottomNav, isCompact ? styles.bottomNavCompact : null, { paddingBottom: spacing.sm + bottomInset }]}>
+    <View
+      style={[
+        styles.bottomNav,
+        isCompact ? styles.bottomNavCompact : null,
+        { paddingBottom: baseBottomPadding + bottomInset },
+      ]}
+    >
       {tabs.map(({ key, Icon }) => {
         const active = activeTab === key;
         const label = tabLabels[key];
@@ -1978,6 +2023,103 @@ function TransactionsScreen({
   );
 }
 
+function ExpenseSubcategoryGrid({
+  categories,
+  contentContainerStyle,
+  emptyTitle,
+  language,
+  scroll,
+  selectedSubcategoryId,
+  subcategories,
+  onSelect,
+}: {
+  categories: Category[];
+  contentContainerStyle?: StyleProp<ViewStyle>;
+  emptyTitle: string;
+  language: AppLanguage;
+  scroll?: boolean;
+  selectedSubcategoryId?: string;
+  subcategories: Subcategory[];
+  onSelect: (subcategory: Subcategory) => void;
+}) {
+  const { isCompact, isLarge } = useResponsive();
+  const categoryItemWidth = isCompact ? '33.3333%' : isLarge ? '20%' : '25%';
+  const categoriesById = useMemo(
+    () => new Map(categories.map((category) => [category.id, category])),
+    [categories],
+  );
+  if (!subcategories.length) {
+    return scroll ? (
+      <ScrollView
+        style={styles.expenseCategoryScroller}
+        contentContainerStyle={[styles.expenseCategoryGrid, contentContainerStyle]}
+        showsVerticalScrollIndicator={false}
+      >
+        <EmptyState title={emptyTitle} />
+      </ScrollView>
+    ) : (
+      <EmptyState title={emptyTitle} />
+    );
+  }
+
+  const content = subcategories.map((subcategory) => {
+    const category = categoriesById.get(subcategory.categoryId);
+    const Icon = getSubcategoryIcon(subcategory, category);
+    const selected = selectedSubcategoryId === subcategory.id;
+
+    return (
+      <Pressable
+        key={subcategory.id}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        onPress={() => onSelect(subcategory)}
+        style={[
+          styles.expenseCategoryItem,
+          isCompact ? styles.expenseCategoryItemCompact : null,
+          { width: categoryItemWidth },
+        ]}
+      >
+        <View
+          style={[
+            styles.expenseCategoryIcon,
+            isCompact ? styles.expenseCategoryIconCompact : null,
+            selected ? styles.expenseCategoryIconSelected : null,
+          ]}
+        >
+          <Icon
+            color={selected ? colors.surface : colors.textMuted}
+            size={isCompact ? 26 : 32}
+            strokeWidth={2}
+          />
+        </View>
+        <Text
+          style={[
+            styles.expenseCategoryLabel,
+            selected ? styles.expenseCategoryLabelSelected : null,
+          ]}
+          numberOfLines={1}
+        >
+          {displaySubcategoryName(subcategory, language) ?? subcategory.name}
+        </Text>
+      </Pressable>
+    );
+  });
+
+  if (scroll) {
+    return (
+      <ScrollView
+        style={styles.expenseCategoryScroller}
+        contentContainerStyle={[styles.expenseCategoryGrid, contentContainerStyle]}
+        showsVerticalScrollIndicator={false}
+      >
+        {content}
+      </ScrollView>
+    );
+  }
+
+  return <View style={[styles.expenseCategoryGrid, contentContainerStyle]}>{content}</View>;
+}
+
 function TransactionForm({
   data,
   t,
@@ -1995,7 +2137,7 @@ function TransactionForm({
   onClose: () => void;
   onSave: (input: TransactionInput) => void;
 }) {
-  const { isCompact, isLarge } = useResponsive();
+  const { isCompact } = useResponsive();
   const [type, setType] = useState<TransactionType>('expense');
   const switchType = (next: TransactionType) => {
     setType(next);
@@ -2089,7 +2231,6 @@ function TransactionForm({
   );
   const selectedInstallmentCount = installmentsEnabled ? Number.parseInt(installmentCount, 10) : 1;
   const amountDisplay = amount || '0';
-  const categoryItemWidth = isCompact ? '33.3333%' : isLarge ? '20%' : '25%';
   const shouldShowExpenseControls = isNewExpenseEntry ? Boolean(subcategoryId) : true;
 
   useEffect(() => {
@@ -2339,61 +2480,18 @@ function TransactionForm({
         </View>
 
         {isNewExpenseEntry ? (
-          <ScrollView
-            style={styles.expenseCategoryScroller}
-            contentContainerStyle={styles.expenseCategoryGrid}
-            showsVerticalScrollIndicator={false}
-          >
-            {subcategories.length ? (
-              subcategories.map((subcategory) => {
-                const category = data.categories.find((item) => item.id === subcategory.categoryId);
-                const Icon = getSubcategoryIcon(subcategory, category);
-                const selected = subcategoryId === subcategory.id;
-
-                return (
-                  <Pressable
-                    key={subcategory.id}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected }}
-                    onPress={() => {
-                      setSubcategoryId(subcategory.id);
-                      setCategoryId(subcategory.categoryId);
-                    }}
-                    style={[
-                      styles.expenseCategoryItem,
-                      isCompact ? styles.expenseCategoryItemCompact : null,
-                      { width: categoryItemWidth },
-                    ]}
-                  >
-                    <View
-                      style={[
-                        styles.expenseCategoryIcon,
-                        isCompact ? styles.expenseCategoryIconCompact : null,
-                        selected ? styles.expenseCategoryIconSelected : null,
-                      ]}
-                    >
-                      <Icon
-                        color={selected ? colors.surface : colors.textMuted}
-                        size={isCompact ? 26 : 32}
-                        strokeWidth={2}
-                      />
-                    </View>
-                    <Text
-                      style={[
-                        styles.expenseCategoryLabel,
-                        selected ? styles.expenseCategoryLabelSelected : null,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {displaySubcategoryName(subcategory, data.settings.language)}
-                    </Text>
-                  </Pressable>
-                );
-              })
-            ) : (
-              <EmptyState title={t('noActiveSubcategories')} />
-            )}
-          </ScrollView>
+          <ExpenseSubcategoryGrid
+            categories={data.categories}
+            emptyTitle={t('noActiveSubcategories')}
+            language={data.settings.language}
+            scroll
+            selectedSubcategoryId={subcategoryId}
+            subcategories={subcategories}
+            onSelect={(subcategory) => {
+              setSubcategoryId(subcategory.id);
+              setCategoryId(subcategory.categoryId);
+            }}
+          />
         ) : (
           <View style={[styles.expenseEditCategoryPanel, isCompact ? styles.expenseEditCategoryPanelCompact : null]}>
             <Pressable
@@ -2995,7 +3093,6 @@ function ReportsScreen({
   t,
   selectedMonth,
   deferHardwareBack,
-  onMonthChange,
   onBackToDashboard,
   onSelectTransaction,
 }: {
@@ -3003,7 +3100,6 @@ function ReportsScreen({
   t: Translator;
   selectedMonth: string;
   deferHardwareBack: boolean;
-  onMonthChange: (month: string) => void;
   onBackToDashboard: () => void;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
@@ -3119,18 +3215,6 @@ function ReportsScreen({
     }).format(new Date(Number(y), Number(m) - 1));
   };
 
-  const prevMonth = () => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y, m - 2);
-    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  };
-
-  const nextMonth = () => {
-    const [y, m] = selectedMonth.split('-').map(Number);
-    const d = new Date(y, m);
-    onMonthChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-  };
-
   const goBack = () => {
     if (selectedItem) { setSelectedItem(null); return; }
     setActiveReport('menu');
@@ -3176,10 +3260,6 @@ function ReportsScreen({
       <IconButton accessibilityLabel={t('backToReports')} Icon={ChevronLeft} onPress={goBack} />
       <View style={styles.reportDetailTitle}>
         <Text style={styles.sectionTitle} numberOfLines={1}>{title}</Text>
-      </View>
-      <View style={styles.monthControls}>
-        <IconButton accessibilityLabel={t('previousMonth')} Icon={ChevronLeft} onPress={prevMonth} />
-        <IconButton accessibilityLabel={t('nextMonth')} Icon={ChevronRight} onPress={nextMonth} />
       </View>
     </View>
   );
@@ -3411,16 +3491,9 @@ function SettingsScreen({
   onDisablePaymentMethod: (paymentMethodId: string) => void;
 }) {
   const { isCompact } = useResponsive();
+  const settingsScrollRef = useRef<ScrollView>(null);
   const [defaultCurrency, setDefaultCurrency] = useState(data.settings.defaultCurrency);
-  const [budgetSubcategoryId, setBudgetSubcategoryId] = useState(
-    data.subcategories.find((subcategory) =>
-      subcategory.active &&
-      data.categories.some(
-        (category) =>
-          category.id === subcategory.categoryId && category.type === 'expense' && category.active,
-      ),
-    )?.id ?? '',
-  );
+  const [budgetSubcategoryId, setBudgetSubcategoryId] = useState('');
   const [budgetAmount, setBudgetAmount] = useState('');
   const [budgetCurrency, setBudgetCurrency] = useState(data.settings.defaultCurrency);
   const [editingBudgetId, setEditingBudgetId] = useState<string | undefined>();
@@ -3433,9 +3506,11 @@ function SettingsScreen({
   const [subcategoryNameInput, setSubcategoryNameInput] = useState('');
   const [subcategoryIconInput, setSubcategoryIconInput] = useState<string | undefined>();
   const [paymentMethodInput, setPaymentMethodInput] = useState('');
+  const [paymentCreationMode, setPaymentCreationMode] = useState<'method' | 'submethod'>('method');
   const [paymentSubmethodMethodId, setPaymentSubmethodMethodId] = useState(
     data.paymentMethods.find((method) => method.active)?.id ?? '',
   );
+  const [expandedPaymentMethodId, setExpandedPaymentMethodId] = useState<string | undefined>();
   const [paymentSubmethodInput, setPaymentSubmethodInput] = useState('');
   const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSection>('menu');
   const [editingCategoryId, setEditingCategoryId] = useState<string | undefined>();
@@ -3445,12 +3520,16 @@ function SettingsScreen({
   const [editingSubcategoryName, setEditingSubcategoryName] = useState('');
   const [editingSubcategoryCategoryId, setEditingSubcategoryCategoryId] = useState('');
   const [editingSubcategoryIcon, setEditingSubcategoryIcon] = useState<string | undefined>();
+  const [editingSubcategoryParentPickerOpen, setEditingSubcategoryParentPickerOpen] = useState(false);
+  const [editingSubcategoryIconPickerOpen, setEditingSubcategoryIconPickerOpen] = useState(false);
   const [editingPaymentMethodId, setEditingPaymentMethodId] = useState<string | undefined>();
   const [editingPaymentMethodName, setEditingPaymentMethodName] = useState('');
   const [editingPaymentSubmethodId, setEditingPaymentSubmethodId] = useState<string | undefined>();
   const [editingPaymentSubmethodName, setEditingPaymentSubmethodName] = useState('');
   const [editingPaymentSubmethodMethodId, setEditingPaymentSubmethodMethodId] = useState('');
   const [expandedSubcategoryCategoryIds, setExpandedSubcategoryCategoryIds] = useState<string[]>([]);
+  const [subcategoryParentPickerOpen, setSubcategoryParentPickerOpen] = useState(false);
+  const [subcategoryIconPickerOpen, setSubcategoryIconPickerOpen] = useState(true);
 
   const activeCategories = useMemo(
     () =>
@@ -3486,16 +3565,6 @@ function SettingsScreen({
     () => activeSubcategories.filter((subcategory) => expenseCategoryIds.has(subcategory.categoryId)),
     [activeSubcategories, expenseCategoryIds],
   );
-  const budgetSubcategoryGroups = useMemo(
-    () =>
-      expenseCategories
-        .map((category) => ({
-          category,
-          subcategories: expenseSubcategories.filter((subcategory) => subcategory.categoryId === category.id),
-        }))
-        .filter((group) => group.subcategories.length > 0),
-    [expenseCategories, expenseSubcategories],
-  );
   const subcategoryGroups = useMemo(
     () =>
       subcategoryParentCategories.map((category) => ({
@@ -3508,6 +3577,14 @@ function SettingsScreen({
   const selectedPaymentMethod =
     activePaymentMethods.find((method) => method.id === paymentSubmethodMethodId) ?? activePaymentMethods[0];
   const selectedPaymentMethodId = selectedPaymentMethod?.id ?? '';
+  const selectedSubcategoryParent = subcategoryParentCategories.find(
+    (category) => category.id === subcategoryCategoryId,
+  );
+  const selectedSubcategoryIcon = SUBCATEGORY_ICON_OPTIONS.find((item) => item.key === subcategoryIconInput);
+  const selectedEditingSubcategoryParent = subcategoryParentCategories.find(
+    (category) => category.id === editingSubcategoryCategoryId,
+  );
+  const selectedEditingSubcategoryIcon = SUBCATEGORY_ICON_OPTIONS.find((item) => item.key === editingSubcategoryIcon);
   const budgets = summarizeBudgets(data, selectedMonth);
   const editingBudget = budgets.find((budget) => budget.budget.id === editingBudgetId);
   const editingBudgetSubcategory = data.subcategories.find(
@@ -3516,6 +3593,17 @@ function SettingsScreen({
   const editingBudgetCategory = data.categories.find(
     (category) => category.id === (editingBudgetSubcategory?.categoryId ?? editingBudget?.budget.categoryId),
   );
+  const selectedBudgetSubcategory = data.subcategories.find((subcategory) => subcategory.id === budgetSubcategoryId);
+  const selectedBudgetCategory = data.categories.find((category) => category.id === selectedBudgetSubcategory?.categoryId);
+  const selectedBudgetSubcategoryLabel =
+    displaySubcategoryName(selectedBudgetSubcategory, data.settings.language) ??
+    selectedBudgetSubcategory?.name ??
+    editingBudget?.subcategoryName ??
+    t('chooseSubcategory');
+  const selectedBudgetCategoryLabel =
+    displayCategoryName(selectedBudgetCategory, data.settings.language) ??
+    selectedBudgetCategory?.name ??
+    editingBudget?.categoryName;
   const editingBudgetRequiresSubcategory = Boolean(editingBudget?.requiresSubcategory);
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: t('coreSettings'),
@@ -3531,8 +3619,8 @@ function SettingsScreen({
       return;
     }
 
-    if (!expenseSubcategories.some((subcategory) => subcategory.id === budgetSubcategoryId)) {
-      setBudgetSubcategoryId(expenseSubcategories[0]?.id ?? '');
+    if (budgetSubcategoryId && !expenseSubcategories.some((subcategory) => subcategory.id === budgetSubcategoryId)) {
+      setBudgetSubcategoryId('');
     }
   }, [budgetSubcategoryId, editingBudgetId, expenseSubcategories]);
 
@@ -3577,7 +3665,7 @@ function SettingsScreen({
     setEditingBudgetId(undefined);
     setBudgetAmount('');
     setBudgetCurrency(data.settings.defaultCurrency);
-    setBudgetSubcategoryId(expenseSubcategories[0]?.id ?? '');
+    setBudgetSubcategoryId('');
   };
 
   const startBudgetEdit = (budget: BudgetSummary) => {
@@ -3585,6 +3673,7 @@ function SettingsScreen({
     setBudgetSubcategoryId(budget.budget.subcategoryId ?? '');
     setBudgetCurrency(budget.budget.currency);
     setBudgetAmount(String(budget.budget.amount));
+    requestAnimationFrame(() => settingsScrollRef.current?.scrollTo({ y: 0, animated: true }));
   };
 
   const saveBudget = () => {
@@ -3602,6 +3691,8 @@ function SettingsScreen({
     }
 
     setBudgetAmount('');
+    setBudgetCurrency(data.settings.defaultCurrency);
+    setBudgetSubcategoryId('');
   };
 
   useEffect(() => {
@@ -3641,6 +3732,8 @@ function SettingsScreen({
     setEditingSubcategoryName(subcategory.name);
     setEditingSubcategoryCategoryId(subcategory.categoryId);
     setEditingSubcategoryIcon(subcategory.icon);
+    setEditingSubcategoryParentPickerOpen(false);
+    setEditingSubcategoryIconPickerOpen(!subcategory.icon);
   };
 
   const clearSubcategoryEdit = () => {
@@ -3648,11 +3741,14 @@ function SettingsScreen({
     setEditingSubcategoryName('');
     setEditingSubcategoryCategoryId('');
     setEditingSubcategoryIcon(undefined);
+    setEditingSubcategoryParentPickerOpen(false);
+    setEditingSubcategoryIconPickerOpen(false);
   };
 
   const handleSubcategoryTypeChange = (next: TransactionType) => {
     setSubcategoryType(next);
     setExpandedSubcategoryCategoryIds([]);
+    setSubcategoryParentPickerOpen(false);
     clearSubcategoryEdit();
   };
 
@@ -3673,6 +3769,8 @@ function SettingsScreen({
   const startPaymentMethodEdit = (methodId: string, methodName: string) => {
     setEditingPaymentMethodId(methodId);
     setEditingPaymentMethodName(methodName);
+    setExpandedPaymentMethodId(undefined);
+    clearPaymentSubmethodEdit();
   };
 
   const clearPaymentMethodEdit = () => {
@@ -3693,6 +3791,9 @@ function SettingsScreen({
     setEditingPaymentSubmethodId(submethodId);
     setEditingPaymentSubmethodMethodId(methodId);
     setEditingPaymentSubmethodName(submethodName);
+    setEditingPaymentMethodId(undefined);
+    setEditingPaymentMethodName('');
+    setExpandedPaymentMethodId(methodId);
   };
 
   const clearPaymentSubmethodEdit = () => {
@@ -3712,6 +3813,13 @@ function SettingsScreen({
       editingPaymentSubmethodName,
     );
     clearPaymentSubmethodEdit();
+  };
+
+  const toggleExpandedPaymentMethod = (methodId: string) => {
+    clearPaymentMethodEdit();
+    clearPaymentSubmethodEdit();
+    setPaymentSubmethodMethodId(methodId);
+    setExpandedPaymentMethodId((current) => (current === methodId ? undefined : methodId));
   };
 
   if (activeSettingsSection === 'menu') {
@@ -3761,7 +3869,7 @@ function SettingsScreen({
   }
 
   return (
-    <ScreenScroll>
+    <ScreenScroll scrollRef={settingsScrollRef}>
       <View style={styles.settingsDetailHeader}>
         <IconButton
           accessibilityLabel={t('backToSettings')}
@@ -3835,78 +3943,76 @@ function SettingsScreen({
 
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
-        <Text style={styles.sectionSubtitle}>{monthLabel(selectedMonth, localeForLanguage(data.settings.language))}</Text>
-        <Field label={t('expenseSubcategory')}>
-          {editingBudget && !editingBudgetRequiresSubcategory ? (
-            <View style={styles.budgetLockedSelection}>
-              <CategoryIconBadge category={editingBudgetCategory} subcategory={editingBudgetSubcategory} />
-              <View style={styles.managementText}>
-                <Text style={styles.rowTitle} numberOfLines={1}>
-                  {displaySubcategoryName(editingBudgetSubcategory, data.settings.language) ||
-                    editingBudget.subcategoryName ||
-                    displayCategoryName(editingBudgetCategory, data.settings.language) ||
-                    editingBudget.categoryName}
-                </Text>
-                {editingBudgetSubcategory || editingBudget.subcategoryName ? (
-                  <Text style={styles.rowMeta}>
-                    {displayCategoryName(editingBudgetCategory, data.settings.language) ?? editingBudget.categoryName}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-          ) : budgetSubcategoryGroups.length ? (
-            <View style={styles.budgetSubcategoryGroups}>
-              {editingBudgetRequiresSubcategory ? (
-                <Text style={styles.rowMeta}>{t('budgetNeedsSubcategoryMessage')}</Text>
-              ) : null}
-              {budgetSubcategoryGroups.map((group) => (
-                <View key={group.category.id} style={styles.budgetSubcategoryGroup}>
-                  <Text style={styles.rowMeta}>{displayCategoryName(group.category, data.settings.language)}</Text>
-                  <View style={styles.chipRow}>
-                    {group.subcategories.map((subcategory) => (
-                      <SubcategoryChip
-                        key={subcategory.id}
-                        subcategory={subcategory}
-                        category={group.category}
-                        language={data.settings.language}
-                        selected={budgetSubcategoryId === subcategory.id}
-                        onPress={() => setBudgetSubcategoryId(subcategory.id)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <EmptyState title={t('noActiveSubcategories')} />
-          )}
-        </Field>
-        <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
-          <Field label={t('amount')} grid>
-            <TextInput
-              keyboardType="decimal-pad"
-              value={budgetAmount}
-              onChangeText={setBudgetAmount}
-              placeholder="0.00"
-              placeholderTextColor={colors.gray}
-              style={styles.input}
+        {!budgetSubcategoryId ? (
+          <Field label={t('expenseSubcategory')}>
+            {editingBudgetRequiresSubcategory ? (
+              <Text style={styles.rowMeta}>{t('budgetNeedsSubcategoryMessage')}</Text>
+            ) : null}
+            <ExpenseSubcategoryGrid
+              categories={data.categories}
+              contentContainerStyle={styles.budgetSubcategoryGrid}
+              emptyTitle={t('noActiveSubcategories')}
+              language={data.settings.language}
+              selectedSubcategoryId={budgetSubcategoryId}
+              subcategories={expenseSubcategories}
+              onSelect={(subcategory) => setBudgetSubcategoryId(subcategory.id)}
             />
           </Field>
-          <Field label={t('currency')} grid>
-            <TextInput
-              autoCapitalize="characters"
-              maxLength={3}
-              value={budgetCurrency}
-              onChangeText={setBudgetCurrency}
-              editable={!editingBudget}
-              style={[styles.input, editingBudget ? styles.inputDisabled : null]}
-            />
-          </Field>
-        </View>
-        <AppButton label={editingBudget ? t('updateBudget') : t('saveBudget')} Icon={Save} onPress={saveBudget} />
-        {editingBudget ? (
-          <AppButton label={t('cancelBudgetEdit')} variant="secondary" onPress={clearBudgetEdit} />
         ) : null}
+
+        {budgetSubcategoryId ? (
+          <View style={styles.budgetEntryPanel}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setBudgetSubcategoryId('')}
+              style={styles.budgetSelectedRow}
+            >
+              <View style={styles.selectedOptionInfo}>
+                <CategoryIconBadge category={selectedBudgetCategory ?? editingBudgetCategory} subcategory={selectedBudgetSubcategory ?? editingBudgetSubcategory} />
+                <View style={styles.managementText}>
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {selectedBudgetSubcategoryLabel}
+                  </Text>
+                  {selectedBudgetCategoryLabel ? (
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      {selectedBudgetCategoryLabel}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+              <Text style={styles.changeLink}>{t('changeSubcategory')}</Text>
+            </Pressable>
+            <View style={[styles.formGrid, isCompact ? styles.formGridCompact : null]}>
+              <Field label={t('amount')} grid>
+                <TextInput
+                  keyboardType="decimal-pad"
+                  value={budgetAmount}
+                  onChangeText={setBudgetAmount}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.gray}
+                  style={styles.input}
+                />
+              </Field>
+              <Field label={t('currency')} grid>
+                <TextInput
+                  autoCapitalize="characters"
+                  maxLength={3}
+                  value={budgetCurrency}
+                  onChangeText={setBudgetCurrency}
+                  style={styles.input}
+                />
+              </Field>
+            </View>
+            <View style={styles.budgetFormActions}>
+              <AppButton label={editingBudget ? t('updateBudget') : t('saveBudget')} Icon={Save} onPress={saveBudget} />
+              {editingBudget ? (
+                <AppButton label={t('cancelBudgetEdit')} variant="secondary" onPress={clearBudgetEdit} />
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        <Text style={styles.listSectionTitle}>{t('budgetListTitle')}</Text>
 
         {budgets.map((budget) => {
           const subcategory = data.subcategories.find((item) => item.id === budget.budget.subcategoryId);
@@ -3953,6 +4059,8 @@ function SettingsScreen({
             setCategoryNameInput('');
           }}
         />
+
+        <Text style={styles.listSectionTitle}>{t('categoryListTitle')}</Text>
 
         {visibleCategories.length ? visibleCategories.map((category) => (
           <View key={category.id} style={styles.managementEditGroup}>
@@ -4006,17 +4114,36 @@ function SettingsScreen({
           <Chip label={t('income')} selected={subcategoryType === 'income'} onPress={() => handleSubcategoryTypeChange('income')} />
         </View>
         <Field label={t('parentCategory')}>
-          <View style={styles.chipRow}>
-            {subcategoryParentCategories.map((category) => (
-              <CategoryChip
-                key={category.id}
-                category={category}
-                language={data.settings.language}
-                selected={subcategoryCategoryId === category.id}
-                onPress={() => setSubcategoryCategoryId(category.id)}
-              />
-            ))}
-          </View>
+          {selectedSubcategoryParent && !subcategoryParentPickerOpen ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSubcategoryParentPickerOpen(true)}
+              style={styles.selectedOptionRow}
+            >
+              <View style={styles.selectedOptionInfo}>
+                <CategoryIconBadge category={selectedSubcategoryParent} />
+                <Text style={styles.rowTitle} numberOfLines={1}>
+                  {displayCategoryName(selectedSubcategoryParent, data.settings.language)}
+                </Text>
+              </View>
+              <Text style={styles.changeLink}>{t('edit')}</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.chipRow}>
+              {subcategoryParentCategories.map((category) => (
+                <CategoryChip
+                  key={category.id}
+                  category={category}
+                  language={data.settings.language}
+                  selected={subcategoryCategoryId === category.id}
+                  onPress={() => {
+                    setSubcategoryCategoryId(category.id);
+                    setSubcategoryParentPickerOpen(false);
+                  }}
+                />
+              ))}
+            </View>
+          )}
           {subcategoryParentCategories.length ? null : (
             <Text style={styles.rowMeta}>{t('noActiveCategories')}</Text>
           )}
@@ -4031,22 +4158,42 @@ function SettingsScreen({
           />
         </Field>
         <Field label={t('icon')}>
-          <View style={styles.iconPickerGrid}>
-            {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
-              <Pressable
-                key={key}
-                accessibilityRole="button"
-                onPress={() => setSubcategoryIconInput(subcategoryIconInput === key ? undefined : key)}
-                style={[styles.iconPickerItem, subcategoryIconInput === key && styles.iconPickerItemSelected]}
-              >
-                <Icon
-                  color={subcategoryIconInput === key ? colors.primary : colors.textMuted}
-                  size={20}
-                  strokeWidth={2.2}
-                />
-              </Pressable>
-            ))}
-          </View>
+          {selectedSubcategoryIcon && !subcategoryIconPickerOpen ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setSubcategoryIconPickerOpen(true)}
+              style={styles.selectedOptionRow}
+            >
+              <View style={styles.selectedOptionInfo}>
+                <View style={styles.managementIconBadge}>
+                  <selectedSubcategoryIcon.Icon color={colors.primary} size={18} strokeWidth={2.2} />
+                </View>
+                <Text style={styles.rowTitle}>{t('icon')}</Text>
+              </View>
+              <Text style={styles.changeLink}>{t('edit')}</Text>
+            </Pressable>
+          ) : (
+            <View style={styles.iconPickerGrid}>
+              {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const nextIcon = subcategoryIconInput === key ? undefined : key;
+                    setSubcategoryIconInput(nextIcon);
+                    setSubcategoryIconPickerOpen(!nextIcon);
+                  }}
+                  style={[styles.iconPickerItem, subcategoryIconInput === key && styles.iconPickerItemSelected]}
+                >
+                  <Icon
+                    color={subcategoryIconInput === key ? colors.primary : colors.textMuted}
+                    size={20}
+                    strokeWidth={2.2}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          )}
         </Field>
         <AppButton
           label={t('addSubcategory')}
@@ -4055,8 +4202,11 @@ function SettingsScreen({
             onAddSubcategory(subcategoryCategoryId, subcategoryNameInput, subcategoryIconInput);
             setSubcategoryNameInput('');
             setSubcategoryIconInput(undefined);
+            setSubcategoryIconPickerOpen(true);
           }}
         />
+
+        <Text style={styles.listSectionTitle}>{t('subcategoryListTitle')}</Text>
 
         {subcategoryGroups.map(({ category, subcategories }) => {
           const expanded = expandedSubcategoryCategoryIds.includes(category.id);
@@ -4109,17 +4259,36 @@ function SettingsScreen({
                           {editingSubcategoryId === subcategory.id ? (
                             <View style={styles.inlineEditPanel}>
                               <Field label={t('parentCategory')}>
-                                <View style={styles.chipRow}>
-                                  {subcategoryParentCategories.map((item) => (
-                                    <CategoryChip
-                                      key={item.id}
-                                      category={item}
-                                      language={data.settings.language}
-                                      selected={editingSubcategoryCategoryId === item.id}
-                                      onPress={() => setEditingSubcategoryCategoryId(item.id)}
-                                    />
-                                  ))}
-                                </View>
+                                {selectedEditingSubcategoryParent && !editingSubcategoryParentPickerOpen ? (
+                                  <Pressable
+                                    accessibilityRole="button"
+                                    onPress={() => setEditingSubcategoryParentPickerOpen(true)}
+                                    style={styles.selectedOptionRow}
+                                  >
+                                    <View style={styles.selectedOptionInfo}>
+                                      <CategoryIconBadge category={selectedEditingSubcategoryParent} />
+                                      <Text style={styles.rowTitle} numberOfLines={1}>
+                                        {displayCategoryName(selectedEditingSubcategoryParent, data.settings.language)}
+                                      </Text>
+                                    </View>
+                                    <Text style={styles.changeLink}>{t('edit')}</Text>
+                                  </Pressable>
+                                ) : (
+                                  <View style={styles.chipRow}>
+                                    {subcategoryParentCategories.map((item) => (
+                                      <CategoryChip
+                                        key={item.id}
+                                        category={item}
+                                        language={data.settings.language}
+                                        selected={editingSubcategoryCategoryId === item.id}
+                                        onPress={() => {
+                                          setEditingSubcategoryCategoryId(item.id);
+                                          setEditingSubcategoryParentPickerOpen(false);
+                                        }}
+                                      />
+                                    ))}
+                                  </View>
+                                )}
                               </Field>
                               <Field label={t('subcategoryName')}>
                                 <TextInput
@@ -4131,25 +4300,45 @@ function SettingsScreen({
                                 />
                               </Field>
                               <Field label={t('icon')}>
-                                <View style={styles.iconPickerGrid}>
-                                  {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
-                                    <Pressable
-                                      key={key}
-                                      accessibilityRole="button"
-                                      onPress={() => setEditingSubcategoryIcon(editingSubcategoryIcon === key ? undefined : key)}
-                                      style={[
-                                        styles.iconPickerItem,
-                                        editingSubcategoryIcon === key && styles.iconPickerItemSelected,
-                                      ]}
-                                    >
-                                      <Icon
-                                        color={editingSubcategoryIcon === key ? colors.primary : colors.textMuted}
-                                        size={20}
-                                        strokeWidth={2.2}
-                                      />
-                                    </Pressable>
-                                  ))}
-                                </View>
+                                {selectedEditingSubcategoryIcon && !editingSubcategoryIconPickerOpen ? (
+                                  <Pressable
+                                    accessibilityRole="button"
+                                    onPress={() => setEditingSubcategoryIconPickerOpen(true)}
+                                    style={styles.selectedOptionRow}
+                                  >
+                                    <View style={styles.selectedOptionInfo}>
+                                      <View style={styles.managementIconBadge}>
+                                        <selectedEditingSubcategoryIcon.Icon color={colors.primary} size={18} strokeWidth={2.2} />
+                                      </View>
+                                      <Text style={styles.rowTitle}>{t('icon')}</Text>
+                                    </View>
+                                    <Text style={styles.changeLink}>{t('edit')}</Text>
+                                  </Pressable>
+                                ) : (
+                                  <View style={styles.iconPickerGrid}>
+                                    {SUBCATEGORY_ICON_OPTIONS.map(({ key, Icon }) => (
+                                      <Pressable
+                                        key={key}
+                                        accessibilityRole="button"
+                                        onPress={() => {
+                                          const nextIcon = editingSubcategoryIcon === key ? undefined : key;
+                                          setEditingSubcategoryIcon(nextIcon);
+                                          setEditingSubcategoryIconPickerOpen(!nextIcon);
+                                        }}
+                                        style={[
+                                          styles.iconPickerItem,
+                                          editingSubcategoryIcon === key && styles.iconPickerItemSelected,
+                                        ]}
+                                      >
+                                        <Icon
+                                          color={editingSubcategoryIcon === key ? colors.primary : colors.textMuted}
+                                          size={20}
+                                          strokeWidth={2.2}
+                                        />
+                                      </Pressable>
+                                    ))}
+                                  </View>
+                                )}
                               </Field>
                               <View style={styles.inlineEditActions}>
                                 <AppButton label={t('cancel')} compact variant="secondary" onPress={clearSubcategoryEdit} />
@@ -4173,57 +4362,101 @@ function SettingsScreen({
 
       {activeSettingsSection === 'payments' ? (
         <View style={styles.formPanel}>
-        <Field label={t('newMethod')}>
-          <TextInput
-            value={paymentMethodInput}
-            onChangeText={setPaymentMethodInput}
-            placeholder={t('paymentMethods')}
-            placeholderTextColor={colors.gray}
-            style={styles.input}
-          />
-        </Field>
-        <AppButton
-          label={t('addMethod')}
-          Icon={WalletCards}
-          onPress={() => {
-            onAddPaymentMethod(paymentMethodInput);
-            setPaymentMethodInput('');
-          }}
-        />
+        <View style={styles.segmentedControl}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: paymentCreationMode === 'method' }}
+            onPress={() => setPaymentCreationMode('method')}
+            style={[styles.segmentedOption, paymentCreationMode === 'method' ? styles.segmentedOptionSelected : null]}
+          >
+            <Text
+              style={[
+                styles.segmentedOptionText,
+                paymentCreationMode === 'method' ? styles.segmentedOptionTextSelected : null,
+              ]}
+            >
+              {t('newMethod')}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: paymentCreationMode === 'submethod' }}
+            onPress={() => setPaymentCreationMode('submethod')}
+            style={[styles.segmentedOption, paymentCreationMode === 'submethod' ? styles.segmentedOptionSelected : null]}
+          >
+            <Text
+              style={[
+                styles.segmentedOptionText,
+                paymentCreationMode === 'submethod' ? styles.segmentedOptionTextSelected : null,
+              ]}
+            >
+              {t('newSubmethod')}
+            </Text>
+          </Pressable>
+        </View>
 
-        <Field label={t('newSubmethod')}>
-          <View style={styles.chipRow}>
-            {activePaymentMethods.map((method) => (
-              <Chip
-                key={method.id}
-                label={displayPaymentMethodName(method, data.settings.language) ?? method.name}
-                selected={selectedPaymentMethodId === method.id}
-                onPress={() => setPaymentSubmethodMethodId(method.id)}
+        {paymentCreationMode === 'method' ? (
+          <View style={styles.compactCreationPanel}>
+            <Field label={t('newMethod')}>
+              <TextInput
+                value={paymentMethodInput}
+                onChangeText={setPaymentMethodInput}
+                placeholder={t('paymentMethods')}
+                placeholderTextColor={colors.gray}
+                style={styles.input}
               />
-            ))}
+            </Field>
+            <AppButton
+              label={t('addMethod')}
+              Icon={WalletCards}
+              onPress={() => {
+                onAddPaymentMethod(paymentMethodInput);
+                setPaymentMethodInput('');
+              }}
+            />
           </View>
-          <TextInput
-            value={paymentSubmethodInput}
-            onChangeText={setPaymentSubmethodInput}
-            placeholder={t('newSubmethod')}
-            placeholderTextColor={colors.gray}
-            style={styles.input}
-          />
-        </Field>
-        <AppButton
-          label={t('addSubmethod')}
-          Icon={Plus}
-          onPress={() => {
-            onAddPaymentSubmethod(selectedPaymentMethodId, paymentSubmethodInput);
-            setPaymentSubmethodInput('');
-          }}
-        />
+        ) : (
+          <View style={styles.compactCreationPanel}>
+            <Field label={t('parentPaymentMethod')}>
+              <View style={styles.chipRow}>
+                {activePaymentMethods.map((method) => (
+                  <Chip
+                    key={method.id}
+                    label={displayPaymentMethodName(method, data.settings.language) ?? method.name}
+                    selected={selectedPaymentMethodId === method.id}
+                    onPress={() => setPaymentSubmethodMethodId(method.id)}
+                  />
+                ))}
+              </View>
+            </Field>
+            <Field label={t('newSubmethod')}>
+              <TextInput
+                value={paymentSubmethodInput}
+                onChangeText={setPaymentSubmethodInput}
+                placeholder={t('newSubmethod')}
+                placeholderTextColor={colors.gray}
+                style={styles.input}
+              />
+            </Field>
+            <AppButton
+              label={t('addSubmethod')}
+              Icon={Plus}
+              onPress={() => {
+                onAddPaymentSubmethod(selectedPaymentMethodId, paymentSubmethodInput);
+                setPaymentSubmethodInput('');
+              }}
+            />
+          </View>
+        )}
+
+        <Text style={styles.listSectionTitle}>{t('paymentMethodListTitle')}</Text>
 
         {activePaymentMethods.map((method) => {
           const submethods = data.paymentSubmethods.filter(
             (item) => item.paymentMethodId === method.id && item.active,
           );
-          const selected = selectedPaymentMethodId === method.id;
+          const selected = expandedPaymentMethodId === method.id;
+          const editingMethod = editingPaymentMethodId === method.id;
 
           return (
             <View key={method.id} style={styles.paymentMethodGroup}>
@@ -4232,11 +4465,11 @@ function SettingsScreen({
                 t={t}
                 submethodCount={submethods.length}
                 selected={selected}
-                onSelect={() => setPaymentSubmethodMethodId(method.id)}
+                onSelect={() => toggleExpandedPaymentMethod(method.id)}
                 onEdit={() => startPaymentMethodEdit(method.id, method.name)}
                 onDisable={() => onDisablePaymentMethod(method.id)}
               />
-              {editingPaymentMethodId === method.id ? (
+              {editingMethod ? (
                 <View style={styles.inlineEditPanel}>
                   <Field label={t('paymentMethodName')}>
                     <TextInput
@@ -4253,7 +4486,7 @@ function SettingsScreen({
                   </View>
                 </View>
               ) : null}
-              {selected ? (
+              {selected && !editingMethod ? (
                 <View style={styles.paymentSubmethodList}>
                   {submethods.length ? (
                     submethods.map((submethod) => (
@@ -4783,37 +5016,6 @@ function CategoryChip({
   );
 }
 
-function SubcategoryChip({
-  subcategory,
-  category,
-  language,
-  selected,
-  onPress,
-}: {
-  subcategory: Subcategory;
-  category?: Category;
-  language: AppLanguage;
-  selected: boolean;
-  onPress: () => void;
-}) {
-  const Icon = getSubcategoryIcon(subcategory, category);
-  const contentColor = selected ? colors.primary : colors.deepBlue;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      onPress={onPress}
-      style={[styles.categoryChip, selected ? styles.categoryChipSelected : null]}
-    >
-      <Icon color={contentColor} size={24} strokeWidth={2.2} />
-      <Text style={[styles.categoryChipText, selected ? styles.categoryChipTextSelected : null]} numberOfLines={1}>
-        {displaySubcategoryName(subcategory, language) ?? subcategory.name}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Chip({
   label,
   selected,
@@ -5017,14 +5219,17 @@ function EmptyState({ title }: { title: string }) {
 function ScreenScroll({
   children,
   contentContainerStyle,
+  scrollRef,
 }: {
   children: React.ReactNode;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  scrollRef?: React.RefObject<ScrollView | null>;
 }) {
   const { isCompact } = useResponsive();
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
       contentContainerStyle={[
         styles.screenContent,
@@ -5740,6 +5945,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: spacing.xs,
   },
+  listSectionTitle: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    color: colors.text,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    marginTop: spacing.xs,
+    paddingTop: spacing.md,
+  },
   positiveText: {
     color: colors.success,
   },
@@ -5882,6 +6096,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: spacing.md,
     padding: spacing.lg,
+  },
+  compactCreationPanel: {
+    gap: spacing.md,
   },
   aboutPanel: {
     backgroundColor: colors.surface,
@@ -6050,6 +6267,62 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: colors.primary,
+  },
+  segmentedControl: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    padding: 3,
+  },
+  segmentedOption: {
+    alignItems: 'center',
+    borderRadius: radius.sm,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 36,
+    paddingHorizontal: spacing.sm,
+  },
+  segmentedOptionSelected: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+  },
+  segmentedOptionText: {
+    color: colors.textMuted,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  segmentedOptionTextSelected: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+  },
+  selectedOptionRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'space-between',
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  selectedOptionInfo: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minWidth: 0,
+  },
+  changeLink: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+    fontSize: 12,
   },
   installmentPanel: {
     backgroundColor: colors.surfaceAlt,
@@ -6232,13 +6505,14 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     justifyContent: 'flex-end',
   },
-  budgetSubcategoryGroups: {
+  budgetSubcategoryGrid: {
+    paddingHorizontal: 0,
+    paddingTop: spacing.sm,
+  },
+  budgetEntryPanel: {
     gap: spacing.md,
   },
-  budgetSubcategoryGroup: {
-    gap: spacing.xs,
-  },
-  budgetLockedSelection: {
+  budgetSelectedRow: {
     alignItems: 'center',
     backgroundColor: colors.surfaceAlt,
     borderColor: colors.border,
@@ -6248,6 +6522,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     minHeight: 56,
     padding: spacing.sm,
+  },
+  budgetFormActions: {
+    gap: spacing.sm,
   },
   progressTrack: {
     backgroundColor: colors.surfaceAlt,

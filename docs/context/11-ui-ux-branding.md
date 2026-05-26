@@ -35,16 +35,28 @@ Typography:
 - Cards use small radius and restrained borders.
 - Settings uses individual menu buttons that open one management screen at a time.
 
+## Settings management UX patterns
+
+Settings management screens should stay low-clutter and progressive:
+
+- Show one primary creation task at a time. When two ABM flows are mutually exclusive, use a segmented control instead of rendering both forms.
+- Collapse resolved selectors into summary rows with `Edit` or `Change` actions, such as selected parent category, selected icon, or selected budget subcategory.
+- Keep list headings visually distinct with `listSectionTitle` so creation/edit forms and existing records do not blend together.
+- Keep only one nested list/accordion expanded in a group when multiple expanded lists would compete for attention.
+- Prefer inline editing only when the edit surface follows the same compact flow as creation.
+- Use native `Alert.alert` for destructive confirmations and a web-compatible `window.confirm` fallback when running on Expo web.
+
 ## Responsive behavior
 
 - Compact mobile is width below `360`; regular is `360` to `429`; large mobile is `430` and above.
 - Header, bottom navigation, dashboard summary, forms, transaction rows, report rows, settings management rows, expense keypad, calendar, and transaction modals adapt spacing, wrapping, and sizing for compact screens.
 - Form grids collapse from two columns to one column on compact screens.
-- The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile.
+- The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile. The same icon grid is reused for monthly budget subcategory selection, then collapses once a subcategory is selected so only the budget form remains.
 - The edit transaction flow keeps category/subcategory collapsed by default to prioritize amount and memo edits.
 - Settings subcategories are grouped under parent-category accordions so unrelated subcategories are not mixed in one list.
+- Reports detail headers show only the back action and report title; month navigation stays in the global header to avoid duplicate controls.
 - Android hardware back navigates inside the app: detail/edit modals close, report/settings detail screens go back to their menu, and top-level tabs return to Dashboard instead of exiting.
-- Android runs with edge-to-edge disabled, so the bottom navigation does not add Android safe-area bottom inset; this prevents a duplicated blank margin above the system navigation bar. iOS still uses the bottom inset.
+- Android keeps the root safe area free of the bottom inset to avoid duplicated blank space. Bottom navigation consumes the Android bottom inset only on API 35+ where Android enforces edge-to-edge for target SDK 35; older Android versions keep zero bottom inset. iOS still uses the bottom inset.
 - Android must not wrap the full app shell and bottom navigation in a global `KeyboardAvoidingView`; keyboard avoidance stays iOS-only because Android already uses `softwareKeyboardLayoutMode: "pan"` and global keyboard offsets can leave sporadic blank space below the bottom tabs.
 
 ## Transaction creation UX

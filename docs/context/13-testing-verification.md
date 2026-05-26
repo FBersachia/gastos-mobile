@@ -47,34 +47,46 @@ Responsive mobile:
 
 - Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
+- In Reports detail screens, confirm only the global header has month navigation controls.
+- On Android API 35+ with 3-button navigation, confirm the system navigation bar does not cover bottom tab icons or labels.
+- On Android API 35+ with gesture navigation, confirm the bottom tab bar is usable without an excessive blank strip below it.
+- On Android API 34 or lower, confirm the old duplicated bottom gap does not return.
 - On Android, open the expense form, focus and close text inputs, return to Dashboard, and confirm no blank space remains below the bottom tabs.
 - On Android, press hardware Back from transaction detail/edit, Reports detail, Settings detail, and non-dashboard tabs; confirm it navigates back inside the app instead of exiting.
 
 Categories and payment methods:
 
-- Add a category and use it in a transaction.
-- Add a subcategory and use it in a transaction.
+- Add and edit a category, then use it in a transaction.
+- Add and edit a subcategory, then use it in a transaction.
 - In Settings > Subcategories, switch between expense and income and confirm parent category choices update before creating the subcategory.
+- In Settings > Subcategories, confirm parent category and icon selectors collapse into summary rows after selection in both create and edit flows.
 - In Settings > Categories, switch between expense and income and confirm the visible category list changes.
+- In Settings > Categories and Settings > Subcategories, confirm visually distinct list subtitles separate creation forms from existing records.
 - Disable a category and confirm it no longer appears in active form choices.
-- Add a payment method/submethod and use it in a transaction.
+- Add and edit a payment method/submethod and use it in a transaction.
+- In Settings > Payment methods, confirm the segmented control shows either the new method form or the new submethod form, not both.
+- In Settings > Payment methods, expand one method's submethod list, then another, and confirm only one list remains open.
+- In Settings > Payment methods, confirm the list subtitle separates the creation form from existing methods.
 
 Budgets:
 
-- Add a monthly expense subcategory budget.
+- Add a monthly expense subcategory budget from the icon grid and confirm amount/currency inputs appear only after selecting a subcategory.
+- Confirm the budget subcategory icon grid collapses after selection and the selected subcategory appears as a summary row with a change action.
 - Add expenses below 80 percent, above 80 percent, and above 100 percent.
 - Confirm available, near-limit, and exceeded statuses.
 - Confirm spending from sibling subcategories does not affect the selected subcategory budget.
+- Edit a budget, change its subcategory and currency, and confirm it updates without creating duplicates.
 - Confirm a legacy category budget without subcategory is shown as requiring subcategory selection and cannot be saved until one is chosen.
 - Switch language to Spanish and confirm budget status/progress text is translated.
-- Edit an existing budget and confirm only the amount changes.
-- Delete a budget and confirm it is removed after confirmation.
+- Edit an existing budget and confirm the icon grid scrolls into view with the current selection loaded.
+- Confirm the budget list subtitle separates the budget form from existing budgets.
+- Delete a budget and confirm it is removed after confirmation in native builds and Expo web.
 
 Local Android APK builds:
 
 - `mobile/android` can produce an internal APK with `.\gradlew.bat clean assembleRelease` when `JAVA_HOME` points to JDK 17 and `ANDROID_HOME` / `ANDROID_SDK_ROOT` point to the local SDK.
 - Native Android `versionName` and `versionCode` are read from `mobile/app.json`.
-- Native edge-to-edge flags stay disabled to match `app.json` and avoid extra Android bottom navigation spacing.
+- Native edge-to-edge flags stay disabled to match `app.json`; React Native still applies the bottom navigation inset on Android API 35+ where system bars can cover tappable UI.
 - Internal release APKs use the project debug keystore; do not commit production signing credentials or generated APK artifacts.
 
 CSV export:

@@ -23,7 +23,7 @@ Current CSV filters:
 - Transaction type: all, expenses, income.
 - Currency: all or one existing currency.
 
-Custom date range and previous-month presets are not implemented yet. Month selection is controlled by the global header.
+Custom date range and previous-month presets are not implemented yet. Month selection is controlled by the global header; report detail headers must not render their own month navigation controls.
 
 ## CSV export
 

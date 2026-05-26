@@ -42,7 +42,6 @@ High:
 Medium:
 
 - Add transaction detail screen.
-- Add category/payment edit flows.
 - Add subcategory/payment submethod disable flows.
 - Add custom date range filters for reports and CSV export.
 - Add CSV export access from Settings.
