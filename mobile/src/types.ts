@@ -10,9 +10,10 @@ export interface Category {
   id: string;
   name: string;
   type: TransactionType;
+  icon?: string;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Subcategory {
@@ -21,16 +22,16 @@ export interface Subcategory {
   name: string;
   icon?: string;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface PaymentMethod {
   id: string;
   name: string;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface PaymentSubmethod {
@@ -38,8 +39,16 @@ export interface PaymentSubmethod {
   paymentMethodId: string;
   name: string;
   active: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Person {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Transaction {
@@ -47,17 +56,22 @@ export interface Transaction {
   type: TransactionType;
   amount: number;
   currency: string;
-  date: string;
+  date: Date;
   categoryId: string;
   subcategoryId?: string;
   paymentMethodId?: string;
   paymentSubmethodId?: string;
+  assignedPersonId?: string;
+  name: string;
   description: string;
   installmentGroupId?: string;
   installmentNumber?: number;
   totalInstallments?: number;
-  createdAt: string;
-  updatedAt: string;
+  installmentInterestRate?: number;
+  installmentBaseAmount?: number;
+  installmentFinancedTotal?: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Budget {
@@ -68,12 +82,13 @@ export interface Budget {
   currency: string;
   month: number;
   year: number;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface AppSettings {
   defaultCurrency: string;
+  defaultPaymentSubmethodId?: string;
   language: AppLanguage;
   biometricLockEnabled: boolean;
   budgetNearLimitThreshold: number;
@@ -85,6 +100,7 @@ export interface AppData {
   subcategories: Subcategory[];
   paymentMethods: PaymentMethod[];
   paymentSubmethods: PaymentSubmethod[];
+  people: Person[];
   budgets: Budget[];
   settings: AppSettings;
 }
@@ -93,14 +109,17 @@ export interface TransactionInput {
   type: TransactionType;
   amount: number;
   currency: string;
-  date: string;
+  date: Date;
   categoryId: string;
   subcategoryId?: string;
   paymentMethodId?: string;
   paymentSubmethodId?: string;
+  assignedPersonId?: string;
+  name: string;
   description: string;
   installmentCount?: number;
-  firstInstallmentDate?: string;
+  installmentInterestRate?: number;
+  firstInstallmentDate?: Date;
 }
 
 export interface CurrencySummary {

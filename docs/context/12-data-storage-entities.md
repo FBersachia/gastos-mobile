@@ -10,12 +10,16 @@ Implemented in `mobile/src/storage.ts`.
 
 - Storage provider: AsyncStorage.
 - Storage key: `expense-control-app-data-v3`.
-- Persisted shape: one `AppData` JSON object.
+- Persisted shape: one JSON object equivalent to `AppData`, with `Date` fields serialized as strings.
 - `loadAppData` returns defaults when no data exists.
 - `withDefaults` merges missing stored sections with default data.
+- `withDefaults` tolerates older stored data without a `people` section by defaulting it to an empty array.
+- `withDefaults` tolerates older settings without `defaultPaymentSubmethodId` and resolves the configured default to an active payment submethod when possible.
 - `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
 - `withDefaults` preserves legacy category budgets without silently assigning them to a first subcategory; they must be repaired through Settings before saving.
-- `saveAppData` writes the full app data object after mutations.
+- `loadAppData` hydrates persisted date strings into `Date` values for runtime use.
+- `loadAppData` migrates legacy transaction text by moving stored `description` into `name` when `name` is missing, leaving `description` empty.
+- `saveAppData` writes the full app data object after mutations and serializes dates before JSON storage.
 
 Current seed note:
 
@@ -32,6 +36,7 @@ Defined in `mobile/src/types.ts`.
 - `Subcategory`.
 - `PaymentMethod`.
 - `PaymentSubmethod`.
+- `Person`.
 - `Budget`.
 - `AppSettings`.
 - `AppData`.
@@ -43,12 +48,20 @@ Defined in `mobile/src/types.ts`.
 
 ## Data rules
 
-- Dates are stored as `YYYY-MM-DD` strings for transactions and selected month.
+- Runtime transaction dates and selected month use `Date` values.
+- Persisted transaction dates are stored as `YYYY-MM-DD` strings.
+- Persisted created/updated audit timestamps are stored as full ISO datetime strings.
 - Budget month/year are stored as numbers. Budget operations use `subcategoryId` as the only spending scope; `categoryId` is retained only as legacy/derived context.
 - Currencies are stored as uppercase 3-character strings.
+- Default payment is stored as `settings.defaultPaymentSubmethodId`; expenses derive the parent method from the selected submethod.
 - Money is rounded to two decimals.
 - Installment splitting is done in cents to avoid visible rounding drift.
 - `paymentMethodId` and `paymentSubmethodId` are optional on transactions; expenses require them in the UI, incomes leave them empty.
+- `assignedPersonId` is optional and currently used only by expenses.
+- `name` is the short transaction reference shown in lists and the main entry step.
+- `description` is an optional longer note shown in More options/detail/CSV.
+- Installment expenses can store `installmentInterestRate`, `installmentBaseAmount`, and `installmentFinancedTotal`.
+- Payment methods, payment submethods, subcategories, and people use soft delete through `active=false`; historical transaction references remain in storage.
 
 ## Known gaps
 

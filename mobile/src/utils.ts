@@ -3,50 +3,83 @@ import { AppData, BudgetSummary, CategorySummary, CurrencySummary, Transaction }
 export const generateId = (prefix: string): string =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-export const todayInput = (): string => new Date().toISOString().slice(0, 10);
+export const isValidDate = (date: Date): boolean => !Number.isNaN(date.getTime());
 
-export const monthStartInput = (date = new Date()): string => {
+export const dateOnly = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+export const todayInput = (): Date => dateOnly(new Date());
+
+export const dateInputFromDate = (date: Date): string => {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
 
-  return `${year}-${month}-01`;
+  return `${year}-${month}-${day}`;
 };
 
-export const addMonths = (dateInput: string, amount: number): string => {
-  const [year, month, day] = dateInput.split('-').map(Number);
-  const date = new Date(year, month - 1 + amount, day);
+export const dateFromInput = (dateInput: string): Date | undefined => {
+  const match = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
 
-  return date.toISOString().slice(0, 10);
+  if (!match) {
+    return undefined;
+  }
+
+  const [, yearInput, monthInput, dayInput] = match;
+  const year = Number(yearInput);
+  const month = Number(monthInput);
+  const day = Number(dayInput);
+  const date = new Date(year, month - 1, day);
+
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return undefined;
+  }
+
+  return date;
 };
 
-export const shiftMonth = (dateInput: string, amount: number): string => addMonths(dateInput, amount);
+export const monthStartInput = (date = new Date()): Date =>
+  new Date(date.getFullYear(), date.getMonth(), 1);
 
-export const getMonthParts = (dateInput: string): { month: number; year: number } => {
-  const [year, month] = dateInput.split('-').map(Number);
+export const addMonths = (dateInput: Date, amount: number): Date =>
+  new Date(dateInput.getFullYear(), dateInput.getMonth() + amount, dateInput.getDate());
+
+export const shiftMonth = (dateInput: Date, amount: number): Date => addMonths(dateInput, amount);
+
+export const getMonthParts = (dateInput: Date): { month: number; year: number } => {
+  const year = dateInput.getFullYear();
+  const month = dateInput.getMonth() + 1;
 
   return { month, year };
 };
 
-export const isInMonth = (dateInput: string, selectedMonth: string): boolean => {
+export const isInMonth = (dateInput: Date, selectedMonth: Date): boolean => {
   const item = getMonthParts(dateInput);
   const selected = getMonthParts(selectedMonth);
 
   return item.month === selected.month && item.year === selected.year;
 };
 
-export const monthLabel = (dateInput: string, locale = 'en-US'): string => {
-  const [year, month] = dateInput.split('-').map(Number);
-
-  return new Intl.DateTimeFormat(locale, {
+export const monthLabel = (dateInput: Date, locale = 'en-US'): string =>
+  new Intl.DateTimeFormat(locale, {
     month: 'long',
     year: 'numeric',
-  }).format(new Date(year, month - 1, 1));
-};
+  }).format(dateInput);
 
 export const normalizeCurrency = (currency: string): string =>
   currency.trim().toUpperCase().slice(0, 3) || 'ARS';
 
 export const roundMoney = (amount: number): number => Math.round(amount * 100) / 100;
+
+export const applyInstallmentInterest = (total: number, interestRate = 0): number => {
+  const safeRate = Number.isFinite(interestRate) && interestRate > 0 ? interestRate : 0;
+
+  return roundMoney(total * (1 + safeRate / 100));
+};
 
 export const splitInstallments = (total: number, count: number): number[] => {
   const totalCents = Math.round(total * 100);
@@ -59,6 +92,38 @@ export const splitInstallments = (total: number, count: number): number[] => {
     return cents / 100;
   });
 };
+
+export const splitInstallmentsWithInterest = (
+  total: number,
+  count: number,
+  interestRate = 0,
+): { financedTotal: number; amounts: number[] } => {
+  const financedTotal = applyInstallmentInterest(total, interestRate);
+
+  return {
+    financedTotal,
+    amounts: splitInstallments(financedTotal, count),
+  };
+};
+
+export const normalizeTransactionTextFields = (
+  name: unknown,
+  description: unknown,
+): { name: string; description: string } => {
+  const storedName = typeof name === 'string' ? name : undefined;
+  const storedDescription = typeof description === 'string' ? description : '';
+
+  return {
+    name: storedName ?? storedDescription,
+    description: storedName === undefined ? '' : storedDescription,
+  };
+};
+
+export const installmentTransactionName = (
+  name: string,
+  installmentNumber: number,
+  totalInstallments: number,
+): string => `${name.trim() || 'Installment purchase'} - Installment ${installmentNumber}/${totalInstallments}`;
 
 export const formatMoney = (amount: number, currency: string): string =>
   `${currency} ${roundMoney(amount).toLocaleString('en', {
@@ -86,10 +151,28 @@ export const paymentSubmethodName = (data: AppData, paymentSubmethodId?: string)
     ? data.paymentSubmethods.find((submethod) => submethod.id === paymentSubmethodId)?.name ?? ''
     : '';
 
-export const monthlyTransactions = (data: AppData, selectedMonth: string): Transaction[] =>
+export const personName = (data: AppData, personId?: string): string =>
+  personId ? data.people.find((person) => person.id === personId)?.name ?? '' : '';
+
+export const deactivateById = <T extends { id: string; active: boolean; updatedAt: Date }>(
+  items: T[],
+  itemId: string,
+  updatedAt = new Date(),
+): T[] =>
+  items.map((item) =>
+    item.id === itemId
+      ? {
+          ...item,
+          active: false,
+          updatedAt,
+        }
+      : item,
+  );
+
+export const monthlyTransactions = (data: AppData, selectedMonth: Date): Transaction[] =>
   data.transactions
     .filter((transaction) => isInMonth(transaction.date, selectedMonth))
-    .sort((left, right) => right.date.localeCompare(left.date));
+    .sort((left, right) => right.date.getTime() - left.date.getTime());
 
 export const summarizeByCurrency = (transactions: Transaction[]): CurrencySummary[] => {
   const byCurrency = new Map<string, CurrencySummary>();
@@ -150,7 +233,7 @@ export const summarizeExpensesByCategory = (
     .sort((left, right) => right.amount - left.amount);
 };
 
-export const summarizeBudgets = (data: AppData, selectedMonth: string): BudgetSummary[] => {
+export const summarizeBudgets = (data: AppData, selectedMonth: Date): BudgetSummary[] => {
   const { month, year } = getMonthParts(selectedMonth);
   const monthTransactions = monthlyTransactions(data, selectedMonth).filter(
     (transaction) => transaction.type === 'expense',
@@ -213,17 +296,22 @@ export const transactionsToCsv = (data: AppData, transactions: Transaction[]): s
     'Subcategory',
     'Payment method',
     'Payment submethod',
+    'Assigned person',
+    'Name',
     'Description',
     'Installment group ID',
     'Installment number',
     'Total installments',
+    'Installment interest rate',
+    'Installment base amount',
+    'Installment financed total',
     'Created date',
     'Updated date',
   ];
 
   const rows = transactions.map((transaction) => [
     transaction.id,
-    transaction.date,
+    dateInputFromDate(transaction.date),
     transaction.type,
     transaction.amount,
     transaction.currency,
@@ -231,12 +319,17 @@ export const transactionsToCsv = (data: AppData, transactions: Transaction[]): s
     subcategoryName(data, transaction.subcategoryId),
     transaction.type === 'expense' ? paymentMethodName(data, transaction.paymentMethodId) : '',
     transaction.type === 'expense' ? paymentSubmethodName(data, transaction.paymentSubmethodId) : '',
+    transaction.type === 'expense' ? personName(data, transaction.assignedPersonId) : '',
+    transaction.name,
     transaction.description,
     transaction.installmentGroupId,
     transaction.installmentNumber,
     transaction.totalInstallments,
-    transaction.createdAt,
-    transaction.updatedAt,
+    transaction.installmentInterestRate,
+    transaction.installmentBaseAmount,
+    transaction.installmentFinancedTotal,
+    transaction.createdAt.toISOString(),
+    transaction.updatedAt.toISOString(),
   ]);
 
   return [headers, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');

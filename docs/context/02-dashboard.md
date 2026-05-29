@@ -13,7 +13,7 @@ Implemented in `DashboardScreen` in `mobile/App.tsx`.
 - Uses `summarizeByCurrency` to produce income, expenses, and balance grouped by currency.
 - Groups selected-month transactions by date.
 - Each date group shows movement totals by currency and rows with category icon, title, signed amount, and income/expense color.
-- Includes a floating Add action that switches to the Transactions tab.
+- Includes a floating Add action that opens the full-screen transaction creation surface. Transactions is not exposed as a bottom navigation tab.
 
 ## Month selection
 

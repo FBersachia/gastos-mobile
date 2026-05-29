@@ -28,12 +28,13 @@ The UI language is English. The visual identity uses the Inflatrack palette and 
 
 ## Current navigation
 
-The app uses a simple internal tab state with four tabs:
+The app uses a simple internal tab state with three visible bottom tabs:
 
 - Dashboard.
-- Transactions.
 - Reports.
 - Settings.
+
+Transactions remains an internal full-screen surface opened from the Dashboard floating `+` action, not a bottom navigation tab.
 
 There is no external navigation library yet. Add one only when screen depth requires stack navigation, modals, or route persistence.
 

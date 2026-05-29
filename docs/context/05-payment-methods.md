@@ -40,8 +40,9 @@ Implemented in `SettingsScreen`:
 - Add either a payment method or a payment submethod through a segmented creation control, so both ABM forms are not visible at the same time.
 - Edit payment method names.
 - Edit payment submethods and change their parent payment method.
-- Disable payment method.
+- Delete payment methods and payment submethods with confirmation. These are soft deletes that set `active=false`.
 - Active payment methods and submethods are shown in transaction forms.
+- Core settings can mark one active payment submethod as the default payment. New expense forms preselect that submethod and derive its parent payment method.
 - Default payment labels follow the active app language in forms, transaction detail, reports, and settings.
 - Payment method lists use one expanded submethod list at a time; opening another method collapses the previous one and clears competing inline edit panels.
 - Payment methods show a visually distinct list subtitle below the creation form.
@@ -52,5 +53,4 @@ Payment methods and submethods are used only by expense transactions. Income tra
 
 ## Known gaps
 
-- Payment submethod disable is not implemented in the UI.
 - No duplicate-name validation exists.

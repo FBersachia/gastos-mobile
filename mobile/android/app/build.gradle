@@ -7,6 +7,8 @@ apply plugin: "com.facebook.react"
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 def expoConfig = new JsonSlurper().parse(new File(projectRoot, "app.json")).expo
 def expoAndroidConfig = expoConfig.android ?: [:]
+def appVersionName = expoConfig.version.toString()
+def appVersionCode = expoAndroidConfig.versionCode as Integer
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -96,8 +98,8 @@ android {
         applicationId 'com.suats.gastoscontrol'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (expoAndroidConfig.versionCode as Integer)
-        versionName expoConfig.version.toString()
+        versionCode appVersionCode
+        versionName appVersionName
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -133,6 +135,11 @@ android {
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            outputFileName = "expense-control-v${appVersionName}-${appVersionCode}-${variant.name}.apk"
+        }
     }
 }
 

@@ -3,13 +3,20 @@ import type {
   Category,
   PaymentMethod,
   PaymentSubmethod,
+  Person,
   Subcategory,
   Transaction,
   TransactionType,
 } from './types';
+import { addMonths, dateFromInput } from './utils';
 
-const TIMESTAMP = '2026-05-31T12:00:00.000Z';
+const TIMESTAMP = new Date('2026-05-31T12:00:00.000Z');
 const CURRENCY = 'ARS';
+const SAMPLE_DATE_FALLBACK = dateFromInput('2026-05-01') ?? new Date(2026, 4, 1);
+
+const cloneDate = (date: Date): Date => new Date(date.getTime());
+
+const sampleDate = (dateInput: string): Date => dateFromInput(dateInput) ?? cloneDate(SAMPLE_DATE_FALLBACK);
 
 type SourceRow = {
   date: string;
@@ -24,8 +31,8 @@ const category = (id: string, name: string, type: Category['type']): Category =>
   name,
   type,
   active: true,
-  createdAt: TIMESTAMP,
-  updatedAt: TIMESTAMP,
+  createdAt: cloneDate(TIMESTAMP),
+  updatedAt: cloneDate(TIMESTAMP),
 });
 
 const subcategory = (id: string, categoryId: string, name: string): Subcategory => ({
@@ -33,16 +40,16 @@ const subcategory = (id: string, categoryId: string, name: string): Subcategory 
   categoryId,
   name,
   active: true,
-  createdAt: TIMESTAMP,
-  updatedAt: TIMESTAMP,
+  createdAt: cloneDate(TIMESTAMP),
+  updatedAt: cloneDate(TIMESTAMP),
 });
 
 const paymentMethod = (id: string, name: string): PaymentMethod => ({
   id,
   name,
   active: true,
-  createdAt: TIMESTAMP,
-  updatedAt: TIMESTAMP,
+  createdAt: cloneDate(TIMESTAMP),
+  updatedAt: cloneDate(TIMESTAMP),
 });
 
 const paymentSubmethod = (id: string, paymentMethodId: string, name: string): PaymentSubmethod => ({
@@ -50,9 +57,11 @@ const paymentSubmethod = (id: string, paymentMethodId: string, name: string): Pa
   paymentMethodId,
   name,
   active: true,
-  createdAt: TIMESTAMP,
-  updatedAt: TIMESTAMP,
+  createdAt: cloneDate(TIMESTAMP),
+  updatedAt: cloneDate(TIMESTAMP),
 });
+
+const people: Person[] = [];
 
 const categories: Category[] = [
   category('cat-exp-food', 'Food', 'expense'),
@@ -200,13 +209,6 @@ const sourceRows: SourceRow[] = [
   { date: '2026-05-01', type: 'income', sourceCategory: 'Salario', description: 'Sueldo SCES', amount: 2161000 },
 ];
 
-const addMonths = (dateInput: string, amount: number): string => {
-  const [year, month, day] = dateInput.split('-').map(Number);
-  const date = new Date(year, month - 1 + amount, day);
-
-  return date.toISOString().slice(0, 10);
-};
-
 const splitInstallments = (total: number, count: number): number[] => {
   const totalCents = Math.round(total * 100);
   const base = Math.trunc(totalCents / count);
@@ -334,17 +336,18 @@ const transactionFromRow = (row: SourceRow, index: number): Transaction[] => {
       type: row.type,
       amount,
       currency: CURRENCY,
-      date: addMonths(row.date, installmentIndex),
+      date: addMonths(sampleDate(row.date), installmentIndex),
       categoryId: categoryForSubcategory(subcategoryId),
       subcategoryId,
       paymentMethodId,
       paymentSubmethodId,
-      description: `${row.description} - Installment ${installmentIndex + 1}/${totalInstallments}`,
+      name: `${row.description} - Installment ${installmentIndex + 1}/${totalInstallments}`,
+      description: '',
       installmentGroupId,
       installmentNumber: installmentIndex + 1,
       totalInstallments,
-      createdAt: TIMESTAMP,
-      updatedAt: TIMESTAMP,
+      createdAt: cloneDate(TIMESTAMP),
+      updatedAt: cloneDate(TIMESTAMP),
     }));
   }
 
@@ -354,27 +357,50 @@ const transactionFromRow = (row: SourceRow, index: number): Transaction[] => {
       type: row.type,
       amount: row.amount,
       currency: CURRENCY,
-      date: row.date,
+      date: sampleDate(row.date),
       categoryId: categoryForSubcategory(subcategoryId),
       subcategoryId,
       paymentMethodId,
       paymentSubmethodId,
-      description: row.description,
-      createdAt: TIMESTAMP,
-      updatedAt: TIMESTAMP,
+      name: row.description,
+      description: '',
+      createdAt: cloneDate(TIMESTAMP),
+      updatedAt: cloneDate(TIMESTAMP),
     },
   ];
 };
 
 export const createMay2026SampleData = (): AppData => ({
   transactions: sourceRows.flatMap(transactionFromRow),
-  categories: categories.map((item) => ({ ...item })),
-  subcategories: subcategories.map((item) => ({ ...item })),
-  paymentMethods: paymentMethods.map((item) => ({ ...item })),
-  paymentSubmethods: paymentSubmethods.map((item) => ({ ...item })),
+  categories: categories.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
+  subcategories: subcategories.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
+  paymentMethods: paymentMethods.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
+  paymentSubmethods: paymentSubmethods.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
+  people: people.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
   budgets: [],
   settings: {
     defaultCurrency: CURRENCY,
+    defaultPaymentSubmethodId: 'subpay-cash-wallet',
     language: 'en',
     biometricLockEnabled: true,
     budgetNearLimitThreshold: 0.8,

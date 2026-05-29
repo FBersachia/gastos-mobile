@@ -21,8 +21,11 @@ From the requirements document:
 - Biometric lock: optional, default enabled.
 - Device passcode fallback: allowed.
 - Category deletion: disable only.
-- Payment method deletion: disable only.
-- Payment methods: usable for both expenses and incomes.
+- Payment method/submethod deletion: soft delete only.
+- Subcategory/person deletion: soft delete only.
+- Payment methods: expense transactions only.
+- Assigned people: expense transactions only, without reports by person.
+- Installment interest: total percentage applied before splitting.
 - Installment rounding: remainder goes to last installment.
 - Installment edit: individual generated installments are not editable.
 - Installment delete: full group delete.
@@ -35,15 +38,15 @@ From the requirements document:
 High:
 
 - Split `App.tsx` into screens, components, hooks, and domain actions.
-- Add automated tests for money, installments, budgets, CSV export, and storage defaults.
+- Broaden automated tests for budgets, storage defaults, and UI flows.
 - Add a real date picker and money input handling.
 - Validate loaded persisted data before using it.
 
 Medium:
 
 - Add transaction detail screen.
-- Add subcategory/payment submethod disable flows.
 - Add custom date range filters for reports and CSV export.
+- Add reports by assigned person.
 - Add CSV export access from Settings.
 - Add app-resume biometric locking.
 

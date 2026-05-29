@@ -8,8 +8,8 @@ The app must support expense and income categories, with subcategories under eac
 
 Defined in `mobile/src/types.ts`:
 
-- `Category` has `id`, `name`, `type`, `active`, `createdAt`, `updatedAt`.
-- `Subcategory` has `id`, `categoryId`, `name`, `active`, `createdAt`, `updatedAt`.
+- `Category` has `id`, `name`, `type`, optional `icon`, `active`, `createdAt`, `updatedAt`.
+- `Subcategory` has `id`, `categoryId`, `name`, optional `icon`, `active`, `createdAt`, `updatedAt`.
 
 ## Defaults
 
@@ -65,19 +65,20 @@ The default seed must not include the removed drug/cannabis category or sample r
 
 Implemented in `SettingsScreen`:
 
-- Add and edit category, with the expense/income toggle filtering both creation type and the visible category list.
+- Add and edit category, including optional icon selection, with the expense/income toggle filtering both creation type and the visible category list.
 - Add and edit subcategory, choosing whether the parent category comes from expense or income categories; the toggle filters parent choices and visible accordions.
-- Subcategory creation and editing use compact progressive controls: once a parent category or icon is selected, it collapses into a summary row with an `Edit` action.
+- Category and subcategory creation/editing use the same compact icon picker; once an icon is selected, it collapses into a summary row with an `Edit` action.
 - Disable category.
+- Delete subcategory with confirmation. This is a soft delete that sets `active=false`.
 - Active categories are shown in forms and settings.
 - Settings shows active subcategories grouped under parent-category accordions instead of one mixed list.
 - Categories and subcategories show visually distinct list subtitles below creation forms.
-- Category UI uses lucide icons for default and keyword-matched categories. Category names are displayed smaller than the icon.
+- Category UI uses explicit user-selected icons first, then lucide icons for default and keyword-matched categories. Category names are displayed smaller than the icon.
 - Subcategory UI has its own icon map and keyword fallback, so expense entry and dashboard rows can show more specific icons such as groceries, delivery, breakfast, rides, public transit, laundry, music, soccer, bike insurance, pet food, and payroll.
 
 ## Current deletion policy
 
-Hard delete is not exposed. Disable is used for categories. Subcategory disable is not exposed yet.
+Hard delete is not exposed. Disable/delete actions are soft deletes that set `active=false` and update `updatedAt`, preserving historical transaction references.
 
 ## Known gaps
 

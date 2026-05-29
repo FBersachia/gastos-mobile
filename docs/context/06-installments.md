@@ -10,13 +10,16 @@ Implemented in `TransactionForm`, `handleSaveTransaction`, and `TransactionRow`.
 
 - Installments are available only for new expense transactions.
 - User enables installments with a checkbox.
-- User enters installment count and first installment date.
+- User enters installment count from More options. The first installment date is the selected transaction date.
+- User can enter an optional total interest percentage from More options.
+- `splitInstallmentsWithInterest(total, count, interestRate)` applies the total interest once and then splits the financed total.
 - `splitInstallments(total, count)` divides the total amount in cents.
 - Any rounding remainder is applied to the last installment.
-- `addMonths(firstInstallmentDate, index)` assigns one installment to each month.
-- Generated descriptions include `Installment N/Total`.
+- `addMonths(firstInstallmentDate, index)` assigns one `Date` value to each monthly installment.
+- Generated transaction names include `Installment N/Total`.
 - Generated transactions share `installmentGroupId`.
 - Generated transactions include `installmentNumber` and `totalInstallments`.
+- Generated transactions include `installmentInterestRate`, `installmentBaseAmount`, and `installmentFinancedTotal` when interest/installment metadata applies.
 
 ## Current edit/delete policy
 
@@ -26,7 +29,7 @@ Implemented in `TransactionForm`, `handleSaveTransaction`, and `TransactionRow`.
 
 ## Current summary behavior
 
-Monthly summaries include only installments whose generated `date` falls in the selected month.
+Monthly summaries include only installments whose generated `Date` falls in the selected month.
 
 ## Known gaps
 
