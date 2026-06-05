@@ -7,6 +7,7 @@ From the requirements document:
 - Final app name.
 - Biometric fallback through PIN/password.
 - Full default category and subcategory list.
+- Whether cash boxes should become user-managed beyond the default catalog.
 - Whether unused categories can be hard deleted.
 - Whether payment methods can be restricted by transaction type.
 - Editing behavior for installment groups.
@@ -24,7 +25,8 @@ From the requirements document:
 - Payment method/submethod deletion: soft delete only.
 - Subcategory/person deletion: soft delete only.
 - Payment methods: expense transactions only.
-- Assigned people: expense transactions only, without reports by person.
+- Assigned people: expense transactions only, with reports by assigned person.
+- Cash boxes: default expense-category groupers for Basic, Fun, Education, Savings, Investment, and Charity.
 - Installment interest: total percentage applied before splitting.
 - Installment rounding: remainder goes to last installment.
 - Installment edit: individual generated installments are not editable.
@@ -46,7 +48,8 @@ Medium:
 
 - Add transaction detail screen.
 - Add custom date range filters for reports and CSV export.
-- Add reports by assigned person.
+- Add transaction type/currency filters for monthly export.
+- Add cash box create/edit management.
 - Add CSV export access from Settings.
 - Add app-resume biometric locking.
 

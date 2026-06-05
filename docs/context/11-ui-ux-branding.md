@@ -67,6 +67,7 @@ The new expense entry screen is designed to keep daily capture on one screen:
 - Scrollable subcategory icon grid with specific icons per known subcategory and keyword fallback for custom names.
 - Payment selector after subcategory selection, using the configured default when available. Currency and installments live in More options.
 - Composer row with icon-only More options, selected subcategory context, reference input, and amount preview.
+- The amount preview formats simple numeric values with Argentine dot thousands separators and no decimals while keeping the underlying keypad input unmasked.
 - Date key that opens an in-app calendar selector.
 - Fixed numeric keypad.
 - Brand-colored confirm action.

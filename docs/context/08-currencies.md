@@ -14,10 +14,12 @@ Implemented across `TransactionForm`, `DashboardScreen`, `ReportsScreen`, and `u
 - Dashboard summaries are grouped by currency.
 - Category, payment, and budget summaries stay currency-aware.
 - CSV export includes the original currency per transaction.
+- Visible money amounts use Argentine-style grouping with dot thousands separators and no decimals, for example `ARS 2.250.000`.
 
 ## Current policy
 
 There is no exchange-rate integration. The app keeps original transaction currencies and avoids conversion.
+Visible formatting does not change stored amounts, calculations, or CSV numeric exports.
 
 ## Known gaps
 

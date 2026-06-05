@@ -8,12 +8,15 @@ The app must support expense and income categories, with subcategories under eac
 
 Defined in `mobile/src/types.ts`:
 
-- `Category` has `id`, `name`, `type`, optional `icon`, `active`, `createdAt`, `updatedAt`.
+- `CashBox` has `id`, `name`, `active`, `createdAt`, `updatedAt`.
+- `Category` has `id`, `name`, `type`, optional `cashBoxId`, optional `icon`, `active`, `createdAt`, `updatedAt`.
 - `Subcategory` has `id`, `categoryId`, `name`, optional `icon`, `active`, `createdAt`, `updatedAt`.
 
 ## Defaults
 
 Created in `mobile/src/defaults.ts`.
+
+The source of truth for default cash boxes and the default expense category to cash box mapping is `docs/context/15-cash-box-category-map.md`.
 
 Default expense categories:
 
@@ -29,7 +32,12 @@ Default expense categories:
 - Insurance (Seguros).
 - Pets (Mascotas).
 - Personal (Personal).
+- Savings (Ahorro).
+- Investment (Inversion).
+- Charity (Caridad).
 - Other (Otros).
+
+Default cash boxes and their category assignments are defined in `docs/context/15-cash-box-category-map.md`.
 
 Default income categories:
 
@@ -52,6 +60,9 @@ Default subcategories:
 - Sports: Football (Futbol), Gym (Gimnasio).
 - Insurance: Car Insurance (Seguro auto).
 - Pets: Pet Food (Comida mascotas).
+- Savings: Reserve (Reserva).
+- Investment: Assets (Activos).
+- Charity: Donations (Donaciones).
 - Other: Interests(Intereses).
 - Salary: Payroll (Sueldo).
 - Freelance: Projects(Trabajos) .
@@ -66,6 +77,7 @@ The default seed must not include the removed drug/cannabis category or sample r
 Implemented in `SettingsScreen`:
 
 - Add and edit category, including optional icon selection, with the expense/income toggle filtering both creation type and the visible category list.
+- Expense category creation/editing includes a cash box selector; income categories do not use cash boxes.
 - Add and edit subcategory, choosing whether the parent category comes from expense or income categories; the toggle filters parent choices and visible accordions.
 - Category and subcategory creation/editing use the same compact icon picker; once an icon is selected, it collapses into a summary row with an `Edit` action.
 - Disable category.
@@ -73,6 +85,7 @@ Implemented in `SettingsScreen`:
 - Active categories are shown in forms and settings.
 - Settings shows active subcategories grouped under parent-category accordions instead of one mixed list.
 - Categories and subcategories show visually distinct list subtitles below creation forms.
+- Category rows show the selected cash box for expense categories.
 - Category UI uses explicit user-selected icons first, then lucide icons for default and keyword-matched categories. Category names are displayed smaller than the icon.
 - Subcategory UI has its own icon map and keyword fallback, so expense entry and dashboard rows can show more specific icons such as groceries, delivery, breakfast, rides, public transit, laundry, music, soccer, bike insurance, pet food, and payroll.
 
@@ -83,4 +96,5 @@ Hard delete is not exposed. Disable/delete actions are soft deletes that set `ac
 ## Known gaps
 
 - No validation prevents duplicate names.
+- Cash boxes are a default catalog only; there is no cash box create/edit screen yet.
 - No reassign flow exists for historical transactions.

@@ -10,7 +10,16 @@ export interface Category {
   id: string;
   name: string;
   type: TransactionType;
+  cashBoxId?: string;
   icon?: string;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CashBox {
+  id: string;
+  name: string;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -96,6 +105,7 @@ export interface AppSettings {
 
 export interface AppData {
   transactions: Transaction[];
+  cashBoxes: CashBox[];
   categories: Category[];
   subcategories: Subcategory[];
   paymentMethods: PaymentMethod[];
@@ -132,6 +142,20 @@ export interface CurrencySummary {
 export interface CategorySummary {
   categoryId: string;
   categoryName: string;
+  amount: number;
+  currency: string;
+}
+
+export interface CashBoxSummary {
+  cashBoxId?: string;
+  cashBoxName: string;
+  amount: number;
+  currency: string;
+}
+
+export interface PersonSummary {
+  personId?: string;
+  personName: string;
   amount: number;
   currency: string;
 }

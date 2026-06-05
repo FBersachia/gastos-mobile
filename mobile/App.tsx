@@ -5,7 +5,10 @@ import {
   useFonts,
 } from '@expo-google-fonts/poppins';
 import { StatusBar } from 'expo-status-bar';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import {
   Apple,
   BadgeDollarSign,
@@ -95,18 +98,22 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
+import { appDataFromDevFixturePayload, type DevAppDataPayload } from './src/devFixtures';
 import { loadAppData, saveAppData } from './src/storage';
 import { colors, fonts, radius, spacing } from './src/theme';
 import {
   AppData,
   AppLanguage,
   BudgetSummary,
+  CashBox,
+  CashBoxSummary,
   Category,
   CategorySummary,
   CurrencySummary,
   PaymentMethod,
   PaymentSubmethod,
   Person,
+  PersonSummary,
   Subcategory,
   TabKey,
   Transaction,
@@ -119,10 +126,13 @@ import {
   dateFromInput,
   deactivateById,
   dateInputFromDate,
+  formatAmountValue,
   formatMoney,
   generateId,
   getMonthParts,
   installmentTransactionName,
+  monthlyReportToCsv,
+  monthlyReportToHtml,
   monthLabel,
   monthStartInput,
   monthlyTransactions,
@@ -133,7 +143,9 @@ import {
   personName,
   summarizeBudgets,
   summarizeByCurrency,
+  summarizeExpensesByCashBox,
   summarizeExpensesByCategory,
+  summarizeExpensesByPerson,
   todayInput,
 } from './src/utils';
 
@@ -213,6 +225,8 @@ const translations = {
     budgets: 'Monthly budgets',
     budgetListTitle: 'Budget list',
     byCategory: 'By category',
+    byCashBox: 'By cash box',
+    byPerson: 'By assigned person',
     byPaymentSubmethod: 'By payment submethod',
     bySubcategory: 'By subcategory',
     cancel: 'Cancel',
@@ -220,6 +234,8 @@ const translations = {
     categories: 'Categories',
     categoryListTitle: 'Category list',
     categoryName: 'Category name',
+    cashBox: 'Cash box',
+    cashBoxesWithExpenses: 'cash boxes with expenses',
     changeSubcategory: 'Change subcategory',
     chooseSubcategory: 'Choose subcategory',
     closeTransactionDetail: 'Close transaction detail',
@@ -246,6 +262,14 @@ const translations = {
     edit: 'Edit',
     editBudget: 'Edit budget',
     editTransaction: 'Edit transaction',
+    exportCsv: 'Export CSV',
+    exportFailedMessage: 'The monthly report could not be exported.',
+    exportFailedTitle: 'Export failed',
+    exportPdf: 'Export PDF',
+    devFixtureLoadFailedMessage: 'Start the local fixture server or set EXPO_PUBLIC_DEV_FIXTURE_URL.',
+    devFixtureLoadFailedTitle: 'Dev data not loaded',
+    devFixtureLoadedMessage: 'June 2026 local data is ready in Reports.',
+    devFixtureLoadedTitle: 'Dev data loaded',
     expense: 'Expense',
     expenseCategory: 'Expense category',
     expenseSubcategory: 'Expense subcategory',
@@ -266,10 +290,14 @@ const translations = {
     language: 'Language',
     languageEnglish: 'English',
     languageSpanishArgentina: 'Español (Argentina)',
+    loadDevMonthlyReportFixture: 'Load June 2026 dev data',
     memo: 'Memo',
     missingFieldsMessage: 'Category and subcategory are required. Expenses also need a payment submethod.',
     missingFieldsTitle: 'Missing fields',
     moreOptions: 'More options',
+    monthlyExport: 'Monthly export',
+    monthlyExportSubtitle: 'CSV and PDF for the selected month',
+    monthlyReport: 'Monthly report',
     newCategory: 'New category',
     newMethod: 'New method',
     newPerson: 'New person',
@@ -283,6 +311,8 @@ const translations = {
     noActiveSubcategories: 'No active subcategories available',
     noActiveSubmethods: 'No active submethods.',
     noCategoryExpenses: 'No category expenses this month',
+    noCashBox: 'No cash box',
+    noCashBoxExpenses: 'No cash box expenses this month',
     noExpenses: 'No expenses this month',
     noExpensesFound: 'No expenses found',
     noInstallments: 'No active installments this month',
@@ -290,6 +320,7 @@ const translations = {
     noParentCategory: 'No parent category',
     noPaymentOptions: 'No payment options',
     noPerson: 'No person',
+    noPersonExpenses: 'No assigned person expenses this month',
     noDefaultPayment: 'No default payment selected',
     noSubcategoryExpenses: 'No subcategory expenses this month',
     noSubmethodExpenses: 'No submethod expenses this month',
@@ -303,6 +334,7 @@ const translations = {
     paymentMethods: 'Payment methods',
     paymentSubmethod: 'Payment submethod',
     people: 'People',
+    peopleWithExpenses: 'people with expenses',
     personName: 'Person name',
     previousMonth: 'Previous month',
     reports: 'Reports',
@@ -387,6 +419,8 @@ const translations = {
     budgets: 'Presupuestos mensuales',
     budgetListTitle: 'Listado de presupuestos',
     byCategory: 'Por categoría',
+    byCashBox: 'Por caja',
+    byPerson: 'Por persona asignada',
     byPaymentSubmethod: 'Por submétodo de pago',
     bySubcategory: 'Por subcategoría',
     cancel: 'Cancelar',
@@ -394,6 +428,8 @@ const translations = {
     categories: 'Categorías',
     categoryListTitle: 'Listado de categorías',
     categoryName: 'Nombre de categoría',
+    cashBox: 'Caja',
+    cashBoxesWithExpenses: 'cajas con gastos',
     changeSubcategory: 'Cambiar subcategoria',
     chooseSubcategory: 'Elegir subcategoria',
     closeTransactionDetail: 'Cerrar detalle del movimiento',
@@ -420,6 +456,14 @@ const translations = {
     edit: 'Editar',
     editBudget: 'Editar presupuesto',
     editTransaction: 'Editar movimiento',
+    exportCsv: 'Exportar CSV',
+    exportFailedMessage: 'No se pudo exportar el reporte mensual.',
+    exportFailedTitle: 'Error de exportacion',
+    exportPdf: 'Exportar PDF',
+    devFixtureLoadFailedMessage: 'Inicia el servidor local de fixture o configura EXPO_PUBLIC_DEV_FIXTURE_URL.',
+    devFixtureLoadFailedTitle: 'No se cargaron los datos dev',
+    devFixtureLoadedMessage: 'Los datos locales de junio 2026 estan listos en Reportes.',
+    devFixtureLoadedTitle: 'Datos dev cargados',
     expense: 'Gasto',
     expenseCategory: 'Categoría de gasto',
     expenseSubcategory: 'Subcategoria de gasto',
@@ -440,10 +484,14 @@ const translations = {
     language: 'Idioma',
     languageEnglish: 'English',
     languageSpanishArgentina: 'Español (Argentina)',
+    loadDevMonthlyReportFixture: 'Cargar datos dev junio 2026',
     memo: 'Nota',
     missingFieldsMessage: 'La categoría y la subcategoría son obligatorias. Los gastos también necesitan submétodo de pago.',
     missingFieldsTitle: 'Faltan datos',
     moreOptions: 'Mas opciones',
+    monthlyExport: 'Exportacion mensual',
+    monthlyExportSubtitle: 'CSV y PDF del mes seleccionado',
+    monthlyReport: 'Reporte mensual',
     newCategory: 'Nueva categoría',
     newMethod: 'Nuevo método',
     newPerson: 'Nueva persona',
@@ -457,6 +505,8 @@ const translations = {
     noActiveSubcategories: 'No hay subcategorías activas disponibles',
     noActiveSubmethods: 'No hay submétodos activos.',
     noCategoryExpenses: 'No hay gastos por categoría este mes',
+    noCashBox: 'Sin caja',
+    noCashBoxExpenses: 'No hay gastos por caja este mes',
     noExpenses: 'No hay gastos este mes',
     noExpensesFound: 'No se encontraron gastos',
     noInstallments: 'No hay cuotas activas este mes',
@@ -464,6 +514,7 @@ const translations = {
     noParentCategory: 'Sin categoría padre',
     noPaymentOptions: 'No hay opciones de pago',
     noPerson: 'Sin persona',
+    noPersonExpenses: 'No hay gastos por persona este mes',
     noDefaultPayment: 'Sin pago predeterminado',
     noSubcategoryExpenses: 'No hay gastos por subcategoría este mes',
     noSubmethodExpenses: 'No hay gastos por submétodo este mes',
@@ -477,6 +528,7 @@ const translations = {
     paymentMethods: 'Métodos de pago',
     paymentSubmethod: 'Submétodo de pago',
     people: 'Personas',
+    peopleWithExpenses: 'personas con gastos',
     personName: 'Nombre de persona',
     previousMonth: 'Mes anterior',
     reports: 'Reportes',
@@ -527,13 +579,25 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.12';
+const APP_VERSION = '1.0.13';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
+const JUNE_2026_MONTH = new Date(2026, 5, 1);
+const JUNE_2026_FIXTURE_FILE = 'monthly-report-2026-06.fixture.json';
 
 type LocalizedDefaultName = Record<AppLanguage, string>;
 
 const localeForLanguage = (language: AppLanguage): string => (language === 'es-AR' ? 'es-AR' : 'en-US');
+
+const publicEnv = (key: string): string | undefined =>
+  (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env?.[key];
+
+const devFixturesEnabled = (): boolean =>
+  __DEV__ && publicEnv('EXPO_PUBLIC_ENABLE_DEV_FIXTURES') === '1';
+
+const devFixtureUrl = (): string =>
+  publicEnv('EXPO_PUBLIC_DEV_FIXTURE_URL') ??
+  `${Platform.OS === 'android' ? 'http://10.0.2.2' : 'http://localhost'}:49206/${JUNE_2026_FIXTURE_FILE}`;
 
 const confirmDestructiveAction = ({
   title,
@@ -579,12 +643,24 @@ const defaultCategoryNames: Record<string, LocalizedDefaultName> = {
   'cat-exp-insurance': { en: 'Insurance', 'es-AR': 'Seguros' },
   'cat-exp-pets': { en: 'Pets', 'es-AR': 'Mascotas' },
   'cat-exp-personal': { en: 'Personal', 'es-AR': 'Personal' },
+  'cat-exp-savings': { en: 'Savings', 'es-AR': 'Ahorro' },
+  'cat-exp-investment': { en: 'Investment', 'es-AR': 'Inversion' },
+  'cat-exp-charity': { en: 'Charity', 'es-AR': 'Caridad' },
   'cat-exp-other': { en: 'Other', 'es-AR': 'Otros' },
   'cat-inc-salary': { en: 'Salary', 'es-AR': 'Salario' },
   'cat-inc-freelance': { en: 'Freelance', 'es-AR': 'Prestaciones' },
   'cat-inc-sales': { en: 'Sales', 'es-AR': 'Ventas' },
   'cat-inc-refunds': { en: 'Refunds', 'es-AR': 'Reembolsos' },
   'cat-inc-other': { en: 'Other', 'es-AR': 'Otros' },
+};
+
+const defaultCashBoxNames: Record<string, LocalizedDefaultName> = {
+  'cashbox-basic': { en: 'Basic', 'es-AR': 'Basico' },
+  'cashbox-fun': { en: 'Fun', 'es-AR': 'Diversion' },
+  'cashbox-education': { en: 'Education', 'es-AR': 'Educacion' },
+  'cashbox-savings': { en: 'Savings', 'es-AR': 'Ahorro' },
+  'cashbox-investment': { en: 'Investment', 'es-AR': 'Inversion' },
+  'cashbox-charity': { en: 'Charity', 'es-AR': 'Caridad' },
 };
 
 const defaultSubcategoryNames: Record<string, LocalizedDefaultName> = {
@@ -619,6 +695,9 @@ const defaultSubcategoryNames: Record<string, LocalizedDefaultName> = {
   'sub-sports-gym': { en: 'Gym', 'es-AR': 'Gimnasio' },
   'sub-insurance-car': { en: 'Car Insurance', 'es-AR': 'Seguro auto' },
   'sub-pets-food': { en: 'Pet Food', 'es-AR': 'Comida mascotas' },
+  'sub-savings-reserve': { en: 'Reserve', 'es-AR': 'Reserva' },
+  'sub-investment-assets': { en: 'Assets', 'es-AR': 'Activos' },
+  'sub-charity-donations': { en: 'Donations', 'es-AR': 'Donaciones' },
   'sub-personal-drugs': { en: 'Drugs', 'es-AR': 'Drogas' },
   'sub-other-interests': { en: 'Interests', 'es-AR': 'Intereses' },
   'sub-income-payroll': { en: 'Payroll', 'es-AR': 'Sueldo' },
@@ -667,6 +746,9 @@ const categoryIconMap: Record<string, IconComponent> = {
   'cat-exp-insurance': ShieldCheck,
   'cat-exp-pets': PawPrint,
   'cat-exp-personal': UserRound,
+  'cat-exp-savings': Banknote,
+  'cat-exp-investment': BadgeDollarSign,
+  'cat-exp-charity': HandCoins,
   'cat-exp-other': MoreHorizontal,
   'cat-inc-salary': Banknote,
   'cat-inc-freelance': Briefcase,
@@ -707,6 +789,9 @@ const subcategoryIconMap: Record<string, IconComponent> = {
   'sub-sports-gym': Dumbbell,
   'sub-insurance-car': ShieldCheck,
   'sub-pets-food': Bone,
+  'sub-savings-reserve': Banknote,
+  'sub-investment-assets': BadgeDollarSign,
+  'sub-charity-donations': HandCoins,
   'sub-personal-drugs': Pill,
   'sub-other-interests': MoreHorizontal,
   'sub-income-payroll': BadgeDollarSign,
@@ -729,7 +814,19 @@ const categoryAccentMap: Record<string, string> = {
   'cat-exp-insurance': '#6A8FD8',
   'cat-exp-pets': '#8CCF5F',
   'cat-exp-personal': '#8F75D6',
+  'cat-exp-savings': '#51C7AE',
+  'cat-exp-investment': '#6A8FD8',
+  'cat-exp-charity': '#F0B84D',
   'cat-exp-other': '#7EC8B4',
+};
+
+const cashBoxIconMap: Record<string, IconComponent> = {
+  'cashbox-basic': Home,
+  'cashbox-fun': Film,
+  'cashbox-education': GraduationCap,
+  'cashbox-savings': Banknote,
+  'cashbox-investment': BadgeDollarSign,
+  'cashbox-charity': HandCoins,
 };
 
 const categoryAccentPalette = ['#51C7AE', '#55BBD1', '#8CCF5F', '#F0B84D', '#8F75D6'];
@@ -759,6 +856,9 @@ const categoryIconRules: Array<{ keywords: string[]; Icon: IconComponent }> = [
   { keywords: ['insurance', 'bike'], Icon: ShieldCheck },
   { keywords: ['dog', 'pet food'], Icon: Bone },
   { keywords: ['pet', 'dog'], Icon: PawPrint },
+  { keywords: ['saving', 'savings', 'reserve', 'ahorro'], Icon: Banknote },
+  { keywords: ['investment', 'asset', 'invest'], Icon: BadgeDollarSign },
+  { keywords: ['charity', 'donation', 'donate'], Icon: HandCoins },
   { keywords: ['personal', 'ana'], Icon: UserRound },
   { keywords: ['salary', 'payroll'], Icon: Banknote },
   { keywords: ['freelance', 'project', 'work'], Icon: Briefcase },
@@ -796,6 +896,9 @@ const subcategoryIconRules: Array<{ keywords: string[]; Icon: IconComponent }> =
   { keywords: ['soccer', 'football'], Icon: Trophy },
   { keywords: ['car insurance', 'insurance'], Icon: ShieldCheck },
   { keywords: ['pet food'], Icon: Bone },
+  { keywords: ['saving', 'savings', 'reserve', 'ahorro'], Icon: Banknote },
+  { keywords: ['investment', 'asset', 'invest'], Icon: BadgeDollarSign },
+  { keywords: ['charity', 'donation', 'donate'], Icon: HandCoins },
   { keywords: ['drug', 'cannabis'], Icon: Pill },
   { keywords: ['interest'], Icon: MoreHorizontal },
   { keywords: ['payroll', 'salary'], Icon: BadgeDollarSign },
@@ -912,6 +1015,14 @@ const getSubcategoryIcon = (subcategory?: Subcategory, category?: Category): Ico
   return rule ? rule.Icon : getCategoryIcon(category);
 };
 
+const getCashBoxIcon = (cashBox?: CashBox): IconComponent => {
+  if (!cashBox) {
+    return Package;
+  }
+
+  return cashBoxIconMap[cashBox.id] ?? Package;
+};
+
 const getCategoryAccentColor = (category?: Category): string => {
   if (!category) {
     return categoryAccentPalette[0];
@@ -996,6 +1107,22 @@ const evaluateAmountExpression = (expression: string): number => {
   return terms.reduce((total, term) => total + Number(term), 0);
 };
 
+const formatAmountPreview = (value: string): string => {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '0';
+  }
+
+  if (/[+-]/.test(trimmed) || /[.,]$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const amount = evaluateAmountExpression(trimmed);
+
+  return Number.isFinite(amount) ? formatAmountValue(amount) : trimmed;
+};
+
 const groupTransactionsByDate = (transactions: Transaction[]): TransactionDayGroup[] => {
   const groups = new Map<
     string,
@@ -1063,11 +1190,6 @@ const formatMovementTotals = (totals: TransactionDayGroup['totalsByCurrency']): 
     .filter((item): item is string => Boolean(item))
     .join(' | ');
 
-const formatDashboardMoney = (amount: number, currency: string): string =>
-  `${currency} ${Math.round(amount).toLocaleString('en', {
-    maximumFractionDigits: 0,
-  })}`;
-
 const displayDefaultName = <T extends { id: string; name: string }>(
   item: T | undefined,
   defaults: Record<string, LocalizedDefaultName>,
@@ -1085,6 +1207,9 @@ const displayDefaultName = <T extends { id: string; name: string }>(
 const displayCategoryName = (category: Category | undefined, language: AppLanguage): string | undefined =>
   displayDefaultName(category, defaultCategoryNames, language);
 
+const displayCashBoxName = (cashBox: CashBox | undefined, language: AppLanguage): string | undefined =>
+  displayDefaultName(cashBox, defaultCashBoxNames, language);
+
 const displaySubcategoryName = (subcategory: Subcategory | undefined, language: AppLanguage): string | undefined =>
   displayDefaultName(subcategory, defaultSubcategoryNames, language);
 
@@ -1099,6 +1224,12 @@ const displayPaymentSubmethodName = (
 const categoryDisplayName = (data: AppData, categoryId?: string): string | undefined =>
   displayCategoryName(
     categoryId ? data.categories.find((category) => category.id === categoryId) : undefined,
+    data.settings.language,
+  );
+
+const cashBoxDisplayName = (data: AppData, cashBoxId?: string): string | undefined =>
+  displayCashBoxName(
+    cashBoxId ? data.cashBoxes.find((cashBox) => cashBox.id === cashBoxId) : undefined,
     data.settings.language,
   );
 
@@ -1142,6 +1273,9 @@ const compareDisplayName =
 
 const compareCategoryDisplayName = (language: AppLanguage) =>
   compareDisplayName<Category>(defaultCategoryNames, language);
+
+const compareCashBoxDisplayName = (language: AppLanguage) =>
+  compareDisplayName<CashBox>(defaultCashBoxNames, language);
 
 const compareSubcategoryDisplayName = (language: AppLanguage) =>
   compareDisplayName<Subcategory>(defaultSubcategoryNames, language);
@@ -1527,7 +1661,7 @@ function AppRoot() {
     }));
   };
 
-  const handleAddCategory = (type: TransactionType, name: string, icon?: string) => {
+  const handleAddCategory = (type: TransactionType, name: string, icon?: string, cashBoxId?: string) => {
     const trimmed = name.trim();
     if (!trimmed) {
       return;
@@ -1543,6 +1677,7 @@ function AppRoot() {
           id: generateId(`cat-${type}`),
           name: trimmed,
           type,
+          cashBoxId: type === 'expense' ? cashBoxId : undefined,
           icon,
           active: true,
           createdAt: timestamp,
@@ -1552,7 +1687,13 @@ function AppRoot() {
     }));
   };
 
-  const handleUpdateCategory = (categoryId: string, type: TransactionType, name: string, icon?: string) => {
+  const handleUpdateCategory = (
+    categoryId: string,
+    type: TransactionType,
+    name: string,
+    icon?: string,
+    cashBoxId?: string,
+  ) => {
     const trimmed = name.trim();
     if (!trimmed) {
       return;
@@ -1566,6 +1707,7 @@ function AppRoot() {
               ...category,
               type,
               name: trimmed,
+              cashBoxId: type === 'expense' ? cashBoxId : undefined,
               icon,
               updatedAt: new Date(),
             }
@@ -1865,6 +2007,30 @@ function AppRoot() {
   const selectedTransaction = data.transactions.find((transaction) => transaction.id === selectedTransactionId);
   const editingTransaction = data.transactions.find((transaction) => transaction.id === editingTransactionId);
   const t = getTranslator(data.settings.language);
+  const isDevFixturesEnabled = devFixturesEnabled();
+  const handleLoadDevMonthlyReportFixture = isDevFixturesEnabled
+    ? async () => {
+        try {
+          const response = await fetch(devFixtureUrl());
+
+          if (!response.ok) {
+            throw new Error(`Fixture request failed with status ${response.status}`);
+          }
+
+          const payload = (await response.json()) as DevAppDataPayload;
+          const next = appDataFromDevFixturePayload(payload);
+
+          await saveAppData(next);
+          setData(next);
+          setSelectedMonth(JUNE_2026_MONTH);
+          setActiveTab('reports');
+          Alert.alert(t('devFixtureLoadedTitle'), t('devFixtureLoadedMessage'));
+        } catch (error) {
+          console.warn(error);
+          Alert.alert(t('devFixtureLoadFailedTitle'), t('devFixtureLoadFailedMessage'));
+        }
+      }
+    : undefined;
   const appShell = (
     <View style={styles.appShell}>
       {activeTab === 'transactions' ? null : (
@@ -1907,7 +2073,9 @@ function AppRoot() {
             t={t}
             selectedMonth={selectedMonth}
             deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
+            devFixturesEnabled={isDevFixturesEnabled}
             onBackToDashboard={() => setActiveTab('dashboard')}
+            onLoadDevMonthlyReportFixture={handleLoadDevMonthlyReportFixture}
             onSaveBudget={handleSaveBudget}
             onDeleteBudget={handleDeleteBudget}
             onSetDefaultCurrency={handleSetDefaultCurrency}
@@ -2438,7 +2606,7 @@ function TransactionForm({
     [currency, data.settings.defaultCurrency, data.transactions],
   );
   const selectedInstallmentCount = installmentsEnabled ? Number.parseInt(installmentCount, 10) : 1;
-  const amountDisplay = amount || '0';
+  const amountDisplay = formatAmountPreview(amount);
   const selectedPersonName = personDisplayName(data, assignedPersonId);
   const optionSummary = [
     normalizeCurrency(currency),
@@ -3474,7 +3642,10 @@ function TransactionDetailLine({ label, value }: { label: string; value: string 
   );
 }
 
-type ReportSection = 'menu' | 'subpaymethod' | 'category' | 'subcategory' | 'installments';
+const UNASSIGNED_CASH_BOX_REPORT_ID = '__unassigned_cash_box__';
+const UNASSIGNED_PERSON_REPORT_ID = '__unassigned_person__';
+
+type ReportSection = 'menu' | 'subpaymethod' | 'category' | 'cashbox' | 'person' | 'subcategory' | 'installments' | 'export';
 
 type SelectedReportItem = {
   label: string;
@@ -3506,6 +3677,16 @@ function ReportsScreen({
 
   const categorySummaries = useMemo(
     () => summarizeExpensesByCategory(data, transactions),
+    [data, transactions],
+  );
+
+  const cashBoxSummaries = useMemo<CashBoxSummary[]>(
+    () => summarizeExpensesByCashBox(data, transactions),
+    [data, transactions],
+  );
+
+  const personSummaries = useMemo<PersonSummary[]>(
+    () => summarizeExpensesByPerson(data, transactions),
     [data, transactions],
   );
 
@@ -3593,17 +3774,65 @@ function ReportsScreen({
     if (!selectedItem) return [];
     const base = selectedItem.type === 'installments' ? data.transactions : transactions;
     return base.filter((t) => {
+      if (selectedItem.type === 'cashbox') {
+        const category = data.categories.find((item) => item.id === t.categoryId);
+        const cashBoxId = category?.cashBoxId ?? UNASSIGNED_CASH_BOX_REPORT_ID;
+        return cashBoxId === selectedItem.id && t.currency === selectedItem.currency;
+      }
       if (selectedItem.type === 'category') return t.categoryId === selectedItem.id && t.currency === selectedItem.currency;
+      if (selectedItem.type === 'person') {
+        const personId = t.assignedPersonId ?? UNASSIGNED_PERSON_REPORT_ID;
+        return t.type === 'expense' && personId === selectedItem.id && t.currency === selectedItem.currency;
+      }
       if (selectedItem.type === 'subcategory') return t.subcategoryId === selectedItem.id && t.currency === selectedItem.currency;
       if (selectedItem.type === 'subpaymethod') return t.paymentSubmethodId === selectedItem.id && t.currency === selectedItem.currency;
       if (selectedItem.type === 'installments') return t.installmentGroupId === selectedItem.id;
       return false;
     });
-  }, [selectedItem, transactions, data.transactions]);
+  }, [selectedItem, transactions, data.categories, data.transactions]);
 
   const drillGroups = useMemo(() => groupTransactionsByDate(drillTransactions), [drillTransactions]);
 
   const toMonth = (month: Date) => monthLabel(month, localeForLanguage(data.settings.language));
+  const exportMonthlyReport = async (format: 'csv' | 'pdf') => {
+    try {
+      const exportDirectory = FileSystem.documentDirectory ?? FileSystem.cacheDirectory;
+      const sharingAvailable = await Sharing.isAvailableAsync();
+
+      if (!exportDirectory || !sharingAvailable) {
+        throw new Error('File sharing is not available on this device.');
+      }
+
+      const { month, year } = getMonthParts(selectedMonth);
+      const monthSlug = `${year}-${String(month).padStart(2, '0')}`;
+      const title = `${t('monthlyReport')} - ${toMonth(selectedMonth)}`;
+
+      if (format === 'csv') {
+        const uri = `${exportDirectory}monthly-report-${monthSlug}.csv`;
+        await FileSystem.writeAsStringAsync(uri, monthlyReportToCsv(data, transactions, data.settings.language), {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+        await Sharing.shareAsync(uri, {
+          dialogTitle: title,
+          mimeType: 'text/csv',
+        });
+        return;
+      }
+
+      const printed = await Print.printToFileAsync({
+        html: monthlyReportToHtml(data, transactions, title, data.settings.language),
+      });
+      const uri = `${exportDirectory}monthly-report-${monthSlug}.pdf`;
+      await FileSystem.copyAsync({ from: printed.uri, to: uri });
+      await Sharing.shareAsync(uri, {
+        dialogTitle: title,
+        mimeType: 'application/pdf',
+      });
+    } catch (error) {
+      console.warn(error);
+      Alert.alert(t('exportFailedTitle'), t('exportFailedMessage'));
+    }
+  };
 
   const goBack = () => {
     if (selectedItem) { setSelectedItem(null); return; }
@@ -3613,9 +3842,12 @@ function ReportsScreen({
   const reportTitle: Record<ReportSection, string> = {
     menu: '',
     subpaymethod: t('byPaymentSubmethod'),
+    cashbox: t('byCashBox'),
     category: t('byCategory'),
+    person: t('byPerson'),
     subcategory: t('bySubcategory'),
     installments: t('installments'),
+    export: t('monthlyExport'),
   };
 
   useEffect(() => {
@@ -3690,10 +3922,22 @@ function ReportsScreen({
             onPress={() => setActiveReport('subpaymethod')}
           />
           <SettingsMenuButton
+            title={t('byCashBox')}
+            subtitle={`${cashBoxSummaries.length} ${t('cashBoxesWithExpenses')}`}
+            Icon={Package}
+            onPress={() => setActiveReport('cashbox')}
+          />
+          <SettingsMenuButton
             title={t('byCategory')}
             subtitle={`${categorySummaries.length} ${t('categoriesWithExpenses')}`}
             Icon={List}
             onPress={() => setActiveReport('category')}
+          />
+          <SettingsMenuButton
+            title={t('byPerson')}
+            subtitle={`${personSummaries.length} ${t('peopleWithExpenses')}`}
+            Icon={UserRound}
+            onPress={() => setActiveReport('person')}
           />
           <SettingsMenuButton
             title={t('bySubcategory')}
@@ -3706,6 +3950,12 @@ function ReportsScreen({
             subtitle={`${installmentGroups.length} ${t('activeInstallmentPlans')}`}
             Icon={Repeat}
             onPress={() => setActiveReport('installments')}
+          />
+          <SettingsMenuButton
+            title={t('monthlyExport')}
+            subtitle={t('monthlyExportSubtitle')}
+            Icon={Save}
+            onPress={() => setActiveReport('export')}
           />
         </View>
       </ScreenScroll>
@@ -3739,6 +3989,46 @@ function ReportsScreen({
     );
   }
 
+  if (activeReport === 'cashbox') {
+    return (
+      <ScreenScroll>
+        <DetailHeader title={reportTitle.cashbox} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
+        {cashBoxSummaries.length ? (
+          cashBoxSummaries.map((summary) => {
+            const cashBox = data.cashBoxes.find((item) => item.id === summary.cashBoxId);
+            const CashBoxIcon = getCashBoxIcon(cashBox);
+            const cashBoxLabel = cashBoxDisplayName(data, summary.cashBoxId) ?? t('noCashBox');
+
+            return (
+              <Pressable
+                key={`${summary.cashBoxId ?? UNASSIGNED_CASH_BOX_REPORT_ID}-${summary.currency}`}
+                accessibilityRole="button"
+                onPress={() =>
+                  setSelectedItem({
+                    type: 'cashbox',
+                    id: summary.cashBoxId ?? UNASSIGNED_CASH_BOX_REPORT_ID,
+                    currency: summary.currency,
+                    label: cashBoxLabel,
+                  })
+                }
+                style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
+              >
+                <View style={styles.managementIconBadge}>
+                  <CashBoxIcon color={colors.primary} size={18} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.rowTitle, styles.reportRowName]} numberOfLines={2}>{cashBoxLabel}</Text>
+                <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(summary.amount, summary.currency)}</Text>
+              </Pressable>
+            );
+          })
+        ) : (
+          <EmptyState title={t('noCashBoxExpenses')} />
+        )}
+      </ScreenScroll>
+    );
+  }
+
   if (activeReport === 'category') {
     return (
       <ScreenScroll>
@@ -3760,6 +4050,44 @@ function ReportsScreen({
           })
         ) : (
           <EmptyState title={t('noCategoryExpenses')} />
+        )}
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'person') {
+    return (
+      <ScreenScroll>
+        <DetailHeader title={reportTitle.person} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
+        {personSummaries.length ? (
+          personSummaries.map((summary) => {
+            const personLabel = summary.personId ? personDisplayName(data, summary.personId) ?? summary.personName : t('noPerson');
+
+            return (
+              <Pressable
+                key={`${summary.personId ?? UNASSIGNED_PERSON_REPORT_ID}-${summary.currency}`}
+                accessibilityRole="button"
+                onPress={() =>
+                  setSelectedItem({
+                    type: 'person',
+                    id: summary.personId ?? UNASSIGNED_PERSON_REPORT_ID,
+                    currency: summary.currency,
+                    label: personLabel,
+                  })
+                }
+                style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
+              >
+                <View style={styles.managementIconBadge}>
+                  <UserRound color={colors.primary} size={18} strokeWidth={2.2} />
+                </View>
+                <Text style={[styles.rowTitle, styles.reportRowName]} numberOfLines={2}>{personLabel}</Text>
+                <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>{formatMoney(summary.amount, summary.currency)}</Text>
+              </Pressable>
+            );
+          })
+        ) : (
+          <EmptyState title={t('noPersonExpenses')} />
         )}
       </ScreenScroll>
     );
@@ -3798,6 +4126,32 @@ function ReportsScreen({
         ) : (
           <EmptyState title={t('noSubcategoryExpenses')} />
         )}
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'export') {
+    return (
+      <ScreenScroll>
+        <DetailHeader title={reportTitle.export} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
+        <View style={styles.exportActions}>
+          <AppButton
+            label={t('exportCsv')}
+            Icon={Save}
+            onPress={() => {
+              void exportMonthlyReport('csv');
+            }}
+          />
+          <AppButton
+            label={t('exportPdf')}
+            Icon={Receipt}
+            variant="secondary"
+            onPress={() => {
+              void exportMonthlyReport('pdf');
+            }}
+          />
+        </View>
       </ScreenScroll>
     );
   }
@@ -3842,7 +4196,9 @@ function SettingsScreen({
   t,
   selectedMonth,
   deferHardwareBack,
+  devFixturesEnabled,
   onBackToDashboard,
+  onLoadDevMonthlyReportFixture,
   onSaveBudget,
   onDeleteBudget,
   onSetDefaultCurrency,
@@ -3869,15 +4225,23 @@ function SettingsScreen({
   t: Translator;
   selectedMonth: Date;
   deferHardwareBack: boolean;
+  devFixturesEnabled: boolean;
   onBackToDashboard: () => void;
+  onLoadDevMonthlyReportFixture?: () => void;
   onSaveBudget: (subcategoryId: string, amount: number, currency: string, budgetId?: string) => void;
   onDeleteBudget: (budgetId: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
   onSetDefaultPaymentSubmethod: (paymentSubmethodId: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
   onSetBiometricLockEnabled: (enabled: boolean) => void;
-  onAddCategory: (type: TransactionType, name: string, icon?: string) => void;
-  onUpdateCategory: (categoryId: string, type: TransactionType, name: string, icon?: string) => void;
+  onAddCategory: (type: TransactionType, name: string, icon?: string, cashBoxId?: string) => void;
+  onUpdateCategory: (
+    categoryId: string,
+    type: TransactionType,
+    name: string,
+    icon?: string,
+    cashBoxId?: string,
+  ) => void;
   onAddSubcategory: (categoryId: string, name: string, icon?: string) => void;
   onUpdateSubcategory: (subcategoryId: string, categoryId: string, name: string, icon?: string) => void;
   onDisableCategory: (categoryId: string) => void;
@@ -3903,6 +4267,9 @@ function SettingsScreen({
   const [editingBudgetId, setEditingBudgetId] = useState<string | undefined>();
   const [categoryType, setCategoryType] = useState<TransactionType>('expense');
   const [categoryNameInput, setCategoryNameInput] = useState('');
+  const [categoryCashBoxId, setCategoryCashBoxId] = useState(
+    data.cashBoxes.find((cashBox) => cashBox.active)?.id ?? '',
+  );
   const [categoryIconInput, setCategoryIconInput] = useState<string | undefined>();
   const [categoryIconPickerOpen, setCategoryIconPickerOpen] = useState(true);
   const [subcategoryType, setSubcategoryType] = useState<TransactionType>('expense');
@@ -3923,6 +4290,7 @@ function SettingsScreen({
   const [editingCategoryId, setEditingCategoryId] = useState<string | undefined>();
   const [editingCategoryName, setEditingCategoryName] = useState('');
   const [editingCategoryType, setEditingCategoryType] = useState<TransactionType>('expense');
+  const [editingCategoryCashBoxId, setEditingCategoryCashBoxId] = useState('');
   const [editingCategoryIcon, setEditingCategoryIcon] = useState<string | undefined>();
   const [editingCategoryIconPickerOpen, setEditingCategoryIconPickerOpen] = useState(false);
   const [editingSubcategoryId, setEditingSubcategoryId] = useState<string | undefined>();
@@ -3949,6 +4317,14 @@ function SettingsScreen({
         .sort(compareCategoryDisplayName(data.settings.language)),
     [data.categories, data.settings.language],
   );
+  const activeCashBoxes = useMemo(
+    () =>
+      data.cashBoxes
+        .filter((cashBox) => cashBox.active)
+        .sort(compareCashBoxDisplayName(data.settings.language)),
+    [data.cashBoxes, data.settings.language],
+  );
+  const defaultActiveCashBoxId = activeCashBoxes[0]?.id ?? '';
   const expenseCategories = useMemo(
     () => activeCategories.filter((category) => category.type === 'expense'),
     [activeCategories],
@@ -4162,10 +4538,32 @@ function SettingsScreen({
     }
   }, [editingBudget, editingBudgetId]);
 
+  useEffect(() => {
+    if (
+      categoryType === 'expense' &&
+      defaultActiveCashBoxId &&
+      !activeCashBoxes.some((cashBox) => cashBox.id === categoryCashBoxId)
+    ) {
+      setCategoryCashBoxId(defaultActiveCashBoxId);
+    }
+  }, [activeCashBoxes, categoryCashBoxId, categoryType, defaultActiveCashBoxId]);
+
+  useEffect(() => {
+    if (
+      editingCategoryId &&
+      editingCategoryType === 'expense' &&
+      defaultActiveCashBoxId &&
+      !activeCashBoxes.some((cashBox) => cashBox.id === editingCategoryCashBoxId)
+    ) {
+      setEditingCategoryCashBoxId(defaultActiveCashBoxId);
+    }
+  }, [activeCashBoxes, defaultActiveCashBoxId, editingCategoryCashBoxId, editingCategoryId, editingCategoryType]);
+
   const startCategoryEdit = (category: Category) => {
     setEditingCategoryId(category.id);
     setEditingCategoryName(category.name);
     setEditingCategoryType(category.type);
+    setEditingCategoryCashBoxId(category.cashBoxId ?? defaultActiveCashBoxId);
     setEditingCategoryIcon(category.icon);
     setEditingCategoryIconPickerOpen(!category.icon);
   };
@@ -4174,12 +4572,18 @@ function SettingsScreen({
     setEditingCategoryId(undefined);
     setEditingCategoryName('');
     setEditingCategoryType('expense');
+    setEditingCategoryCashBoxId('');
     setEditingCategoryIcon(undefined);
     setEditingCategoryIconPickerOpen(false);
   };
 
   const handleCategoryTypeChange = (next: TransactionType) => {
     setCategoryType(next);
+    if (next === 'expense' && defaultActiveCashBoxId) {
+      setCategoryCashBoxId((current) =>
+        activeCashBoxes.some((cashBox) => cashBox.id === current) ? current : defaultActiveCashBoxId,
+      );
+    }
     clearCategoryEdit();
   };
 
@@ -4188,7 +4592,13 @@ function SettingsScreen({
       return;
     }
 
-    onUpdateCategory(editingCategoryId, editingCategoryType, editingCategoryName, editingCategoryIcon);
+    onUpdateCategory(
+      editingCategoryId,
+      editingCategoryType,
+      editingCategoryName,
+      editingCategoryIcon,
+      editingCategoryType === 'expense' ? editingCategoryCashBoxId || defaultActiveCashBoxId : undefined,
+    );
     clearCategoryEdit();
   };
 
@@ -4498,7 +4908,13 @@ function SettingsScreen({
         </View>
       ) : null}
 
-      {activeSettingsSection === 'about' ? <AboutPanel t={t} /> : null}
+      {activeSettingsSection === 'about' ? (
+        <AboutPanel
+          t={t}
+          devFixturesEnabled={devFixturesEnabled}
+          onLoadDevMonthlyReportFixture={onLoadDevMonthlyReportFixture}
+        />
+      ) : null}
 
       {activeSettingsSection === 'budgets' ? (
         <View style={styles.formPanel}>
@@ -4631,6 +5047,24 @@ function SettingsScreen({
             style={styles.input}
           />
         </Field>
+        {categoryType === 'expense' ? (
+          <Field label={t('cashBox')}>
+            {activeCashBoxes.length ? (
+              <View style={styles.chipRow}>
+                {activeCashBoxes.map((cashBox) => (
+                  <Chip
+                    key={cashBox.id}
+                    label={displayCashBoxName(cashBox, data.settings.language) ?? cashBox.name}
+                    selected={categoryCashBoxId === cashBox.id}
+                    onPress={() => setCategoryCashBoxId(cashBox.id)}
+                  />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.rowMeta}>{t('noCashBox')}</Text>
+            )}
+          </Field>
+        ) : null}
         <Field label={t('icon')}>
           <IconPickerField
             selectedIconKey={categoryIconInput}
@@ -4644,8 +5078,14 @@ function SettingsScreen({
           label={t('addCategory')}
           Icon={Plus}
           onPress={() => {
-            onAddCategory(categoryType, categoryNameInput, categoryIconInput);
+            onAddCategory(
+              categoryType,
+              categoryNameInput,
+              categoryIconInput,
+              categoryType === 'expense' ? categoryCashBoxId || defaultActiveCashBoxId : undefined,
+            );
             setCategoryNameInput('');
+            setCategoryCashBoxId(defaultActiveCashBoxId);
             setCategoryIconInput(undefined);
             setCategoryIconPickerOpen(true);
           }}
@@ -4657,6 +5097,7 @@ function SettingsScreen({
           <View key={category.id} style={styles.managementEditGroup}>
             <CategoryManagementRow
               category={category}
+              cashBox={data.cashBoxes.find((cashBox) => cashBox.id === category.cashBoxId)}
               t={t}
               language={data.settings.language}
               onEdit={() => startCategoryEdit(category)}
@@ -4668,7 +5109,12 @@ function SettingsScreen({
                   <Chip
                     label={t('expense')}
                     selected={editingCategoryType === 'expense'}
-                    onPress={() => setEditingCategoryType('expense')}
+                    onPress={() => {
+                      setEditingCategoryType('expense');
+                      setEditingCategoryCashBoxId((current) =>
+                        activeCashBoxes.some((cashBox) => cashBox.id === current) ? current : defaultActiveCashBoxId,
+                      );
+                    }}
                   />
                   <Chip
                     label={t('income')}
@@ -4685,6 +5131,24 @@ function SettingsScreen({
                     style={styles.input}
                   />
                 </Field>
+                {editingCategoryType === 'expense' ? (
+                  <Field label={t('cashBox')}>
+                    {activeCashBoxes.length ? (
+                      <View style={styles.chipRow}>
+                        {activeCashBoxes.map((cashBox) => (
+                          <Chip
+                            key={cashBox.id}
+                            label={displayCashBoxName(cashBox, data.settings.language) ?? cashBox.name}
+                            selected={editingCategoryCashBoxId === cashBox.id}
+                            onPress={() => setEditingCategoryCashBoxId(cashBox.id)}
+                          />
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.rowMeta}>{t('noCashBox')}</Text>
+                    )}
+                  </Field>
+                ) : null}
                 <Field label={t('icon')}>
                   <IconPickerField
                     selectedIconKey={editingCategoryIcon}
@@ -5156,7 +5620,15 @@ function SettingsScreen({
   );
 }
 
-function AboutPanel({ t }: { t: Translator }) {
+function AboutPanel({
+  t,
+  devFixturesEnabled,
+  onLoadDevMonthlyReportFixture,
+}: {
+  t: Translator;
+  devFixturesEnabled: boolean;
+  onLoadDevMonthlyReportFixture?: () => void;
+}) {
   return (
     <View style={styles.aboutPanel}>
       <View style={styles.aboutHero}>
@@ -5187,6 +5659,15 @@ function AboutPanel({ t }: { t: Translator }) {
         <Text style={styles.aboutValue}>{APP_VERSION}</Text>
       </View>
 
+      {devFixturesEnabled && onLoadDevMonthlyReportFixture ? (
+        <AppButton
+          label={t('loadDevMonthlyReportFixture')}
+          Icon={RefreshCcw}
+          variant="secondary"
+          onPress={onLoadDevMonthlyReportFixture}
+        />
+      ) : null}
+
       <AboutLegalSection title={t('termsTitle')} body={t('termsBody')} />
       <AboutLegalSection title={t('privacyTitle')} body={t('privacyBody')} />
     </View>
@@ -5205,9 +5686,9 @@ function AboutLegalSection({ title, body }: { title: string; body: string }) {
 function DashboardSummaryCard({ summary, t }: { summary: CurrencySummary; t: Translator }) {
   const { isCompact } = useResponsive();
   const metrics = [
-    { label: t('income'), value: formatDashboardMoney(summary.income, summary.currency) },
-    { label: t('expenses'), value: formatDashboardMoney(summary.expenses, summary.currency) },
-    { label: t('balance'), value: formatDashboardMoney(summary.balance, summary.currency) },
+    { label: t('income'), value: formatMoney(summary.income, summary.currency) },
+    { label: t('expenses'), value: formatMoney(summary.expenses, summary.currency) },
+    { label: t('balance'), value: formatMoney(summary.balance, summary.currency) },
   ];
 
   return (
@@ -5428,18 +5909,21 @@ function BudgetStatusRow({
 
 function CategoryManagementRow({
   category,
+  cashBox,
   t,
   language,
   onEdit,
   onDisable,
 }: {
   category: Category;
+  cashBox?: CashBox;
   t: Translator;
   language: AppLanguage;
   onEdit: () => void;
   onDisable: () => void;
 }) {
   const { isCompact } = useResponsive();
+  const cashBoxLabel = category.type === 'expense' ? displayCashBoxName(cashBox, language) : undefined;
 
   return (
     <View style={[styles.managementRow, isCompact ? styles.managementRowCompact : null]}>
@@ -5449,7 +5933,11 @@ function CategoryManagementRow({
           <Text style={styles.categoryRowTitle} numberOfLines={2}>
             {displayCategoryName(category, language)}
           </Text>
-          <Text style={styles.rowMeta}>{category.type === 'expense' ? t('expense') : t('income')}</Text>
+          <Text style={styles.rowMeta}>
+            {category.type === 'expense'
+              ? `${t('expense')} - ${cashBoxLabel ?? t('noCashBox')}`
+              : t('income')}
+          </Text>
         </View>
       </View>
       <View style={[styles.managementActions, isCompact ? styles.managementActionsCompact : null]}>
@@ -7271,6 +7759,10 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     justifyContent: 'flex-end',
+  },
+  exportActions: {
+    alignItems: 'stretch',
+    gap: spacing.sm,
   },
   budgetSubcategoryGrid: {
     paddingHorizontal: 0,

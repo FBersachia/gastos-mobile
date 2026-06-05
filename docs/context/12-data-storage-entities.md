@@ -13,6 +13,7 @@ Implemented in `mobile/src/storage.ts`.
 - Persisted shape: one JSON object equivalent to `AppData`, with `Date` fields serialized as strings.
 - `loadAppData` returns defaults when no data exists.
 - `withDefaults` merges missing stored sections with default data.
+- `withDefaults` tolerates older stored data without a `cashBoxes` section and restores default expense-category `cashBoxId` values when legacy categories are missing them.
 - `withDefaults` tolerates older stored data without a `people` section by defaulting it to an empty array.
 - `withDefaults` tolerates older settings without `defaultPaymentSubmethodId` and resolves the configured default to an active payment submethod when possible.
 - `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
@@ -21,17 +22,20 @@ Implemented in `mobile/src/storage.ts`.
 - `loadAppData` migrates legacy transaction text by moving stored `description` into `name` when `name` is missing, leaving `description` empty.
 - `saveAppData` writes the full app data object after mutations and serializes dates before JSON storage.
 
-Current seed note:
+Current default data note:
 
-- Defaults are loaded from the May 2026 sample dataset in `mobile/src/sampleData.ts`.
-- The seed expands the CSV row marked `6cuotas` into six monthly installment transactions.
-- The default seed excludes the removed drug/cannabis subcategory and related sample rows.
+- First-run defaults are created by `mobile/src/defaults.ts`.
+- Production defaults use `mobile/src/sampleData.ts` only as the source for built-in catalogs and settings.
+- First-run defaults must keep user-entered data clean: `transactions: []` and `budgets: []`.
+- The May 2026 rows in `mobile/src/sampleData.ts` are demo/fixture data, not product default movements for new builds.
+- The default catalogs exclude the removed drug/cannabis subcategory.
 
 ## Current entities
 
 Defined in `mobile/src/types.ts`.
 
 - `Transaction`.
+- `CashBox`.
 - `Category`.
 - `Subcategory`.
 - `PaymentMethod`.
@@ -52,6 +56,7 @@ Defined in `mobile/src/types.ts`.
 - Persisted transaction dates are stored as `YYYY-MM-DD` strings.
 - Persisted created/updated audit timestamps are stored as full ISO datetime strings.
 - Budget month/year are stored as numbers. Budget operations use `subcategoryId` as the only spending scope; `categoryId` is retained only as legacy/derived context.
+- Expense categories may store `cashBoxId`; income categories do not use cash boxes. Default cash boxes are Basic, Fun, Education, Savings, Investment, and Charity. The default category mapping is maintained in `docs/context/15-cash-box-category-map.md`.
 - Currencies are stored as uppercase 3-character strings.
 - Default payment is stored as `settings.defaultPaymentSubmethodId`; expenses derive the parent method from the selected submethod.
 - Money is rounded to two decimals.

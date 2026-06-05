@@ -8,6 +8,7 @@ This folder is the working context for future implementation sessions. It comple
 - App implementation: `mobile/App.tsx`
 - Shared types: `mobile/src/types.ts`
 - Defaults: `mobile/src/defaults.ts`
+- Cash box/category default mapping: `docs/context/15-cash-box-category-map.md`
 - Local persistence: `mobile/src/storage.ts`
 - Business helpers: `mobile/src/utils.ts`
 - Brand system: `mobile/src/theme.ts`
@@ -29,6 +30,7 @@ This folder is the working context for future implementation sessions. It comple
 - `12-data-storage-entities.md`: persisted data shape and local storage behavior.
 - `13-testing-verification.md`: current checks and acceptance scenarios.
 - `14-open-decisions-gaps.md`: known gaps and pending decisions.
+- `15-cash-box-category-map.md`: source of truth for default cash boxes and expense category mapping.
 
 ## Current implementation note
 

@@ -5,6 +5,7 @@ import {
   AppData,
   AppLanguage,
   Budget,
+  CashBox,
   Category,
   PaymentMethod,
   PaymentSubmethod,
@@ -26,6 +27,11 @@ const STORAGE_KEY = 'expense-control-app-data-v3';
 const isAppLanguage = (value: unknown): value is AppLanguage => value === 'en' || value === 'es-AR';
 
 type StoredCategory = Omit<Category, 'createdAt' | 'updatedAt'> & {
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+type StoredCashBox = Omit<CashBox, 'createdAt' | 'updatedAt'> & {
   createdAt?: unknown;
   updatedAt?: unknown;
 };
@@ -65,6 +71,7 @@ type StoredAppData = Partial<
   Omit<
     AppData,
     | 'transactions'
+    | 'cashBoxes'
     | 'categories'
     | 'subcategories'
     | 'paymentMethods'
@@ -73,6 +80,7 @@ type StoredAppData = Partial<
     | 'budgets'
   > & {
     transactions: StoredTransaction[];
+    cashBoxes: StoredCashBox[];
     categories: StoredCategory[];
     subcategories: StoredSubcategory[];
     paymentMethods: StoredPaymentMethod[];
@@ -139,6 +147,16 @@ const hydrateCategory = (category: StoredCategory | Category): Category => {
     ...category,
     createdAt: hydrateAuditDate(category.createdAt, fallback),
     updatedAt: hydrateAuditDate(category.updatedAt, fallback),
+  };
+};
+
+const hydrateCashBox = (cashBox: StoredCashBox | CashBox): CashBox => {
+  const fallback = new Date();
+
+  return {
+    ...cashBox,
+    createdAt: hydrateAuditDate(cashBox.createdAt, fallback),
+    updatedAt: hydrateAuditDate(cashBox.updatedAt, fallback),
   };
 };
 
@@ -245,6 +263,23 @@ const deactivateDeprecatedDefaults = <T extends { id: string; name: string; acti
       : item,
   );
 
+const restoreDefaultCashBoxes = (categories: Category[], defaults: AppData['categories']): Category[] => {
+  const defaultCashBoxByCategoryId = new Map(
+    defaults
+      .filter((category) => category.type === 'expense' && category.cashBoxId)
+      .map((category) => [category.id, category.cashBoxId]),
+  );
+
+  return categories.map((category) =>
+    category.cashBoxId
+      ? category
+      : {
+          ...category,
+          cashBoxId: defaultCashBoxByCategoryId.get(category.id),
+        },
+  );
+};
+
 const normalizeBudgets = (stored: StoredAppData, defaults: AppData, subcategories: AppData['subcategories']) =>
   (asArray(stored.budgets)?.map(hydrateBudget) ?? defaults.budgets).map((budget) => {
     if (budget.subcategoryId) {
@@ -262,13 +297,18 @@ const normalizeBudgets = (stored: StoredAppData, defaults: AppData, subcategorie
 const withDefaults = (stored: StoredAppData): AppData => {
   const defaults = createDefaultData();
   const storedCategories = asArray(stored.categories)?.map(hydrateCategory);
+  const storedCashBoxes = asArray(stored.cashBoxes)?.map(hydrateCashBox);
   const storedSubcategories = asArray(stored.subcategories)?.map(hydrateSubcategory);
   const storedPaymentMethods = asArray(stored.paymentMethods)?.map(hydratePaymentMethod);
   const storedPaymentSubmethods = asArray(stored.paymentSubmethods)?.map(hydratePaymentSubmethod);
   const storedPeople = asArray(stored.people)?.map(hydratePerson);
+  const cashBoxes = mergeMissingDefaults(storedCashBoxes, defaults.cashBoxes);
   const categories = mergeMissingDefaults(storedCategories, defaults.categories);
   const subcategories = mergeMissingDefaults(storedSubcategories, defaults.subcategories);
-  const normalizedCategories = deactivateDeprecatedDefaults(categories, deprecatedDefaultCategoryNames);
+  const normalizedCategories = restoreDefaultCashBoxes(
+    deactivateDeprecatedDefaults(categories, deprecatedDefaultCategoryNames),
+    defaults.categories,
+  );
   const normalizedSubcategories = deactivateDeprecatedDefaults(subcategories, deprecatedDefaultSubcategoryNames);
   const paymentMethods = storedPaymentMethods?.length ? storedPaymentMethods : defaults.paymentMethods;
   const paymentSubmethods = storedPaymentSubmethods?.length
@@ -298,6 +338,7 @@ const withDefaults = (stored: StoredAppData): AppData => {
 
   return {
     transactions: asArray(stored.transactions)?.map(hydrateTransaction) ?? defaults.transactions,
+    cashBoxes,
     categories: normalizedCategories,
     subcategories: normalizedSubcategories,
     paymentMethods,
@@ -335,6 +376,11 @@ export const saveAppData = async (data: AppData): Promise<void> => {
       date: dateInputFromDate(transaction.date),
       createdAt: transaction.createdAt.toISOString(),
       updatedAt: transaction.updatedAt.toISOString(),
+    })),
+    cashBoxes: data.cashBoxes.map((cashBox) => ({
+      ...cashBox,
+      createdAt: cashBox.createdAt.toISOString(),
+      updatedAt: cashBox.updatedAt.toISOString(),
     })),
     categories: data.categories.map((category) => ({
       ...category,

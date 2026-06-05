@@ -1,5 +1,6 @@
 import type {
   AppData,
+  CashBox,
   Category,
   PaymentMethod,
   PaymentSubmethod,
@@ -26,10 +27,24 @@ type SourceRow = {
   amount: number;
 };
 
-const category = (id: string, name: string, type: Category['type']): Category => ({
+const cashBox = (id: string, name: string): CashBox => ({
+  id,
+  name,
+  active: true,
+  createdAt: cloneDate(TIMESTAMP),
+  updatedAt: cloneDate(TIMESTAMP),
+});
+
+const category = (
+  id: string,
+  name: string,
+  type: Category['type'],
+  cashBoxId?: string,
+): Category => ({
   id,
   name,
   type,
+  cashBoxId,
   active: true,
   createdAt: cloneDate(TIMESTAMP),
   updatedAt: cloneDate(TIMESTAMP),
@@ -63,20 +78,32 @@ const paymentSubmethod = (id: string, paymentMethodId: string, name: string): Pa
 
 const people: Person[] = [];
 
+const cashBoxes: CashBox[] = [
+  cashBox('cashbox-basic', 'Basic'),
+  cashBox('cashbox-fun', 'Fun'),
+  cashBox('cashbox-education', 'Education'),
+  cashBox('cashbox-savings', 'Savings'),
+  cashBox('cashbox-investment', 'Investment'),
+  cashBox('cashbox-charity', 'Charity'),
+];
+
 const categories: Category[] = [
-  category('cat-exp-food', 'Food', 'expense'),
-  category('cat-exp-transport', 'Transport', 'expense'),
-  category('cat-exp-housing', 'Housing', 'expense'),
-  category('cat-exp-services', 'Services', 'expense'),
-  category('cat-exp-health', 'Health', 'expense'),
-  category('cat-exp-entertainment', 'Entertainment', 'expense'),
-  category('cat-exp-shopping', 'Shopping', 'expense'),
-  category('cat-exp-education', 'Education', 'expense'),
-  category('cat-exp-sports', 'Sports', 'expense'),
-  category('cat-exp-insurance', 'Insurance', 'expense'),
-  category('cat-exp-pets', 'Pets', 'expense'),
-  category('cat-exp-personal', 'Personal', 'expense'),
-  category('cat-exp-other', 'Other', 'expense'),
+  category('cat-exp-food', 'Food', 'expense', 'cashbox-basic'),
+  category('cat-exp-transport', 'Transport', 'expense', 'cashbox-basic'),
+  category('cat-exp-housing', 'Housing', 'expense', 'cashbox-basic'),
+  category('cat-exp-services', 'Services', 'expense', 'cashbox-basic'),
+  category('cat-exp-health', 'Health', 'expense', 'cashbox-basic'),
+  category('cat-exp-entertainment', 'Entertainment', 'expense', 'cashbox-fun'),
+  category('cat-exp-shopping', 'Shopping', 'expense', 'cashbox-basic'),
+  category('cat-exp-education', 'Education', 'expense', 'cashbox-education'),
+  category('cat-exp-sports', 'Sports', 'expense', 'cashbox-basic'),
+  category('cat-exp-insurance', 'Insurance', 'expense', 'cashbox-basic'),
+  category('cat-exp-pets', 'Pets', 'expense', 'cashbox-basic'),
+  category('cat-exp-personal', 'Personal', 'expense', 'cashbox-basic'),
+  category('cat-exp-savings', 'Savings', 'expense', 'cashbox-savings'),
+  category('cat-exp-investment', 'Investment', 'expense', 'cashbox-investment'),
+  category('cat-exp-charity', 'Charity', 'expense', 'cashbox-charity'),
+  category('cat-exp-other', 'Other', 'expense', 'cashbox-basic'),
   category('cat-inc-salary', 'Salary', 'income'),
   category('cat-inc-freelance', 'Freelance', 'income'),
   category('cat-inc-sales', 'Sales', 'income'),
@@ -116,6 +143,9 @@ const subcategories: Subcategory[] = [
   subcategory('sub-sports-gym', 'cat-exp-sports', 'Gym'),
   subcategory('sub-insurance-car', 'cat-exp-insurance', 'Car Insurance'),
   subcategory('sub-pets-food', 'cat-exp-pets', 'Pet Food'),
+  subcategory('sub-savings-reserve', 'cat-exp-savings', 'Reserve'),
+  subcategory('sub-investment-assets', 'cat-exp-investment', 'Assets'),
+  subcategory('sub-charity-donations', 'cat-exp-charity', 'Donations'),
   subcategory('sub-other-interests', 'cat-exp-other', 'Interests'),
   subcategory('sub-income-payroll', 'cat-inc-salary', 'Payroll'),
   subcategory('sub-income-freelance-projects', 'cat-inc-freelance', 'Projects'),
@@ -372,6 +402,11 @@ const transactionFromRow = (row: SourceRow, index: number): Transaction[] => {
 
 export const createMay2026SampleData = (): AppData => ({
   transactions: sourceRows.flatMap(transactionFromRow),
+  cashBoxes: cashBoxes.map((item) => ({
+    ...item,
+    createdAt: cloneDate(item.createdAt),
+    updatedAt: cloneDate(item.updatedAt),
+  })),
   categories: categories.map((item) => ({
     ...item,
     createdAt: cloneDate(item.createdAt),

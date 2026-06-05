@@ -9,7 +9,9 @@ The current implementation has been verified with:
 - `npx expo-doctor`
 - Local Android release APK build with Gradle using JDK 17 and the local Android SDK.
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
-- May 2026 sample data validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
+- Default data validation: first-run data has built-in catalogs and settings, with no transactions or budgets.
+- May 2026 demo fixture validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
+- June 2026 monthly-report PDF fixture validation: local dev fixture data reproduces the PDF totals for ARS and USD, including expenses and income.
 
 At the time of initial implementation, the Android bundle request returned HTTP 200.
 
@@ -46,8 +48,11 @@ Transactions:
 - Delete a transaction after confirmation.
 - Create an installment expense and confirm one transaction per month.
 - Delete an installment and confirm the full group is removed.
-- Confirm the May 2026 default seed shows the salary income, imported expenses, Visa/Amex/Transfer/Cash methods, and generated future installments.
-- Confirm the May 2026 default seed does not include the removed drug/cannabis category or related sample transactions.
+- Confirm a fresh install shows built-in categories, subcategories, Visa/Amex/Transfer/Cash methods, no transactions, and no budgets.
+- Confirm app updates preserve persisted user transactions and do not reset storage.
+- Confirm default catalogs do not include the removed drug/cannabis category.
+- Confirm default cash boxes are created and default expense categories are assigned to Basic, Fun, Education, Savings, Investment, or Charity.
+- Confirm legacy persisted categories without `cashBoxId` load with the expected default cash box assignments.
 - Switch language to Spanish and confirm the calendar month, weekday labels, payment defaults, and subcategory/payment lists display in Spanish without renaming stored custom data.
 
 Responsive mobile:
@@ -55,6 +60,9 @@ Responsive mobile:
 - Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
 - In Reports detail screens, confirm only the global header has month navigation controls.
+- In Reports, open expenses by cash box and expenses by assigned person, then drill into a row and confirm the movement list matches the selected month and currency.
+- In Reports > Monthly export, export the selected month to CSV and PDF and confirm the files open/share successfully.
+- In Reports > Monthly export, confirm the PDF groups sections by currency, renders ARS before USD when ARS is the default currency, separates totals/categories/payment methods/cash boxes/people/movements into distinct tables, and formats money with dot thousands and comma decimals.
 - On Android API 35+ with 3-button navigation, confirm the system navigation bar does not cover bottom tab icons or labels.
 - On Android API 35+ with gesture navigation, confirm the bottom tab bar is usable without an excessive blank strip below it.
 - On Android API 34 or lower, confirm the old duplicated bottom gap does not return.
@@ -69,6 +77,7 @@ Categories and payment methods:
 - In Settings > Subcategories, switch between expense and income and confirm parent category choices update before creating the subcategory.
 - In Settings > Subcategories, confirm parent category and icon selectors collapse into summary rows after selection in both create and edit flows.
 - In Settings > Categories, switch between expense and income and confirm the visible category list changes.
+- In Settings > Categories, confirm expense category creation/editing allows selecting a cash box and category rows show the assigned cash box.
 - In Settings > Categories, confirm the category icon selector collapses into a summary row after selection in both create and edit flows.
 - In Settings > Categories and Settings > Subcategories, confirm visually distinct list subtitles separate creation forms from existing records.
 - Disable a category and confirm it no longer appears in active form choices.
@@ -104,12 +113,14 @@ Local Android APK builds:
 
 CSV export:
 
-- Export all selected-month transactions.
-- Export only expenses.
-- Export only income.
-- Export one currency.
-- Confirm CSV columns match requirements.
+- Export the selected-month monthly report from Reports.
+- Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by assigned person, and transaction rows for both expenses and income.
+- Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by payment method, expenses by assigned person, and transaction rows for both expenses and income.
+- Confirm monthly report PDF includes the same selected-month sections grouped by currency.
+- Switch language to Spanish and confirm monthly report CSV/PDF headers, section labels, transaction type labels, empty-person labels, and default catalog names are exported in Spanish while custom names remain unchanged.
+- Confirm transaction CSV columns match requirements, including Cash box.
 - Confirm CSV exports Name and Description as separate columns.
+- In a dev session with `EXPO_PUBLIC_ENABLE_DEV_FIXTURES=1`, serve `mobile/dev-local` locally and use Settings > About to load the June 2026 fixture. Confirm the app switches to Reports for June 2026 and the fixture is not copied into local APK build inputs.
 
 ## Known gaps
 
