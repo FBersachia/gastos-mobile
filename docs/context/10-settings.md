@@ -11,7 +11,7 @@ Implemented in `SettingsScreen`.
 Settings currently includes:
 
 - A settings menu with individual buttons for each management area. Language is managed inside Core settings, not as a separate menu item.
-- Core settings screen: language selection, default currency update, default payment submethod selector, and biometric lock toggle.
+- Core settings screen: language selection, manual theme selector, default currency update, default payment submethod selector, and biometric lock toggle.
 - Monthly budgets screen: expense subcategory budget creation/editing with the same icon grid used by expense entry. After selecting a subcategory, the grid collapses into a summary row and the amount/currency form takes focus. Budget currency is selected from a dropdown-style selector, not free text. Budgets can be deleted with native/web-compatible confirmation, and legacy category budgets must be assigned to a subcategory before save.
 - Categories screen: category creation, edit, expense cash box assignment, optional icon selection, and disable, with the expense/income toggle filtering the creation type and visible list.
 - Subcategories screen: subcategory creation, edit, and soft delete with expense/income parent-category toggle, compact parent/icon summary rows after selection, and active subcategories grouped by independent parent-category accordions filtered by selected type. Parent-category accordions can be fully collapsed after opening and are not auto-opened by category selection effects.
@@ -37,10 +37,11 @@ Defined in `AppSettings`:
 - `defaultCurrency`.
 - `defaultPaymentSubmethodId`, optional active payment submethod id used to preselect expense payment.
 - `language`.
+- `themeMode`, manual UI theme mode. Valid values are `light` and `dark`; default is `light`.
 - `biometricLockEnabled`, boolean, default `true`.
 - `budgetNearLimitThreshold`, default `0.8`.
 
-`storage.ts` preserves persisted `biometricLockEnabled` when it is boolean and falls back to the default for older/invalid data.
+`storage.ts` preserves persisted `biometricLockEnabled` when it is boolean and falls back to the default for older/invalid data. It also hydrates missing or invalid `themeMode` values as `light`.
 
 ## Known gaps
 

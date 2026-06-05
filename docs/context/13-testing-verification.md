@@ -10,6 +10,7 @@ The current implementation has been verified with:
 - Local Android release APK build with Gradle using JDK 17 and the local Android SDK.
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
 - Default data validation: first-run data has built-in catalogs and settings, with no transactions or budgets.
+- Theme validation: first-run settings default to light theme, legacy storage hydrates missing/invalid theme mode as light, persisted dark mode is preserved, and palette resolution maps light/dark to their semantic color sets.
 - May 2026 demo fixture validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
 - June 2026 monthly-report PDF fixture validation: local dev fixture data reproduces the PDF totals for ARS and USD, including expenses and income.
 
@@ -54,6 +55,8 @@ Transactions:
 - Confirm default cash boxes are created and default expense categories are assigned to Basic, Fun, Education, Savings, Investment, or Charity.
 - Confirm legacy persisted categories without `cashBoxId` load with the expected default cash box assignments.
 - Switch language to Spanish and confirm the calendar month, weekday labels, payment defaults, and subcategory/payment lists display in Spanish without renaming stored custom data.
+- In Settings > Core settings, switch between Claro/Oscuro or Light/Dark and confirm the app updates immediately, persists after restart, and keeps Dashboard, Reports, Settings, transaction create/edit, modals, calendar, inputs, chips, amount colors, and buttons legible.
+- Confirm older persisted data without `settings.themeMode` opens in light mode and invalid stored theme values fall back to light mode.
 
 Responsive mobile:
 

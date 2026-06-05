@@ -8,7 +8,9 @@ The app must be simple, fast, mobile-first, low clutter, and optimized for daily
 
 Defined in `mobile/src/theme.ts`.
 
-Colors:
+The app supports a manual light/dark theme selected from Settings > Core settings. There is no "follow system" option.
+
+Light colors:
 
 - Primary red: `#F55252`.
 - Alternate red: `#BF0426`.
@@ -17,6 +19,32 @@ Colors:
 - Medium gray: `#9E9E9E`.
 - Background: `#F7F8FA`.
 - Surface: `#FFFFFF`.
+- Surface alt: `#F0F2F5`.
+- Border: `#E1E4E8`.
+- Text: `#111111`.
+- Muted text: `#686D76`.
+
+Dark colors:
+
+- Primary red: `#FF6B6B`.
+- Alternate red: `#FF8B8B`.
+- Deep blue text/icon token: `#DCE3FF`.
+- Background: `#0D1117`.
+- Surface: `#161B22`.
+- Surface alt: `#21262D`.
+- Border: `#30363D`.
+- Text: `#F0F3F6`.
+- Muted text: `#A7B0BE`.
+- Positive: `#4CCB7F`.
+- Warning: `#F2C36B`.
+- Danger: `#FF7A7A`.
+
+Contrast rules:
+
+- Use semantic tokens from `theme.ts` instead of hardcoded light colors.
+- Text on primary actions uses `onPrimary`.
+- Selected chips, active nav items, icon badges, overlays, cards, inputs, and modal surfaces must use theme tokens so both modes stay legible.
+- Dark mode changes the app UI only; exported PDF/CSV visual formatting is unchanged by theme.
 
 Typography:
 
@@ -66,6 +94,7 @@ The new expense entry screen is designed to keep daily capture on one screen:
 - Header with back action and expense title.
 - Scrollable subcategory icon grid with specific icons per known subcategory and keyword fallback for custom names.
 - Payment selector after subcategory selection, using the configured default when available. Currency and installments live in More options.
+- More options has an explicit confirm action after selecting currency, installments, assigned person, or memo.
 - Composer row with icon-only More options, selected subcategory context, reference input, and amount preview.
 - The amount preview formats simple numeric values with Argentine dot thousands separators and no decimals while keeping the underlying keypad input unmasked.
 - Date key that opens an in-app calendar selector.

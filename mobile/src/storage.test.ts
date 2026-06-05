@@ -50,6 +50,58 @@ describe('app data storage', () => {
     expect(data.categories.find((category) => category.id === 'cat-exp-charity')?.cashBoxId).toBe('cashbox-charity');
   });
 
+  it('hydrates legacy persisted settings without theme mode as light', async () => {
+    const defaultData = createDefaultData();
+    const { themeMode: _themeMode, ...legacySettings } = defaultData.settings;
+
+    mockedAsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...defaultData,
+        settings: legacySettings,
+      }),
+    );
+
+    const data = await loadAppData();
+
+    expect(data.settings.themeMode).toBe('light');
+  });
+
+  it('preserves persisted dark theme mode', async () => {
+    const persistedData = createDefaultData();
+
+    mockedAsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...persistedData,
+        settings: {
+          ...persistedData.settings,
+          themeMode: 'dark',
+        },
+      }),
+    );
+
+    const data = await loadAppData();
+
+    expect(data.settings.themeMode).toBe('dark');
+  });
+
+  it('falls back to light when persisted theme mode is invalid', async () => {
+    const persistedData = createDefaultData();
+
+    mockedAsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...persistedData,
+        settings: {
+          ...persistedData.settings,
+          themeMode: 'system',
+        },
+      }),
+    );
+
+    const data = await loadAppData();
+
+    expect(data.settings.themeMode).toBe('light');
+  });
+
   it('preserves persisted user data instead of resetting it on load', async () => {
     const persistedData = createDefaultData();
     const transactionDate = '2026-05-29';

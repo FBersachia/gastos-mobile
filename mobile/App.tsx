@@ -100,7 +100,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { appDataFromDevFixturePayload, type DevAppDataPayload } from './src/devFixtures';
 import { loadAppData, saveAppData } from './src/storage';
-import { colors, fonts, radius, spacing } from './src/theme';
+import { AppThemeColors, fonts, getThemeColors, lightColors, radius, spacing } from './src/theme';
 import {
   AppData,
   AppLanguage,
@@ -116,6 +116,7 @@ import {
   PersonSummary,
   Subcategory,
   TabKey,
+  ThemeMode,
   Transaction,
   TransactionInput,
   TransactionType,
@@ -241,6 +242,7 @@ const translations = {
     closeTransactionDetail: 'Close transaction detail',
     closeTransactionForm: 'Close transaction form',
     closeMoreOptions: 'Close more options',
+    confirm: 'Confirm',
     coreSettings: 'Core settings',
     currency: 'Currency',
     custom: 'Custom',
@@ -325,6 +327,7 @@ const translations = {
     noSubcategoryExpenses: 'No subcategory expenses this month',
     noSubmethodExpenses: 'No submethod expenses this month',
     noTransactions: 'No transactions in the selected month',
+    of: 'of',
     optional: 'Optional',
     parentCategory: 'Parent category',
     parentPaymentMethod: 'Parent payment method',
@@ -362,6 +365,9 @@ const translations = {
     termsBody:
       'By using this app you agree to use it responsibly and to verify the information you enter. The app is provided as a financial organization tool and does not replace accounting, tax or legal advice. Inflatrack may update functionality, correct errors or change availability in future versions.',
     termsTitle: 'Terms and conditions',
+    theme: 'Theme',
+    themeDark: 'Dark',
+    themeLight: 'Light',
     transactions: 'Transactions',
     transactionName: 'Reference',
     type: 'Type',
@@ -435,6 +441,7 @@ const translations = {
     closeTransactionDetail: 'Cerrar detalle del movimiento',
     closeTransactionForm: 'Cerrar formulario de movimiento',
     closeMoreOptions: 'Cerrar mas opciones',
+    confirm: 'Confirmar',
     coreSettings: 'Ajustes principales',
     currency: 'Moneda',
     custom: 'Personalizado',
@@ -519,6 +526,7 @@ const translations = {
     noSubcategoryExpenses: 'No hay gastos por subcategoría este mes',
     noSubmethodExpenses: 'No hay gastos por submétodo este mes',
     noTransactions: 'No hay movimientos en el mes seleccionado',
+    of: 'de',
     optional: 'Opcional',
     parentCategory: 'Categoría padre',
     parentPaymentMethod: 'Método de pago padre',
@@ -556,6 +564,9 @@ const translations = {
     termsBody:
       'Al usar esta app aceptás utilizarla de forma responsable y verificar la información que cargás. La app se entrega como una herramienta de organización financiera y no reemplaza asesoramiento contable, impositivo ni legal. Inflatrack puede actualizar funcionalidades, corregir errores o cambiar disponibilidad en versiones futuras.',
     termsTitle: 'Términos y condiciones',
+    theme: 'Tema',
+    themeDark: 'Oscuro',
+    themeLight: 'Claro',
     transactions: 'Movimientos',
     transactionName: 'Referencia',
     type: 'Tipo',
@@ -584,6 +595,7 @@ const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
 const JUNE_2026_MONTH = new Date(2026, 5, 1);
 const JUNE_2026_FIXTURE_FILE = 'monthly-report-2026-06.fixture.json';
+let colors = lightColors;
 
 type LocalizedDefaultName = Record<AppLanguage, string>;
 
@@ -1242,6 +1254,28 @@ const subcategoryDisplayName = (data: AppData, subcategoryId?: string): string |
 const transactionCategoryDisplayName = (data: AppData, transaction: Transaction): string | undefined =>
   subcategoryDisplayName(data, transaction.subcategoryId) || categoryDisplayName(data, transaction.categoryId);
 
+const transactionDisplayName = (data: AppData, transaction: Transaction): string | undefined => {
+  const categoryName = transactionCategoryDisplayName(data, transaction);
+  const rawName = transaction.name || categoryName;
+
+  if (!rawName || !transaction.installmentGroupId || !transaction.installmentNumber || !transaction.totalInstallments) {
+    return rawName;
+  }
+
+  const baseName = rawName.replace(/\s+-\s+(Installment|Cuota)\s+\d+\/\d+$/i, '').trim();
+  const fallbackBase =
+    /^(Installment purchase|Compra en cuotas)$/i.test(baseName) || !baseName
+      ? ''
+      : baseName;
+
+  return installmentTransactionName(
+    fallbackBase,
+    transaction.installmentNumber,
+    transaction.totalInstallments,
+    data.settings.language,
+  );
+};
+
 const paymentMethodDisplayName = (data: AppData, paymentMethodId?: string): string | undefined =>
   displayPaymentMethodName(
     paymentMethodId ? data.paymentMethods.find((method) => method.id === paymentMethodId) : undefined,
@@ -1442,7 +1476,7 @@ function AppRoot() {
       paymentSubmethodId,
       assignedPersonId,
       name: isInstallment
-        ? installmentTransactionName(transactionName, index + 1, amounts.length)
+        ? installmentTransactionName(transactionName, index + 1, amounts.length, data?.settings.language ?? 'en')
         : transactionName,
       description: transactionDescription,
       installmentGroupId: groupId,
@@ -1647,6 +1681,16 @@ function AppRoot() {
       settings: {
         ...current.settings,
         language,
+      },
+    }));
+  };
+
+  const handleSetThemeMode = (themeMode: ThemeMode) => {
+    persistData((current) => ({
+      ...current,
+      settings: {
+        ...current.settings,
+        themeMode,
       },
     }));
   };
@@ -2000,6 +2044,11 @@ function AppRoot() {
     return <LoadingScreen />;
   }
 
+  colors = getThemeColors(data.settings.themeMode);
+  styles = createAppStyles(colors);
+  const isDarkTheme = data.settings.themeMode === 'dark';
+  const appTheme = { colors, styles, isDark: isDarkTheme };
+
   if (authStatus !== 'authenticated') {
     return <AuthScreen status={authStatus} onRetry={requestAuthentication} />;
   }
@@ -2081,6 +2130,7 @@ function AppRoot() {
             onSetDefaultCurrency={handleSetDefaultCurrency}
             onSetDefaultPaymentSubmethod={handleSetDefaultPaymentSubmethod}
             onSetLanguage={handleSetLanguage}
+            onSetThemeMode={handleSetThemeMode}
             onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
             onAddCategory={handleAddCategory}
             onUpdateCategory={handleUpdateCategory}
@@ -2105,39 +2155,43 @@ function AppRoot() {
   );
 
   return (
-    <ResponsiveContext.Provider value={responsive}>
-      <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
-        <StatusBar backgroundColor={colors.surface} style="dark" translucent={false} />
-        {Platform.OS === 'ios' ? (
-          <KeyboardAvoidingView style={styles.keyboardAvoid} behavior="padding">
-            {appShell}
-          </KeyboardAvoidingView>
-        ) : (
-          appShell
-        )}
-        <TransactionDetailModal
-          data={data}
-          t={t}
-          transaction={selectedTransaction}
-          onClose={() => setSelectedTransactionId(undefined)}
-          onEdit={(transaction) => setEditingTransactionId(transaction.id)}
-          onDelete={(transaction) => {
-            handleDeleteTransaction(transaction);
-            setSelectedTransactionId(undefined);
-          }}
-        />
-        <TransactionEditModal
-          data={data}
-          t={t}
-          transaction={editingTransaction}
-          onClose={() => setEditingTransactionId(undefined)}
-          onSave={(input, transaction) => {
-            handleSaveTransaction(input, transaction);
-            setEditingTransactionId(undefined);
-          }}
-        />
-      </AppSafeAreaView>
-    </ResponsiveContext.Provider>
+    <ThemeContext.Provider value={appTheme}>
+      <ResponsiveContext.Provider value={responsive}>
+        <AppSafeAreaView style={[styles.safeArea, Platform.OS === 'web' && ({ height: '100vh', overflow: 'hidden' } as any)]}>
+          <StatusBar backgroundColor={colors.surface} style={appTheme.isDark ? 'light' : 'dark'} translucent={false} />
+          {Platform.OS === 'ios' ? (
+            <KeyboardAvoidingView style={styles.keyboardAvoid} behavior="padding">
+              {appShell}
+            </KeyboardAvoidingView>
+          ) : (
+            appShell
+          )}
+          <TransactionDetailModal
+            data={data}
+            t={t}
+            transaction={selectedTransaction}
+            onClose={() => setSelectedTransactionId(undefined)}
+            onEdit={(transaction) => setEditingTransactionId(transaction.id)}
+            onDelete={(transaction) => {
+              handleDeleteTransaction(transaction);
+              setSelectedTransactionId(undefined);
+            }}
+          />
+          <TransactionEditModal
+            data={data}
+            t={t}
+            transaction={editingTransaction}
+            onClose={() => setEditingTransactionId(undefined)}
+            onSave={(input, transaction) => {
+              handleSaveTransaction(input, transaction);
+              setSelectedTransactionId(undefined);
+              setEditingTransactionId(undefined);
+              setActiveTab('dashboard');
+            }}
+          />
+        </AppSafeAreaView>
+      </ResponsiveContext.Provider>
+    </ThemeContext.Provider>
   );
 }
 
@@ -2160,7 +2214,7 @@ function AuthScreen({ status, onRetry }: { status: AuthStatus; onRetry: () => vo
   return (
     <AppSafeAreaView style={styles.centerScreen}>
       <View style={styles.lockBadge}>
-        <Lock color={colors.surface} size={36} strokeWidth={2.4} />
+        <Lock color={colors.onPrimary} size={36} strokeWidth={2.4} />
       </View>
       <Text style={styles.lockTitle}>{title}</Text>
       <Text style={styles.lockMessage}>{message}</Text>
@@ -2316,7 +2370,7 @@ function DashboardScreen({
         onPress={onAddTransaction}
         style={styles.dashboardFab}
       >
-        <Plus color={colors.surface} size={30} strokeWidth={2.4} />
+        <Plus color={colors.onPrimary} size={30} strokeWidth={2.4} />
       </Pressable>
     </View>
   );
@@ -2448,7 +2502,7 @@ function ExpenseSubcategoryGrid({
           ]}
         >
           <Icon
-            color={selected ? colors.surface : colors.textMuted}
+            color={selected ? colors.onPrimary : colors.textMuted}
             size={isCompact ? 26 : 32}
             strokeWidth={2}
           />
@@ -3125,7 +3179,7 @@ function TransactionForm({
                 onPress={handleSubmit}
                 style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null, styles.expenseConfirmKey]}
               >
-                <Check color={colors.surface} size={32} strokeWidth={2.2} />
+                <Check color={colors.onPrimary} size={32} strokeWidth={2.2} />
               </Pressable>
             </View>
           </View>
@@ -3386,6 +3440,9 @@ function TransactionMoreOptionsModal({
               </Field>
             ) : null}
           </ScrollView>
+          <View style={styles.moreOptionsFooter}>
+            <AppButton label={t('confirm')} Icon={Check} onPress={onClose} />
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -3409,7 +3466,7 @@ function TransactionRow({
 }) {
   const { isCompact } = useResponsive();
   const displayCategory = transactionCategoryDisplayName(data, transaction) ?? t('uncategorized');
-  const displayName = transaction.name || displayCategory;
+  const displayName = transactionDisplayName(data, transaction) || displayCategory;
   const displayPerson = transaction.type === 'expense' ? personDisplayName(data, transaction.assignedPersonId) : undefined;
   const displayPayment =
     transaction.type === 'expense'
@@ -3500,7 +3557,7 @@ function TransactionDetailModal({
         paymentMethodDisplayName(data, transaction.paymentMethodId)
       : undefined;
   const displayPerson = transaction.type === 'expense' ? personDisplayName(data, transaction.assignedPersonId) : undefined;
-  const displayName = transaction.name || displayCategory;
+  const displayName = transactionDisplayName(data, transaction) || displayCategory;
   const amountPrefix = transaction.type === 'expense' ? '-' : '+';
 
   return (
@@ -3561,7 +3618,7 @@ function TransactionDetailModal({
             {transaction.installmentGroupId ? (
               <TransactionDetailLine
                 label={t('installment')}
-                value={`${transaction.installmentNumber ?? '-'} of ${transaction.totalInstallments ?? '-'}`}
+                value={`${transaction.installmentNumber ?? '-'} ${t('of')} ${transaction.totalInstallments ?? '-'}`}
               />
             ) : null}
             {transaction.installmentInterestRate !== undefined ? (
@@ -4177,7 +4234,7 @@ function ReportsScreen({
                 <View style={[styles.progressFill, { backgroundColor: colors.primary, width: `${Math.round((g.current / g.total) * 100)}%` }]} />
               </View>
               <Text style={styles.rowMeta}>
-                {t('installment')} {g.current} of {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} {t('total')}
+                {t('installment')} {g.current} {t('of')} {g.total} · {formatMoney(g.installmentAmount * g.total, g.currency)} {t('total')}
               </Text>
             </Pressable>
           ))
@@ -4204,6 +4261,7 @@ function SettingsScreen({
   onSetDefaultCurrency,
   onSetDefaultPaymentSubmethod,
   onSetLanguage,
+  onSetThemeMode,
   onSetBiometricLockEnabled,
   onAddCategory,
   onUpdateCategory,
@@ -4233,6 +4291,7 @@ function SettingsScreen({
   onSetDefaultCurrency: (currency: string) => void;
   onSetDefaultPaymentSubmethod: (paymentSubmethodId: string) => void;
   onSetLanguage: (language: AppLanguage) => void;
+  onSetThemeMode: (themeMode: ThemeMode) => void;
   onSetBiometricLockEnabled: (enabled: boolean) => void;
   onAddCategory: (type: TransactionType, name: string, icon?: string, cashBoxId?: string) => void;
   onUpdateCategory: (
@@ -4723,7 +4782,7 @@ function SettingsScreen({
         <View style={styles.settingsMenu}>
           <SettingsMenuButton
             title={t('coreSettings')}
-            subtitle={`${t('defaultCurrency')}: ${data.settings.defaultCurrency} · ${t('language')}: ${t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')}`}
+            subtitle={`${t('defaultCurrency')}: ${data.settings.defaultCurrency} · ${t('language')}: ${t(data.settings.language === 'es-AR' ? 'languageSpanishArgentina' : 'languageEnglish')} · ${t('theme')}: ${t(data.settings.themeMode === 'dark' ? 'themeDark' : 'themeLight')}`}
             Icon={SettingsIcon}
             onPress={() => setActiveSettingsSection('core')}
           />
@@ -4792,6 +4851,20 @@ function SettingsScreen({
               label={t('languageSpanishArgentina')}
               selected={data.settings.language === 'es-AR'}
               onPress={() => onSetLanguage('es-AR')}
+            />
+          </View>
+        </Field>
+        <Field label={t('theme')}>
+          <View style={styles.chipRow}>
+            <Chip
+              label={t('themeLight')}
+              selected={data.settings.themeMode === 'light'}
+              onPress={() => onSetThemeMode('light')}
+            />
+            <Chip
+              label={t('themeDark')}
+              selected={data.settings.themeMode === 'dark'}
+              onPress={() => onSetThemeMode('dark')}
             />
           </View>
         </Field>
@@ -5758,7 +5831,7 @@ function DashboardExpenseRow({
   const { isCompact } = useResponsive();
   const category = data.categories.find((item) => item.id === transaction.categoryId);
   const subcategory = data.subcategories.find((item) => item.id === transaction.subcategoryId);
-  const title = transaction.name || transactionCategoryDisplayName(data, transaction) || '';
+  const title = transactionDisplayName(data, transaction) || transactionCategoryDisplayName(data, transaction) || '';
   const amountPrefix = transaction.type === 'expense' ? '-' : '+';
 
   return (
@@ -5804,7 +5877,7 @@ function CategoryIconBadge({
 }) {
   const Icon = getSubcategoryIcon(subcategory, category);
   const backgroundColor = accent ? getCategoryAccentColor(category) : colors.surfaceAlt;
-  const iconColor = accent ? colors.surface : colors.deepBlue;
+  const iconColor = accent ? colors.onPrimary : colors.deepBlue;
 
   return (
     <View style={[styles.categoryIconBadge, { backgroundColor }]}>
@@ -6311,7 +6384,7 @@ function AppButton({
 }) {
   const { isCompact } = useResponsive();
   const primary = variant === 'primary';
-  const iconColor = primary ? colors.surface : colors.primary;
+  const iconColor = primary ? colors.onPrimary : colors.primary;
 
   return (
     <Pressable
@@ -6379,14 +6452,15 @@ function ScreenScroll({
   scrollRef?: React.RefObject<ScrollView | null>;
 }) {
   const { isCompact } = useResponsive();
+  const theme = useAppTheme();
 
   return (
     <ScrollView
       ref={scrollRef}
-      style={styles.screen}
+      style={theme.styles.screen}
       contentContainerStyle={[
-        styles.screenContent,
-        isCompact ? styles.screenContentCompact : null,
+        theme.styles.screenContent,
+        isCompact ? theme.styles.screenContentCompact : null,
         contentContainerStyle,
       ]}
       keyboardShouldPersistTaps="handled"
@@ -6397,7 +6471,7 @@ function ScreenScroll({
   );
 }
 
-const styles = StyleSheet.create({
+const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.background,
@@ -6528,7 +6602,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
   },
   navItemActive: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
   },
   navLabel: {
     color: colors.textMuted,
@@ -6612,7 +6686,7 @@ const styles = StyleSheet.create({
   },
   expenseCategoryIcon: {
     alignItems: 'center',
-    backgroundColor: '#F4F4F4',
+    backgroundColor: colors.categoryIconBackground,
     borderRadius: 30,
     height: 60,
     justifyContent: 'center',
@@ -6725,7 +6799,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   expenseOptionChipSelected: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   expenseOptionChipText: {
@@ -6911,7 +6985,7 @@ const styles = StyleSheet.create({
   },
   calendarOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
+    backgroundColor: colors.modalOverlay,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
@@ -6985,7 +7059,7 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   calendarDayTextSelected: {
-    color: colors.surface,
+    color: colors.onPrimary,
   },
   dashboardRoot: {
     flex: 1,
@@ -7001,7 +7075,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     minHeight: 112,
     paddingHorizontal: spacing.sm,
-    shadowColor: colors.black,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 5,
@@ -7057,7 +7131,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     elevation: 2,
     overflow: 'hidden',
-    shadowColor: colors.black,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
     shadowRadius: 4,
@@ -7137,7 +7211,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'absolute',
     right: spacing.xl,
-    shadowColor: colors.black,
+    shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.18,
     shadowRadius: 6,
@@ -7238,7 +7312,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   categoryChipSelected: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   categoryChipText: {
@@ -7271,7 +7345,7 @@ const styles = StyleSheet.create({
   },
   settingsMenuIcon: {
     alignItems: 'center',
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.sm,
     height: 44,
     justifyContent: 'center',
@@ -7469,7 +7543,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
   },
   chipSelected: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   chipText: {
@@ -7548,7 +7622,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   defaultPaymentChoiceSelected: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   changeLink: {
@@ -7599,7 +7673,7 @@ const styles = StyleSheet.create({
   },
   transactionModalOverlay: {
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.32)',
+    backgroundColor: colors.modalOverlay,
     flex: 1,
     justifyContent: 'center',
     padding: spacing.lg,
@@ -7653,6 +7727,12 @@ const styles = StyleSheet.create({
   moreOptionsContent: {
     gap: spacing.md,
     paddingBottom: spacing.sm,
+  },
+  moreOptionsFooter: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
   },
   transactionDetailHeader: {
     alignItems: 'flex-start',
@@ -7809,7 +7889,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   managementRowSelected: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.sm,
     marginHorizontal: -spacing.sm,
     paddingHorizontal: spacing.sm,
@@ -7924,7 +8004,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   switchThumb: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.onPrimary,
     borderRadius: 11,
     height: 22,
     width: 22,
@@ -7965,7 +8045,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   buttonTextPrimary: {
-    color: colors.surface,
+    color: colors.onPrimary,
   },
   buttonTextSecondary: {
     color: colors.primary,
@@ -8013,7 +8093,7 @@ const styles = StyleSheet.create({
     width: 44,
   },
   iconPickerItemSelected: {
-    backgroundColor: '#FFEAEA',
+    backgroundColor: colors.primarySoft,
     borderColor: colors.primary,
   },
   reportMonthLabel: {
@@ -8047,10 +8127,26 @@ const styles = StyleSheet.create({
   },
   managementIconBadge: {
     alignItems: 'center',
-    backgroundColor: '#F0FAF8',
+    backgroundColor: colors.successSoft,
     borderRadius: radius.sm,
     height: 36,
     justifyContent: 'center',
     width: 36,
   },
 });
+
+let styles = createAppStyles(colors);
+
+type AppThemeContextValue = {
+  colors: AppThemeColors;
+  styles: ReturnType<typeof createAppStyles>;
+  isDark: boolean;
+};
+
+const ThemeContext = createContext<AppThemeContextValue>({
+  colors,
+  styles,
+  isDark: false,
+});
+
+const useAppTheme = () => useContext(ThemeContext);

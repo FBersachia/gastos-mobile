@@ -16,6 +16,7 @@ Implemented in `mobile/src/storage.ts`.
 - `withDefaults` tolerates older stored data without a `cashBoxes` section and restores default expense-category `cashBoxId` values when legacy categories are missing them.
 - `withDefaults` tolerates older stored data without a `people` section by defaulting it to an empty array.
 - `withDefaults` tolerates older settings without `defaultPaymentSubmethodId` and resolves the configured default to an active payment submethod when possible.
+- `withDefaults` tolerates older settings without `themeMode`, preserves `light` or `dark`, and falls back to `light` for missing/invalid values.
 - `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
 - `withDefaults` preserves legacy category budgets without silently assigning them to a first subcategory; they must be repaired through Settings before saving.
 - `loadAppData` hydrates persisted date strings into `Date` values for runtime use.
@@ -59,6 +60,7 @@ Defined in `mobile/src/types.ts`.
 - Expense categories may store `cashBoxId`; income categories do not use cash boxes. Default cash boxes are Basic, Fun, Education, Savings, Investment, and Charity. The default category mapping is maintained in `docs/context/15-cash-box-category-map.md`.
 - Currencies are stored as uppercase 3-character strings.
 - Default payment is stored as `settings.defaultPaymentSubmethodId`; expenses derive the parent method from the selected submethod.
+- Manual UI theme mode is stored as `settings.themeMode`; valid values are `light` and `dark`, with `light` as the default/migration fallback.
 - Money is rounded to two decimals.
 - Installment splitting is done in cents to avoid visible rounding drift.
 - `paymentMethodId` and `paymentSubmethodId` are optional on transactions; expenses require them in the UI, incomes leave them empty.

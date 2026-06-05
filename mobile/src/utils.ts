@@ -295,7 +295,13 @@ export const installmentTransactionName = (
   name: string,
   installmentNumber: number,
   totalInstallments: number,
-): string => `${name.trim() || 'Installment purchase'} - Installment ${installmentNumber}/${totalInstallments}`;
+  language: AppLanguage = 'en',
+): string => {
+  const fallbackName = language === 'es-AR' ? 'Compra en cuotas' : 'Installment purchase';
+  const installmentLabel = language === 'es-AR' ? 'Cuota' : 'Installment';
+
+  return `${name.trim() || fallbackName} - ${installmentLabel} ${installmentNumber}/${totalInstallments}`;
+};
 
 export const formatAmountValue = (amount: number): string =>
   Math.round(amount).toLocaleString('es-AR', {

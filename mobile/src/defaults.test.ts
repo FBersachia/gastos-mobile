@@ -35,5 +35,6 @@ describe('default app data', () => {
     expect(data.paymentSubmethods.length).toBeGreaterThan(0);
     expect(data.settings.defaultCurrency).toBe('ARS');
     expect(data.settings.defaultPaymentSubmethodId).toBeTruthy();
+    expect(data.settings.themeMode).toBe('light');
   });
 });

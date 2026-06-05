@@ -11,6 +11,7 @@ import {
   PaymentSubmethod,
   Person,
   Subcategory,
+  ThemeMode,
   Transaction,
 } from './types';
 import {
@@ -25,6 +26,7 @@ import {
 const STORAGE_KEY = 'expense-control-app-data-v3';
 
 const isAppLanguage = (value: unknown): value is AppLanguage => value === 'en' || value === 'es-AR';
+const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark';
 
 type StoredCategory = Omit<Category, 'createdAt' | 'updatedAt'> & {
   createdAt?: unknown;
@@ -350,6 +352,7 @@ const withDefaults = (stored: StoredAppData): AppData => {
       ...stored.settings,
       defaultPaymentSubmethodId,
       language: isAppLanguage(stored.settings?.language) ? stored.settings.language : defaults.settings.language,
+      themeMode: isThemeMode(stored.settings?.themeMode) ? stored.settings.themeMode : defaults.settings.themeMode,
       biometricLockEnabled:
         typeof stored.settings?.biometricLockEnabled === 'boolean'
           ? stored.settings.biometricLockEnabled

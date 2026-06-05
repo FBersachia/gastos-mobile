@@ -6,6 +6,8 @@ export type TabKey = 'dashboard' | 'transactions' | 'reports' | 'settings';
 
 export type AppLanguage = 'en' | 'es-AR';
 
+export type ThemeMode = 'light' | 'dark';
+
 export interface Category {
   id: string;
   name: string;
@@ -99,6 +101,7 @@ export interface AppSettings {
   defaultCurrency: string;
   defaultPaymentSubmethodId?: string;
   language: AppLanguage;
+  themeMode: ThemeMode;
   biometricLockEnabled: boolean;
   budgetNearLimitThreshold: number;
 }

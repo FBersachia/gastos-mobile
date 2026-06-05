@@ -12,7 +12,7 @@ Este documento describe el build local de Android probado en esta PC para genera
 Artefacto esperado:
 
 ```powershell
-C:\tmp\gastos-mobile-local-build\artifacts\expense-control-v1.0.14-15-internal.apk
+C:\tmp\gastos-mobile-local-build\artifacts\expense-control-v1.0.15-16-internal.apk
 ```
 
 ## Prerequisitos
@@ -137,8 +137,8 @@ npm test
 Salida esperada de tests:
 
 ```text
-Test Files  3 passed (3)
-Tests  21 passed (21)
+Test Files  4 passed (4)
+Tests  26 passed (26)
 ```
 
 ## Generar Android Nativo
@@ -187,7 +187,7 @@ C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\apk\release\ap
 ```powershell
 $artifactDir = "C:\tmp\gastos-mobile-local-build\artifacts"
 $sourceApk = "C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\apk\release\app-release.apk"
-$targetApk = "$artifactDir\expense-control-v1.0.14-15-internal.apk"
+$targetApk = "$artifactDir\expense-control-v1.0.15-16-internal.apk"
 
 New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
 Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force

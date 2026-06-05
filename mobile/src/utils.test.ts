@@ -92,6 +92,7 @@ const baseData = (): AppData => ({
     defaultCurrency: 'ARS',
     defaultPaymentSubmethodId: 'subpay-visa',
     language: 'en',
+    themeMode: 'light',
     biometricLockEnabled: false,
     budgetNearLimitThreshold: 0.8,
   },
@@ -115,6 +116,11 @@ describe('installment helpers', () => {
 
   it('uses the transaction name when generating installment names', () => {
     expect(installmentTransactionName('Laptop', 2, 6)).toBe('Laptop - Installment 2/6');
+  });
+
+  it('uses Spanish copy when generating installment names in Spanish', () => {
+    expect(installmentTransactionName('Botas', 2, 6, 'es-AR')).toBe('Botas - Cuota 2/6');
+    expect(installmentTransactionName('', 1, 3, 'es-AR')).toBe('Compra en cuotas - Cuota 1/3');
   });
 });
 

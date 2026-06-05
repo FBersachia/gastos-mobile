@@ -18,6 +18,7 @@ Supported fields:
 - Transaction reference (`name`), shown in the main creation step beside the amount composer.
 - Description, managed only from More options.
 - Installment selector in More options for new expenses, including suggested values and a custom numeric input.
+- More options closes through an explicit confirm action after optional values are adjusted.
 - Optional assigned person for expense transactions.
 - Optional total installment interest percentage for new expense installments.
 - Numeric keypad with inline addition and subtraction support for quick amount calculation.
@@ -40,7 +41,7 @@ The form validates:
 
 ## Creation
 
-`handleSaveTransaction` creates one normal transaction or multiple generated installment transactions.
+`handleSaveTransaction` creates one normal transaction or multiple generated installment transactions. Generated installment names use the active language, so Spanish sessions show `Cuota` instead of `Installment`.
 
 Each transaction receives:
 
@@ -59,6 +60,8 @@ Each transaction receives:
 Editing is currently allowed only for non-installment transactions. Expense editing uses a compact selected-subcategory row by default, with grouped category/subcategory choices opened only when the user taps the row.
 
 When editing, the existing payment method, submethod, name, description, currency, and assigned person are preserved unless the user explicitly changes them.
+
+After confirming a transaction edit from the detail modal, the app closes both edit/detail modals and returns to Dashboard.
 
 Income transactions do not display payment in lists, detail, or CSV export. Older income rows that still have payment data are preserved on load, but saving an edited income clears payment fields.
 

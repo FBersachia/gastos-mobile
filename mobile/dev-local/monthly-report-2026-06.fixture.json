@@ -362,6 +362,7 @@
     "defaultCurrency": "ARS",
     "defaultPaymentSubmethodId": "subpay-transfer-bank",
     "language": "es-AR",
+    "themeMode": "light",
     "biometricLockEnabled": false,
     "budgetNearLimitThreshold": 0.8
   },
