@@ -115,12 +115,14 @@ if (Test-Path $target) {
 }
 
 New-Item -ItemType Directory -Force -Path $target | Out-Null
-robocopy $source $target /E /XD .git node_modules mobile\node_modules mobile\.expo mobile\android mobile\dev-local /NFL /NDL /NJH /NJS /NP
+robocopy $source $target /E /XD .git node_modules mobile\node_modules mobile\.expo mobile\android /NFL /NDL /NJH /NJS /NP
 
 if (Test-Path "$target\mobile\android") {
   Remove-Item -LiteralPath "$target\mobile\android" -Recurse -Force
 }
 ```
+
+`mobile\dev-local` se copia a la carpeta temporal para poder ejecutar los tests que validan el fixture mensual. Debe eliminarse antes de generar Android nativo para que el fixture no forme parte del flujo de APK.
 
 ## Instalar Dependencias y Validar
 
@@ -141,6 +143,28 @@ Test Files  4 passed (4)
 Tests  26 passed (26)
 ```
 
+## Excluir Fixture Local Antes Del APK
+
+```powershell
+$target = "C:\tmp\gastos-mobile-local-build"
+$devLocal = "$target\mobile\dev-local"
+
+if (Test-Path $devLocal) {
+  $resolvedTarget = (Resolve-Path $target).Path
+  $resolvedDevLocal = (Resolve-Path $devLocal).Path
+
+  if (-not $resolvedDevLocal.StartsWith($resolvedTarget, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to delete outside build target: $resolvedDevLocal"
+  }
+
+  Remove-Item -LiteralPath $resolvedDevLocal -Recurse -Force
+}
+
+if (Test-Path $devLocal) {
+  throw "dev-local was not removed"
+}
+```
+
 ## Generar Android Nativo
 
 ```powershell
@@ -155,6 +179,7 @@ Notas esperadas:
 
 - Expo puede avisar que no hay repo git en la copia temporal.
 - Expo puede avisar que `edgeToEdgeEnabled=false` no se puede desactivar en Android 16+.
+- Expo puede avisar que `userInterfaceStyle` requiere `expo-system-ui`; no bloquea este build porque el modo oscuro es manual y se aplica en la UI de React Native.
 - Esos avisos no bloquean el build.
 
 ## Compilar APK Release
