@@ -41,4 +41,5 @@ Runtime defaults in `mobile/src/sampleData.ts` must mirror this document. If a d
 - Only expense categories use `cashBoxId`.
 - Income categories must keep `cashBoxId` empty.
 - Custom expense categories can choose any active cash box from the default catalog.
-- Cash boxes are currently a default catalog only; no cash box create/edit UI exists yet.
+- Cash boxes are a fixed default catalog; no cash box create/edit/delete UI exists yet.
+- Settings > Cash boxes/Cajas can reassign active expense categories by updating `Category.cashBoxId`.

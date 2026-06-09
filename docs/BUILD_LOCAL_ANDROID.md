@@ -1,10 +1,11 @@
-# Build Local Android APK
+# Build Local Android APK y AAB
 
-Este documento describe el build local de Android probado en esta PC para generar un APK interno sin usar EAS cloud y sin modificar el repo original.
+Este documento describe el build local de Android probado en esta PC para generar un APK interno y un AAB de release para Google Play sin usar EAS cloud y sin modificar el repo original.
 
 ## Objetivo
 
 - Generar un APK instalable para pruebas internas.
+- Generar un AAB para subir a Google Play.
 - Incluir el estado actual del workspace, incluso cambios locales sin commit.
 - Evitar regenerar o limpiar el repo original.
 - Usar una copia temporal en `C:\tmp\gastos-mobile-local-build`.
@@ -12,7 +13,8 @@ Este documento describe el build local de Android probado en esta PC para genera
 Artefacto esperado:
 
 ```powershell
-C:\tmp\gastos-mobile-local-build\artifacts\expense-control-v1.0.15-16-internal.apk
+C:\tmp\gastos-mobile-local-build\artifacts\inflatrack-v1.0.16-17-internal.apk
+C:\tmp\gastos-mobile-local-build\artifacts\inflatrack-v1.0.16-17-release.aab
 ```
 
 ## Prerequisitos
@@ -140,10 +142,10 @@ Salida esperada de tests:
 
 ```text
 Test Files  4 passed (4)
-Tests  26 passed (26)
+Tests  29 passed (29)
 ```
 
-## Excluir Fixture Local Antes Del APK
+## Excluir Fixture Local Antes Del APK/AAB
 
 ```powershell
 $target = "C:\tmp\gastos-mobile-local-build"
@@ -182,7 +184,7 @@ Notas esperadas:
 - Expo puede avisar que `userInterfaceStyle` requiere `expo-system-ui`; no bloquea este build porque el modo oscuro es manual y se aplica en la UI de React Native.
 - Esos avisos no bloquean el build.
 
-## Compilar APK Release
+## Compilar APK Interno
 
 ```powershell
 $nodeHome = "$env:APPDATA\fnm\node-versions\v20.19.4\installation"
@@ -207,23 +209,74 @@ APK generado por Gradle:
 C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\apk\release\app-release.apk
 ```
 
-## Copiar Artefacto Final
+## Compilar AAB Para Google Play
+
+```powershell
+$nodeHome = "$env:APPDATA\fnm\node-versions\v20.19.4\installation"
+$env:JAVA_HOME = "C:\tmp\gastos-mobile-tools\jdk17"
+$env:ANDROID_HOME = "C:\tmp\gastos-mobile-tools\android-sdk"
+$env:ANDROID_SDK_ROOT = "C:\tmp\gastos-mobile-tools\android-sdk"
+$env:Path = "$nodeHome;$env:JAVA_HOME\bin;$env:ANDROID_SDK_ROOT\platform-tools;$env:ANDROID_SDK_ROOT\cmdline-tools\latest\bin;$env:Path"
+
+Set-Location "C:\tmp\gastos-mobile-local-build\mobile\android"
+.\gradlew.bat --no-daemon --console=plain clean bundleRelease
+```
+
+Salida esperada:
+
+```text
+BUILD SUCCESSFUL
+```
+
+AAB generado por Gradle:
+
+```powershell
+C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\bundle\release\app-release.aab
+```
+
+Nota de firma: este flujo local puede usar credenciales de debug si no hay upload key configurada. Para Play Store, subir el AAB con Play App Signing o configurar una upload key real fuera del repo. No commitear keystores ni passwords.
+
+## Copiar Artefactos Finales
 
 ```powershell
 $artifactDir = "C:\tmp\gastos-mobile-local-build\artifacts"
 $sourceApk = "C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\apk\release\app-release.apk"
-$targetApk = "$artifactDir\expense-control-v1.0.15-16-internal.apk"
+$sourceAab = "C:\tmp\gastos-mobile-local-build\mobile\android\app\build\outputs\bundle\release\app-release.aab"
+$targetApk = "$artifactDir\inflatrack-v1.0.16-17-internal.apk"
+$targetAab = "$artifactDir\inflatrack-v1.0.16-17-release.aab"
 
 New-Item -ItemType Directory -Force -Path $artifactDir | Out-Null
 Copy-Item -LiteralPath $sourceApk -Destination $targetApk -Force
-Get-Item -LiteralPath $targetApk | Select-Object Name, Length, FullName
+Copy-Item -LiteralPath $sourceAab -Destination $targetAab -Force
+Get-Item -LiteralPath $targetApk, $targetAab | Select-Object Name, Length, FullName
 ```
 
 Validar:
 
-- El archivo existe.
+- Los archivos existen.
 - `Length` es mayor que `0`.
-- En el ultimo build probado, el APK peso `68,547,454` bytes.
+- El metadata del APK tiene `versionName=1.0.16`, `versionCode=17`, `applicationId=com.suats.gastoscontrol`.
+- El AAB no siempre genera `output-metadata.json` local; validar `mobile/android/app/build.gradle` generado y el nombre/tamano del artefacto.
+- El manifest final no debe incluir permisos no justificados de storage, overlay, internet o vibracion.
+- En el ultimo build probado, el APK peso `68,614,602` bytes y el AAB peso `46,880,135` bytes.
+- SHA256 ultimo build:
+  - APK: `F295B0839FBE62795050ED968363E706713080A027847196442039B229DEDBF3`
+  - AAB: `ACDD71C64069CB292F092D874F8735F80C3E605C5D52E6336985ACFE37D3D289`
+
+## Validar Permisos Del APK
+
+```powershell
+$aapt = "C:\tmp\gastos-mobile-tools\android-sdk\build-tools\36.0.0\aapt2.exe"
+$apk = "C:\tmp\gastos-mobile-local-build\artifacts\inflatrack-v1.0.16-17-internal.apk"
+
+& $aapt dump permissions $apk
+```
+
+Permisos esperados:
+
+- `android.permission.USE_BIOMETRIC`
+- `android.permission.USE_FINGERPRINT`
+- `com.suats.gastoscontrol.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
 
 ## Troubleshooting
 

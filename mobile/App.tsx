@@ -97,6 +97,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import appConfig from './app.json';
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { appDataFromDevFixturePayload, type DevAppDataPayload } from './src/devFixtures';
 import { loadAppData, saveAppData } from './src/storage';
@@ -123,11 +124,14 @@ import {
 } from './src/types';
 import {
   addMonths,
+  amountExpressionNeedsResolution,
   applyInstallmentInterest,
+  calendarWeeksForMonth,
   dateFromInput,
   deactivateById,
   dateInputFromDate,
-  formatAmountValue,
+  evaluateAmountExpression,
+  formatAmountPreview,
   formatMoney,
   generateId,
   getMonthParts,
@@ -138,6 +142,7 @@ import {
   monthStartInput,
   monthlyTransactions,
   normalizeCurrency,
+  paymentMethodIdForTransaction,
   roundMoney,
   shiftMonth,
   splitInstallmentsWithInterest,
@@ -146,6 +151,7 @@ import {
   summarizeByCurrency,
   summarizeExpensesByCashBox,
   summarizeExpensesByCategory,
+  summarizeExpensesByParentPaymentMethod,
   summarizeExpensesByPerson,
   todayInput,
 } from './src/utils';
@@ -199,7 +205,7 @@ const translations = {
     about: 'About',
     aboutAppByInflatrack: 'An Inflatrack app.',
     aboutIntro:
-      'Expense Control is developed by Inflatrack to help track personal expenses, income, budgets and payment methods on this device.',
+      'Inflatrack helps track personal expenses, income, budgets and payment methods on this device.',
     aboutSubtitle: 'Inflatrack, legal and version',
     activeCategories: 'active categories',
     activeInstallmentPlans: 'active installment plans',
@@ -228,6 +234,7 @@ const translations = {
     byCategory: 'By category',
     byCashBox: 'By cash box',
     byPerson: 'By assigned person',
+    byPaymentMethod: 'By payment method',
     byPaymentSubmethod: 'By payment submethod',
     bySubcategory: 'By subcategory',
     cancel: 'Cancel',
@@ -236,6 +243,8 @@ const translations = {
     categoryListTitle: 'Category list',
     categoryName: 'Category name',
     cashBox: 'Cash box',
+    cashBoxCategoryAssignments: 'Cash box category assignments',
+    cashBoxes: 'Cash boxes',
     cashBoxesWithExpenses: 'cash boxes with expenses',
     changeSubcategory: 'Change subcategory',
     chooseSubcategory: 'Choose subcategory',
@@ -247,6 +256,7 @@ const translations = {
     currency: 'Currency',
     custom: 'Custom',
     date: 'Date',
+    calculateAmount: 'Calculate amount',
     defaultCurrency: 'Default currency',
     defaultPaymentMethod: 'Default payment',
     defaultPayment: 'Default',
@@ -276,6 +286,7 @@ const translations = {
     expenseCategory: 'Expense category',
     expenseSubcategory: 'Expense subcategory',
     expenses: 'Expenses',
+    fixedCashBoxes: 'fixed cash boxes',
     icon: 'Icon',
     income: 'Income',
     incomeCategory: 'Income category',
@@ -320,6 +331,7 @@ const translations = {
     noInstallments: 'No active installments this month',
     noMovements: 'No movements this month',
     noParentCategory: 'No parent category',
+    noPaymentMethodExpenses: 'No payment method expenses this month',
     noPaymentOptions: 'No payment options',
     noPerson: 'No person',
     noPersonExpenses: 'No assigned person expenses this month',
@@ -335,6 +347,7 @@ const translations = {
     paymentMethodListTitle: 'Payment method list',
     paymentMethodName: 'Payment method name',
     paymentMethods: 'Payment methods',
+    paymentMethodsWithExpenses: 'payment methods with expenses',
     paymentSubmethod: 'Payment submethod',
     people: 'People',
     peopleWithExpenses: 'people with expenses',
@@ -361,6 +374,8 @@ const translations = {
     categoriesWithExpenses: 'categories with expenses',
     subcategoriesWithExpenses: 'subcategories with expenses',
     subcategoryName: 'Subcategory name',
+    categoriesAssigned: 'categories assigned',
+    noCashBoxCategories: 'No active categories assigned to this cash box',
     today: 'Today',
     termsBody:
       'By using this app you agree to use it responsibly and to verify the information you enter. The app is provided as a financial organization tool and does not replace accounting, tax or legal advice. Inflatrack may update functionality, correct errors or change availability in future versions.',
@@ -382,7 +397,8 @@ const translations = {
     version: 'Version',
     website: 'Website',
     privacyBody:
-      'This version stores your financial data locally on your device. Inflatrack does not sell your information and does not access your local records unless you explicitly share exported files or diagnostic information outside the app.',
+      'Inflatrack stores your financial records locally on this device. Inflatrack does not create accounts, upload your records to its own servers, use analytics, show ads, sell information, or access your local records. CSV/PDF exports are created only when you choose to export or share them. You can delete local data by clearing app storage or uninstalling the app. Privacy inquiries: privacidad@inflatrack.com.ar.',
+    privacyPolicyLink: 'Privacy policy URL',
     privacyTitle: 'Privacy policy',
   },
   'es-AR': {
@@ -398,7 +414,7 @@ const translations = {
     about: 'Acerca de',
     aboutAppByInflatrack: 'Una app de Inflatrack.',
     aboutIntro:
-      'Expense Control es desarrollada por Inflatrack para ayudar a registrar gastos, ingresos, presupuestos y medios de pago en este dispositivo.',
+      'Inflatrack ayuda a registrar gastos, ingresos, presupuestos y medios de pago en este dispositivo.',
     aboutSubtitle: 'Inflatrack, legales y versión',
     activeCategories: 'categorías activas',
     activeInstallmentPlans: 'planes de cuotas activos',
@@ -427,6 +443,7 @@ const translations = {
     byCategory: 'Por categoría',
     byCashBox: 'Por caja',
     byPerson: 'Por persona asignada',
+    byPaymentMethod: 'Por método de pago',
     byPaymentSubmethod: 'Por submétodo de pago',
     bySubcategory: 'Por subcategoría',
     cancel: 'Cancelar',
@@ -435,6 +452,8 @@ const translations = {
     categoryListTitle: 'Listado de categorías',
     categoryName: 'Nombre de categoría',
     cashBox: 'Caja',
+    cashBoxCategoryAssignments: 'Asignación de categorías a cajas',
+    cashBoxes: 'Cajas',
     cashBoxesWithExpenses: 'cajas con gastos',
     changeSubcategory: 'Cambiar subcategoria',
     chooseSubcategory: 'Elegir subcategoria',
@@ -446,6 +465,7 @@ const translations = {
     currency: 'Moneda',
     custom: 'Personalizado',
     date: 'Fecha',
+    calculateAmount: 'Calcular importe',
     defaultCurrency: 'Moneda predeterminada',
     defaultPaymentMethod: 'Pago predeterminado',
     defaultPayment: 'Predeterminado',
@@ -475,6 +495,7 @@ const translations = {
     expenseCategory: 'Categoría de gasto',
     expenseSubcategory: 'Subcategoria de gasto',
     expenses: 'Gastos',
+    fixedCashBoxes: 'cajas fijas',
     icon: 'Ícono',
     income: 'Ingreso',
     incomeCategory: 'Categoria de ingreso',
@@ -519,6 +540,7 @@ const translations = {
     noInstallments: 'No hay cuotas activas este mes',
     noMovements: 'No hay movimientos este mes',
     noParentCategory: 'Sin categoría padre',
+    noPaymentMethodExpenses: 'No hay gastos por método de pago este mes',
     noPaymentOptions: 'No hay opciones de pago',
     noPerson: 'Sin persona',
     noPersonExpenses: 'No hay gastos por persona este mes',
@@ -534,6 +556,7 @@ const translations = {
     paymentMethodListTitle: 'Listado de métodos de pago',
     paymentMethodName: 'Nombre del método de pago',
     paymentMethods: 'Métodos de pago',
+    paymentMethodsWithExpenses: 'métodos con gastos',
     paymentSubmethod: 'Submétodo de pago',
     people: 'Personas',
     peopleWithExpenses: 'personas con gastos',
@@ -560,6 +583,8 @@ const translations = {
     categoriesWithExpenses: 'categorías con gastos',
     subcategoriesWithExpenses: 'subcategorías con gastos',
     subcategoryName: 'Nombre de subcategoría',
+    categoriesAssigned: 'categorías asignadas',
+    noCashBoxCategories: 'No hay categorías activas asignadas a esta caja',
     today: 'Hoy',
     termsBody:
       'Al usar esta app aceptás utilizarla de forma responsable y verificar la información que cargás. La app se entrega como una herramienta de organización financiera y no reemplaza asesoramiento contable, impositivo ni legal. Inflatrack puede actualizar funcionalidades, corregir errores o cambiar disponibilidad en versiones futuras.',
@@ -581,7 +606,8 @@ const translations = {
     version: 'Versión',
     website: 'Sitio web',
     privacyBody:
-      'Esta versión guarda tus datos financieros localmente en tu dispositivo. Inflatrack no vende tu información y no accede a tus registros locales salvo que compartas explícitamente archivos exportados o información de diagnóstico fuera de la app.',
+      'Inflatrack guarda tus registros financieros localmente en este dispositivo. Inflatrack no crea cuentas, no sube tus registros a servidores propios, no usa analytics, no muestra publicidad, no vende información ni accede a tus registros locales. Los CSV/PDF se crean solo cuando elegís exportarlos o compartirlos. Podés eliminar los datos locales borrando el almacenamiento de la app o desinstalándola. Consultas de privacidad: privacidad@inflatrack.com.ar.',
+    privacyPolicyLink: 'URL de política de privacidad',
     privacyTitle: 'Política de privacidad',
   },
 } satisfies Record<AppLanguage, Record<string, string>>;
@@ -590,9 +616,12 @@ type TranslationKey = keyof typeof translations.en;
 type Translator = (key: TranslationKey) => string;
 
 const getTranslator = (language: AppLanguage): Translator => (key) => translations[language][key];
-const APP_VERSION = '1.0.13';
+const APP_NAME = appConfig.expo.name ?? 'Inflatrack';
+const APP_VERSION = appConfig.expo.version ?? '0.0.0';
 const INFLATRACK_URL = 'https://www.inflatrack.com.ar';
 const INFLATRACK_DISPLAY_URL = 'www.inflatrack.com.ar';
+const INFLATRACK_PRIVACY_URL = 'https://www.inflatrack.com.ar/privacy-policy';
+const INFLATRACK_PRIVACY_DISPLAY_URL = 'www.inflatrack.com.ar/privacy-policy';
 const JUNE_2026_MONTH = new Date(2026, 5, 1);
 const JUNE_2026_FIXTURE_FILE = 'monthly-report-2026-06.fixture.json';
 let colors = lightColors;
@@ -1060,7 +1089,16 @@ type TransactionDayGroup = {
   totalsByCurrency: Array<{ currency: string; income: number; expenses: number; balance: number }>;
 };
 
-type SettingsSection = 'menu' | 'core' | 'budgets' | 'categories' | 'subcategories' | 'payments' | 'people' | 'about';
+type SettingsSection =
+  | 'menu'
+  | 'core'
+  | 'budgets'
+  | 'categories'
+  | 'cashboxes'
+  | 'subcategories'
+  | 'payments'
+  | 'people'
+  | 'about';
 
 const formatDashboardDate = (date: Date, language: AppLanguage): string => {
   const month = date.getMonth() + 1;
@@ -1080,60 +1118,12 @@ const formatShortInputDate = (date: Date, language: AppLanguage): string =>
     month: 'numeric',
   }).format(date);
 
-const calendarDaysForMonth = (
-  monthInput: Date,
-  weekStartsOn: 0 | 1 = 0,
-): Array<{ date: Date; dateInput: string; day: number; currentMonth: boolean }> => {
-  const { month, year } = getMonthParts(monthInput);
-  const firstDay = new Date(year, month - 1, 1);
-  const startOffset = (firstDay.getDay() - weekStartsOn + 7) % 7;
-  const startDate = new Date(year, month - 1, 1 - startOffset);
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + index);
-
-    return {
-      date,
-      dateInput: dateInputFromDate(date),
-      day: date.getDate(),
-      currentMonth: date.getMonth() === month - 1,
-    };
-  });
-};
+const formatShortWeekday = (date: Date, language: AppLanguage): string =>
+  new Intl.DateTimeFormat(localeForLanguage(language), {
+    weekday: 'short',
+  }).format(date);
 
 const amountOperatorPattern = /[+-]$/;
-
-const evaluateAmountExpression = (expression: string): number => {
-  const normalized = expression.replace(/,/g, '.').trim().replace(/[+-]+$/, '');
-
-  if (!normalized || /[^0-9.+-]/.test(normalized)) {
-    return Number.NaN;
-  }
-
-  const terms = normalized.match(/(?:^|[+-])\d+(?:\.\d*)?/g);
-
-  if (!terms || terms.join('') !== normalized) {
-    return Number.NaN;
-  }
-
-  return terms.reduce((total, term) => total + Number(term), 0);
-};
-
-const formatAmountPreview = (value: string): string => {
-  const trimmed = value.trim();
-
-  if (!trimmed) {
-    return '0';
-  }
-
-  if (/[+-]/.test(trimmed) || /[.,]$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  const amount = evaluateAmountExpression(trimmed);
-
-  return Number.isFinite(amount) ? formatAmountValue(amount) : trimmed;
-};
 
 const groupTransactionsByDate = (transactions: Transaction[]): TransactionDayGroup[] => {
   const groups = new Map<
@@ -1374,7 +1364,7 @@ function AppRoot() {
       }
 
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: 'Unlock Expense Control',
+        promptMessage: `Unlock ${APP_NAME}`,
         cancelLabel: 'Cancel',
         fallbackLabel: 'Use device passcode',
         disableDeviceFallback: false,
@@ -1760,6 +1750,27 @@ function AppRoot() {
     }));
   };
 
+  const handleAssignCategoryCashBox = (categoryId: string, cashBoxId: string) => {
+    persistData((current) => {
+      if (!current.cashBoxes.some((cashBox) => cashBox.id === cashBoxId && cashBox.active)) {
+        return current;
+      }
+
+      return {
+        ...current,
+        categories: current.categories.map((category) =>
+          category.id === categoryId && category.type === 'expense'
+            ? {
+                ...category,
+                cashBoxId,
+                updatedAt: new Date(),
+              }
+            : category,
+        ),
+      };
+    });
+  };
+
   const handleAddSubcategory = (categoryId: string, name: string, icon?: string) => {
     const trimmed = name.trim();
     if (!categoryId || !trimmed) {
@@ -2049,6 +2060,10 @@ function AppRoot() {
   const isDarkTheme = data.settings.themeMode === 'dark';
   const appTheme = { colors, styles, isDark: isDarkTheme };
 
+  if (authStatus === 'checking') {
+    return <LoadingScreen />;
+  }
+
   if (authStatus !== 'authenticated') {
     return <AuthScreen status={authStatus} onRetry={requestAuthentication} />;
   }
@@ -2134,6 +2149,7 @@ function AppRoot() {
             onSetBiometricLockEnabled={handleSetBiometricLockEnabled}
             onAddCategory={handleAddCategory}
             onUpdateCategory={handleUpdateCategory}
+            onAssignCategoryCashBox={handleAssignCategoryCashBox}
             onAddSubcategory={handleAddSubcategory}
             onUpdateSubcategory={handleUpdateSubcategory}
             onDisableCategory={handleDisableCategory}
@@ -2199,13 +2215,13 @@ function LoadingScreen() {
   return (
     <AppSafeAreaView style={styles.centerScreen}>
       <ActivityIndicator color={colors.primary} size="large" />
-      <Text style={styles.loadingText}>Loading Expense Control</Text>
+      <Text style={styles.loadingText}>Loading {APP_NAME}</Text>
     </AppSafeAreaView>
   );
 }
 
 function AuthScreen({ status, onRetry }: { status: AuthStatus; onRetry: () => void }) {
-  const title = status === 'unavailable' ? 'Biometric lock unavailable' : 'Expense Control locked';
+  const title = status === 'unavailable' ? 'Biometric lock unavailable' : `${APP_NAME} locked`;
   const message =
     status === 'unavailable'
       ? 'Enroll fingerprint or face unlock on this Android device to access local financial data.'
@@ -2241,7 +2257,7 @@ function Header({
       <View style={styles.headerTextGroup}>
         <View style={styles.headerBrand}>
           <Image source={appLogo} style={styles.headerLogo} />
-          <Text style={styles.eyebrow} numberOfLines={1}>Expense Control</Text>
+          <Text style={styles.eyebrow} numberOfLines={1}>{APP_NAME}</Text>
         </View>
         <Text style={[styles.headerTitle, isCompact ? styles.headerTitleCompact : null]} numberOfLines={2} adjustsFontSizeToFit>
           {monthLabel(selectedMonth, localeForLanguage(language))}
@@ -2661,6 +2677,12 @@ function TransactionForm({
   );
   const selectedInstallmentCount = installmentsEnabled ? Number.parseInt(installmentCount, 10) : 1;
   const amountDisplay = formatAmountPreview(amount);
+  const amountNeedsResolution = amountExpressionNeedsResolution(amount);
+  const selectedDateIsToday = dateInputFromDate(date) === dateInputFromDate(todayInput());
+  const dateButtonLabel = selectedDateIsToday ? t('today') : formatShortInputDate(date, data.settings.language);
+  const dateButtonSubtext = selectedDateIsToday
+    ? formatShortInputDate(date, data.settings.language)
+    : formatShortWeekday(date, data.settings.language);
   const selectedPersonName = personDisplayName(data, assignedPersonId);
   const optionSummary = [
     normalizeCurrency(currency),
@@ -2880,6 +2902,17 @@ function TransactionForm({
 
     setInstallmentCount(digits);
     setInstallmentsEnabled(Number.isFinite(count) && count > 1);
+  };
+
+  const handleResolveAmount = () => {
+    const parsedAmount = evaluateAmountExpression(amount);
+
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert(t('invalidAmountTitle'), t('invalidAmountMessage'));
+      return;
+    }
+
+    setAmount(String(roundMoney(parsedAmount)));
   };
 
   const handleSubmit = () => {
@@ -3145,9 +3178,9 @@ function TransactionForm({
                 style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null]}
               >
                 <Text style={[styles.expenseKeyText, isCompact ? styles.expenseKeyTextCompact : null]} numberOfLines={1} adjustsFontSizeToFit>
-                  {t('today')}
+                  {dateButtonLabel}
                 </Text>
-                <Text style={styles.expenseKeySubtext}>{formatShortInputDate(date, data.settings.language)}</Text>
+                <Text style={styles.expenseKeySubtext}>{dateButtonSubtext}</Text>
               </Pressable>
             </View>
             <View style={[styles.expenseKeypadRow, isCompact ? styles.expenseKeypadRowCompact : null]}>
@@ -3175,11 +3208,17 @@ function TransactionForm({
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={type === 'expense' ? t('saveExpense') : t('saveIncome')}
-                onPress={handleSubmit}
+                accessibilityLabel={
+                  amountNeedsResolution ? t('calculateAmount') : type === 'expense' ? t('saveExpense') : t('saveIncome')
+                }
+                onPress={amountNeedsResolution ? handleResolveAmount : handleSubmit}
                 style={[styles.expenseKey, isCompact ? styles.expenseKeyCompact : null, styles.expenseConfirmKey]}
               >
-                <Check color={colors.onPrimary} size={32} strokeWidth={2.2} />
+                {amountNeedsResolution ? (
+                  <Text style={[styles.expenseKeyText, styles.expenseResolveKeyText]}>=</Text>
+                ) : (
+                  <Check color={colors.onPrimary} size={32} strokeWidth={2.2} />
+                )}
               </Pressable>
             </View>
           </View>
@@ -3701,8 +3740,18 @@ function TransactionDetailLine({ label, value }: { label: string; value: string 
 
 const UNASSIGNED_CASH_BOX_REPORT_ID = '__unassigned_cash_box__';
 const UNASSIGNED_PERSON_REPORT_ID = '__unassigned_person__';
+const UNASSIGNED_PAYMENT_METHOD_REPORT_ID = '__unassigned_payment_method__';
 
-type ReportSection = 'menu' | 'subpaymethod' | 'category' | 'cashbox' | 'person' | 'subcategory' | 'installments' | 'export';
+type ReportSection =
+  | 'menu'
+  | 'paymethod'
+  | 'subpaymethod'
+  | 'category'
+  | 'cashbox'
+  | 'person'
+  | 'subcategory'
+  | 'installments'
+  | 'export';
 
 type SelectedReportItem = {
   label: string;
@@ -3744,6 +3793,11 @@ function ReportsScreen({
 
   const personSummaries = useMemo<PersonSummary[]>(
     () => summarizeExpensesByPerson(data, transactions),
+    [data, transactions],
+  );
+
+  const paymentMethodSummaries = useMemo(
+    () => summarizeExpensesByParentPaymentMethod(data, transactions, data.settings.language),
     [data, transactions],
   );
 
@@ -3842,11 +3896,15 @@ function ReportsScreen({
         return t.type === 'expense' && personId === selectedItem.id && t.currency === selectedItem.currency;
       }
       if (selectedItem.type === 'subcategory') return t.subcategoryId === selectedItem.id && t.currency === selectedItem.currency;
+      if (selectedItem.type === 'paymethod') {
+        const paymentMethodId = paymentMethodIdForTransaction(data, t) ?? UNASSIGNED_PAYMENT_METHOD_REPORT_ID;
+        return t.type === 'expense' && paymentMethodId === selectedItem.id && t.currency === selectedItem.currency;
+      }
       if (selectedItem.type === 'subpaymethod') return t.paymentSubmethodId === selectedItem.id && t.currency === selectedItem.currency;
       if (selectedItem.type === 'installments') return t.installmentGroupId === selectedItem.id;
       return false;
     });
-  }, [selectedItem, transactions, data.categories, data.transactions]);
+  }, [selectedItem, transactions, data, data.transactions]);
 
   const drillGroups = useMemo(() => groupTransactionsByDate(drillTransactions), [drillTransactions]);
 
@@ -3898,6 +3956,7 @@ function ReportsScreen({
 
   const reportTitle: Record<ReportSection, string> = {
     menu: '',
+    paymethod: t('byPaymentMethod'),
     subpaymethod: t('byPaymentSubmethod'),
     cashbox: t('byCashBox'),
     category: t('byCategory'),
@@ -3973,6 +4032,12 @@ function ReportsScreen({
         <Text style={styles.sectionTitle}>{t('reports')}</Text>
         <View style={styles.settingsMenu}>
           <SettingsMenuButton
+            title={t('byPaymentMethod')}
+            subtitle={`${paymentMethodSummaries.length} ${t('paymentMethodsWithExpenses')}`}
+            Icon={WalletCards}
+            onPress={() => setActiveReport('paymethod')}
+          />
+          <SettingsMenuButton
             title={t('byPaymentSubmethod')}
             subtitle={`${submethodSummaries.length} ${t('submethodsWithExpenses')}`}
             Icon={WalletCards}
@@ -4015,6 +4080,44 @@ function ReportsScreen({
             onPress={() => setActiveReport('export')}
           />
         </View>
+      </ScreenScroll>
+    );
+  }
+
+  if (activeReport === 'paymethod') {
+    return (
+      <ScreenScroll>
+        <DetailHeader title={reportTitle.paymethod} />
+        <Text style={styles.reportMonthLabel}>{toMonth(selectedMonth)}</Text>
+        {paymentMethodSummaries.length ? (
+          paymentMethodSummaries.map((summary) => (
+            <Pressable
+              key={`${summary.paymentMethodId ?? UNASSIGNED_PAYMENT_METHOD_REPORT_ID}-${summary.currency}`}
+              accessibilityRole="button"
+              onPress={() =>
+                setSelectedItem({
+                  type: 'paymethod',
+                  id: summary.paymentMethodId ?? UNASSIGNED_PAYMENT_METHOD_REPORT_ID,
+                  currency: summary.currency,
+                  label: summary.paymentMethodName,
+                })
+              }
+              style={[styles.listRow, isCompact ? styles.listRowCompact : null]}
+            >
+              <View style={styles.managementIconBadge}>
+                <WalletCards color={colors.primary} size={18} strokeWidth={2.2} />
+              </View>
+              <Text style={[styles.rowTitle, styles.reportRowName]} numberOfLines={2}>
+                {summary.paymentMethodName}
+              </Text>
+              <Text style={styles.rowAmount} numberOfLines={1} adjustsFontSizeToFit>
+                {formatMoney(summary.amount, summary.currency)}
+              </Text>
+            </Pressable>
+          ))
+        ) : (
+          <EmptyState title={t('noPaymentMethodExpenses')} />
+        )}
       </ScreenScroll>
     );
   }
@@ -4265,6 +4368,7 @@ function SettingsScreen({
   onSetBiometricLockEnabled,
   onAddCategory,
   onUpdateCategory,
+  onAssignCategoryCashBox,
   onAddSubcategory,
   onUpdateSubcategory,
   onDisableCategory,
@@ -4301,6 +4405,7 @@ function SettingsScreen({
     icon?: string,
     cashBoxId?: string,
   ) => void;
+  onAssignCategoryCashBox: (categoryId: string, cashBoxId: string) => void;
   onAddSubcategory: (categoryId: string, name: string, icon?: string) => void;
   onUpdateSubcategory: (subcategoryId: string, categoryId: string, name: string, icon?: string) => void;
   onDisableCategory: (categoryId: string) => void;
@@ -4366,6 +4471,7 @@ function SettingsScreen({
   const [editingPersonId, setEditingPersonId] = useState<string | undefined>();
   const [editingPersonName, setEditingPersonName] = useState('');
   const [expandedSubcategoryCategoryIds, setExpandedSubcategoryCategoryIds] = useState<string[]>([]);
+  const [expandedCashBoxId, setExpandedCashBoxId] = useState<string | undefined>();
   const [subcategoryParentPickerOpen, setSubcategoryParentPickerOpen] = useState(false);
   const [subcategoryIconPickerOpen, setSubcategoryIconPickerOpen] = useState(true);
 
@@ -4502,6 +4608,7 @@ function SettingsScreen({
     core: t('coreSettings'),
     budgets: t('budgets'),
     categories: t('categories'),
+    cashboxes: t('cashBoxes'),
     subcategories: t('subcategories'),
     payments: t('paymentMethods'),
     people: t('people'),
@@ -4797,6 +4904,12 @@ function SettingsScreen({
             subtitle={`${activeCategories.length} ${t('activeCategories')}`}
             Icon={List}
             onPress={() => setActiveSettingsSection('categories')}
+          />
+          <SettingsMenuButton
+            title={t('cashBoxes')}
+            subtitle={`${activeCashBoxes.length} ${t('fixedCashBoxes')}`}
+            Icon={Package}
+            onPress={() => setActiveSettingsSection('cashboxes')}
           />
           <SettingsMenuButton
             title={t('subcategories')}
@@ -5241,6 +5354,75 @@ function SettingsScreen({
         )) : (
           <Text style={styles.rowMeta}>{t('noActiveCategories')}</Text>
         )}
+        </View>
+      ) : null}
+
+      {activeSettingsSection === 'cashboxes' ? (
+        <View style={styles.formPanel}>
+          <Text style={styles.listSectionTitle}>{t('cashBoxCategoryAssignments')}</Text>
+          {activeCashBoxes.map((cashBox) => {
+            const assignedCategories = expenseCategories.filter((category) => category.cashBoxId === cashBox.id);
+            const expanded = expandedCashBoxId === cashBox.id;
+            const CashBoxIcon = getCashBoxIcon(cashBox);
+
+            return (
+              <View key={cashBox.id} style={styles.paymentMethodGroup}>
+                <View style={[styles.managementRow, isCompact ? styles.managementRowCompact : null, expanded ? styles.managementRowSelected : null]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded }}
+                    onPress={() => setExpandedCashBoxId((current) => (current === cashBox.id ? undefined : cashBox.id))}
+                    style={styles.managementSelectArea}
+                  >
+                    <View style={styles.managementIconBadge}>
+                      <CashBoxIcon color={colors.primary} size={18} strokeWidth={2.2} />
+                    </View>
+                    <View style={styles.managementText}>
+                      <Text style={styles.rowTitle} numberOfLines={2}>
+                        {displayCashBoxName(cashBox, data.settings.language) ?? cashBox.name}
+                      </Text>
+                      <Text style={styles.rowMeta} numberOfLines={1}>
+                        {assignedCategories.length} {t('categoriesAssigned')}
+                      </Text>
+                    </View>
+                    {expanded ? (
+                      <ChevronDown color={colors.textMuted} size={18} strokeWidth={2.2} />
+                    ) : (
+                      <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
+                    )}
+                  </Pressable>
+                </View>
+                {expanded ? (
+                  <View style={styles.paymentSubmethodList}>
+                    {assignedCategories.length ? (
+                      assignedCategories.map((category) => (
+                        <View key={category.id} style={styles.paymentSubmethodItem}>
+                          <View style={styles.paymentSubmethodRow}>
+                            <CategoryIconBadge category={category} />
+                            <Text style={[styles.rowTitle, styles.paymentSubmethodName]} numberOfLines={2}>
+                              {displayCategoryName(category, data.settings.language)}
+                            </Text>
+                          </View>
+                          <View style={styles.chipRow}>
+                            {activeCashBoxes.map((option) => (
+                              <Chip
+                                key={option.id}
+                                label={displayCashBoxName(option, data.settings.language) ?? option.name}
+                                selected={category.cashBoxId === option.id}
+                                onPress={() => onAssignCategoryCashBox(category.id, option.id)}
+                              />
+                            ))}
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <Text style={styles.rowMeta}>{t('noCashBoxCategories')}</Text>
+                    )}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
         </View>
       ) : null}
 
@@ -5723,6 +5905,19 @@ function AboutPanel({
         <View style={styles.aboutLinkTextGroup}>
           <Text style={styles.aboutLabel}>{t('website')}</Text>
           <Text style={styles.aboutLink}>{INFLATRACK_DISPLAY_URL}</Text>
+        </View>
+        <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="link"
+        onPress={() => Linking.openURL(INFLATRACK_PRIVACY_URL)}
+        style={styles.aboutLinkRow}
+      >
+        <ShieldCheck color={colors.primary} size={18} strokeWidth={2.2} />
+        <View style={styles.aboutLinkTextGroup}>
+          <Text style={styles.aboutLabel}>{t('privacyPolicyLink')}</Text>
+          <Text style={styles.aboutLink}>{INFLATRACK_PRIVACY_DISPLAY_URL}</Text>
         </View>
         <ChevronRight color={colors.textMuted} size={18} strokeWidth={2.2} />
       </Pressable>
@@ -6282,7 +6477,7 @@ function CalendarModal({
   onSelectDate: (dateInput: Date) => void;
 }) {
   const { isCompact } = useResponsive();
-  const days = calendarDaysForMonth(viewMonth, language === 'es-AR' ? 1 : 0);
+  const weeks = calendarWeeksForMonth(viewMonth, language === 'es-AR' ? 1 : 0);
   const selectedDateInput = dateInputFromDate(selectedDate);
   const today = dateInputFromDate(todayInput());
   const weekdays = language === 'es-AR'
@@ -6322,36 +6517,40 @@ function CalendarModal({
             ))}
           </View>
           <View style={styles.calendarGrid}>
-            {days.map((day) => {
-              const selected = day.dateInput === selectedDateInput;
-              const isToday = day.dateInput === today;
+            {weeks.map((week, weekIndex) => (
+              <View key={`week-${weekIndex}`} style={styles.calendarWeekRow}>
+                {week.map((day) => {
+                  const selected = day.dateInput === selectedDateInput;
+                  const isToday = day.dateInput === today;
 
-              return (
-                <Pressable
-                  key={day.dateInput}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => onSelectDate(day.date)}
-                  style={[
-                    styles.calendarDay,
-                    isCompact ? styles.calendarDayCompact : null,
-                    !day.currentMonth ? styles.calendarDayOutside : null,
-                    isToday ? styles.calendarDayToday : null,
-                    selected ? styles.calendarDaySelected : null,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.calendarDayText,
-                      !day.currentMonth ? styles.calendarDayTextOutside : null,
-                      selected ? styles.calendarDayTextSelected : null,
-                    ]}
-                  >
-                    {day.day}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                  return (
+                    <Pressable
+                      key={day.dateInput}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      onPress={() => onSelectDate(day.date)}
+                      style={[
+                        styles.calendarDay,
+                        isCompact ? styles.calendarDayCompact : null,
+                        !day.currentMonth ? styles.calendarDayOutside : null,
+                        isToday ? styles.calendarDayToday : null,
+                        selected ? styles.calendarDaySelected : null,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.calendarDayText,
+                          !day.currentMonth ? styles.calendarDayTextOutside : null,
+                          selected ? styles.calendarDayTextSelected : null,
+                        ]}
+                      >
+                        {day.day}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
           </View>
         </Pressable>
       </Pressable>
@@ -6974,6 +7173,11 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
     fontSize: 26,
     textAlign: 'center',
   },
+  expenseResolveKeyText: {
+    color: colors.onPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 32,
+  },
   expenseKeyTextCompact: {
     fontSize: 21,
   },
@@ -7027,15 +7231,17 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
     textAlign: 'center',
   },
   calendarGrid: {
+    gap: spacing.xs,
+  },
+  calendarWeekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
   calendarDay: {
     alignItems: 'center',
     borderRadius: radius.sm,
+    flex: 1,
     height: 40,
     justifyContent: 'center',
-    width: `${100 / 7}%`,
   },
   calendarDayCompact: {
     height: 34,

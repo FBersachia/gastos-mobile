@@ -8,6 +8,7 @@ The current implementation has been verified with:
 - `npm test` using Vitest for pure helper coverage.
 - `npx expo-doctor`
 - Local Android release APK build with Gradle using JDK 17 and the local Android SDK.
+- Local Android release AAB build with Gradle using JDK 17 and the local Android SDK for Play Store upload.
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
 - Default data validation: first-run data has built-in catalogs and settings, with no transactions or budgets.
 - Theme validation: first-run settings default to light theme, legacy storage hydrates missing/invalid theme mode as light, persisted dark mode is preserved, and palette resolution maps light/dark to their semantic color sets.
@@ -23,7 +24,7 @@ Authentication:
 - App blocks access until biometric authentication succeeds.
 - Failed authentication keeps financial data hidden.
 - Retry action opens authentication again.
-- Disabling biometric access in Settings allows the next app start to enter without an authentication prompt.
+- Disabling biometric access in Settings allows the next app start to enter without an authentication prompt and without flashing the locked/authentication screen while app data is loading.
 
 Dashboard:
 
@@ -43,7 +44,9 @@ Transactions:
 - Enter a transaction reference in the main step and confirm it appears as the transaction title while the selected subcategory remains visible.
 - Create an expense with installments and total interest, then confirm the financed total is split across monthly transactions.
 - Assign a person to an expense and confirm it appears in transaction detail/list metadata and CSV export.
-- Enter an amount using `+` and `-` in the keypad and confirm the saved value matches the calculated result.
+- Enter an amount using `+` and `-` in the keypad and confirm the confirm key changes to `=`, resolves the result without saving, then returns to the check action for saving.
+- Enter invalid or non-positive amount expressions and confirm the existing invalid amount validation appears.
+- Select a non-today date in the keypad calendar and confirm the date key does not say Today/Hoy.
 - Edit a non-installment transaction.
 - Edit a transaction with Transfer or Credit Card payment and confirm saving without payment changes preserves the original payment submethod.
 - Delete a transaction after confirmation.
@@ -55,6 +58,7 @@ Transactions:
 - Confirm default cash boxes are created and default expense categories are assigned to Basic, Fun, Education, Savings, Investment, or Charity.
 - Confirm legacy persisted categories without `cashBoxId` load with the expected default cash box assignments.
 - Switch language to Spanish and confirm the calendar month, weekday labels, payment defaults, and subcategory/payment lists display in Spanish without renaming stored custom data.
+- Open June 2026 in Spanish and confirm the calendar renders Monday first, seven day columns per row, and Sunday is populated instead of appearing as an empty column.
 - In Settings > Core settings, switch between Claro/Oscuro or Light/Dark and confirm the app updates immediately, persists after restart, and keeps Dashboard, Reports, Settings, transaction create/edit, modals, calendar, inputs, chips, amount colors, and buttons legible.
 - Confirm older persisted data without `settings.themeMode` opens in light mode and invalid stored theme values fall back to light mode.
 
@@ -63,7 +67,7 @@ Responsive mobile:
 - Verify dashboard, new expense entry, transaction edit/list, reports, and settings at 320x568, 360x640, 390x844, and 430x932.
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
 - In Reports detail screens, confirm only the global header has month navigation controls.
-- In Reports, open expenses by cash box and expenses by assigned person, then drill into a row and confirm the movement list matches the selected month and currency.
+- In Reports, open expenses by parent payment method, payment submethod, cash box, and assigned person, then drill into a row and confirm the movement list matches the selected month and currency.
 - In Reports > Monthly export, export the selected month to CSV and PDF and confirm the files open/share successfully.
 - In Reports > Monthly export, confirm the PDF groups sections by currency, renders ARS before USD when ARS is the default currency, separates totals/categories/payment methods/cash boxes/people/movements into distinct tables, and formats money with dot thousands and comma decimals.
 - On Android API 35+ with 3-button navigation, confirm the system navigation bar does not cover bottom tab icons or labels.
@@ -81,6 +85,7 @@ Categories and payment methods:
 - In Settings > Subcategories, confirm parent category and icon selectors collapse into summary rows after selection in both create and edit flows.
 - In Settings > Categories, switch between expense and income and confirm the visible category list changes.
 - In Settings > Categories, confirm expense category creation/editing allows selecting a cash box and category rows show the assigned cash box.
+- In Settings > Cash boxes/Cajas, expand each fixed cash box, reassign an active expense category through cash box chips, and confirm reports by cash box reflect the new assignment.
 - In Settings > Categories, confirm the category icon selector collapses into a summary row after selection in both create and edit flows.
 - In Settings > Categories and Settings > Subcategories, confirm visually distinct list subtitles separate creation forms from existing records.
 - Disable a category and confirm it no longer appears in active form choices.
@@ -109,16 +114,18 @@ Budgets:
 Local Android APK builds:
 
 - `mobile/android` can produce an internal APK with `.\gradlew.bat clean assembleRelease` when `JAVA_HOME` points to JDK 17 and `ANDROID_HOME` / `ANDROID_SDK_ROOT` point to the local SDK.
+- `mobile/android` can produce a Play Store AAB with `.\gradlew.bat clean bundleRelease`; APK output remains for internal installation only.
 - Native Android `versionName` and `versionCode` are read from `mobile/app.json`.
-- Release APK filenames include the current `versionName` and `versionCode`.
+- Release APK/AAB filenames include the current `versionName` and `versionCode`.
+- The release manifest must not include unjustified storage, overlay, vibration, or internet permissions.
 - Native edge-to-edge flags stay disabled to match `app.json`; React Native still applies the bottom navigation inset on Android API 35+ where system bars can cover tappable UI.
 - Internal release APKs use the project debug keystore; do not commit production signing credentials or generated APK artifacts.
+- Play Store release must use Play App Signing or a real upload key, not the debug keystore.
 
 CSV export:
 
 - Export the selected-month monthly report from Reports.
-- Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by assigned person, and transaction rows for both expenses and income.
-- Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by payment method, expenses by assigned person, and transaction rows for both expenses and income.
+- Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by parent payment method, expenses by payment submethod, expenses by assigned person, and transaction rows for both expenses and income.
 - Confirm monthly report PDF includes the same selected-month sections grouped by currency.
 - Switch language to Spanish and confirm monthly report CSV/PDF headers, section labels, transaction type labels, empty-person labels, and default catalog names are exported in Spanish while custom names remain unchanged.
 - Confirm transaction CSV columns match requirements, including Cash box.

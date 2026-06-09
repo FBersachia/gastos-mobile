@@ -10,6 +10,7 @@ Implemented in `ReportsScreen`.
 
 Current report sections:
 
+- Expenses by parent payment method.
 - Expenses by payment submethod.
 - Expenses by cash box.
 - Expenses by category.
@@ -17,6 +18,8 @@ Current report sections:
 - Expenses by subcategory.
 - Active installment plans.
 - Monthly export.
+
+The parent payment method report groups expenses by `paymentMethodId + currency`; when an older expense only has `paymentSubmethodId`, the parent method is resolved from that submethod. The drill-down includes all expenses for the selected method, including expenses from its submethods.
 
 Monthly balance is represented in dashboard summaries and in the exported monthly report. Income by category is not yet a dedicated report screen.
 
@@ -54,9 +57,9 @@ The transaction CSV includes:
 - Created date.
 - Updated date.
 
-The monthly report CSV/PDF includes monthly totals, expenses by cash box, expenses by category, income by category, expenses by payment method/submethod, expenses by assigned person, and selected-month transaction rows for both expenses and income.
+The monthly report CSV/PDF includes monthly totals, expenses by cash box, expenses by category, income by category, expenses by parent payment method, expenses by payment submethod, expenses by assigned person, and selected-month transaction rows for both expenses and income.
 
-The monthly PDF is grouped by currency. The default currency is rendered first and the remaining currencies are ordered alphabetically. Each currency block has separated tables for totals, cash boxes, categories, income categories, payment methods, assigned people, and movements. PDF money values use Argentine separators (`ARS 1.234`, `ARS 1.234,50`); CSV amount values remain numeric for spreadsheet use.
+The monthly PDF is grouped by currency. The default currency is rendered first and the remaining currencies are ordered alphabetically. Each currency block has separated tables for totals, cash boxes, expense categories, income categories, parent payment methods, payment submethods, assigned people, and movements. PDF money values use Argentine separators (`ARS 1.234`, `ARS 1.234,50`); CSV amount values remain numeric for spreadsheet use.
 
 Monthly report headers, section labels, transaction type labels, empty-person labels, and default catalog names use the selected app language (`en` or `es-AR`). Custom user-entered names are exported as entered.
 

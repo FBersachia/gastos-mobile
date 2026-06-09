@@ -11,6 +11,13 @@ import {
 
 type LocalizedDefaultName = Record<AppLanguage, string>;
 
+export type CalendarDay = {
+  date: Date;
+  dateInput: string;
+  day: number;
+  currentMonth: boolean;
+};
+
 const defaultCategoryNames: Record<string, LocalizedDefaultName> = {
   'cat-exp-food': { en: 'Food', 'es-AR': 'Comida' },
   'cat-exp-transport': { en: 'Transport', 'es-AR': 'Transporte' },
@@ -118,7 +125,8 @@ const reportCopy = {
     expensesByAssignedPerson: 'Expenses by assigned person',
     expensesByCashBox: 'Expenses by cash box',
     expensesByCategory: 'Expenses by category',
-    expensesByPaymentMethod: 'Expenses by payment method',
+    expensesByParentPaymentMethod: 'Expenses by payment method',
+    expensesByPaymentSubmethod: 'Expenses by payment submethod',
     income: 'Income',
     incomeByCategory: 'Income by category',
     item: 'Item',
@@ -151,7 +159,8 @@ const reportCopy = {
     expensesByAssignedPerson: 'Gastos por persona asignada',
     expensesByCashBox: 'Gastos por caja',
     expensesByCategory: 'Gastos por categoria',
-    expensesByPaymentMethod: 'Gastos por metodo de pago',
+    expensesByParentPaymentMethod: 'Gastos por metodo de pago',
+    expensesByPaymentSubmethod: 'Gastos por submetodo de pago',
     income: 'Ingreso',
     incomeByCategory: 'Ingresos por categoria',
     item: 'Item',
@@ -221,6 +230,28 @@ export const addMonths = (dateInput: Date, amount: number): Date =>
   new Date(dateInput.getFullYear(), dateInput.getMonth() + amount, dateInput.getDate());
 
 export const shiftMonth = (dateInput: Date, amount: number): Date => addMonths(dateInput, amount);
+
+export const calendarWeeksForMonth = (
+  monthInput: Date,
+  weekStartsOn: 0 | 1 = 0,
+): CalendarDay[][] => {
+  const { month, year } = getMonthParts(monthInput);
+  const firstDay = new Date(year, month - 1, 1);
+  const startOffset = (firstDay.getDay() - weekStartsOn + 7) % 7;
+  const startDate = new Date(year, month - 1, 1 - startOffset);
+  const days = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + index);
+
+    return {
+      date,
+      dateInput: dateInputFromDate(date),
+      day: date.getDate(),
+      currentMonth: date.getMonth() === month - 1,
+    };
+  });
+
+  return Array.from({ length: 6 }, (_, index) => days.slice(index * 7, index * 7 + 7));
+};
 
 export const getMonthParts = (dateInput: Date): { month: number; year: number } => {
   const year = dateInput.getFullYear();
@@ -310,6 +341,40 @@ export const formatAmountValue = (amount: number): string =>
 
 export const formatMoney = (amount: number, currency: string): string =>
   `${currency} ${formatAmountValue(amount)}`;
+
+export const amountExpressionNeedsResolution = (expression: string): boolean => /[+-]/.test(expression.trim());
+
+export const evaluateAmountExpression = (expression: string): number => {
+  const normalized = expression.replace(/,/g, '.').trim();
+
+  if (!normalized || /[^0-9.+-]/.test(normalized)) {
+    return Number.NaN;
+  }
+
+  const terms = normalized.match(/(?:^|[+-])\d+(?:\.\d*)?/g);
+
+  if (!terms || terms.join('') !== normalized) {
+    return Number.NaN;
+  }
+
+  return terms.reduce((total, term) => total + Number(term), 0);
+};
+
+export const formatAmountPreview = (value: string): string => {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return '0';
+  }
+
+  if (amountExpressionNeedsResolution(trimmed) || /[.,]$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const amount = evaluateAmountExpression(trimmed);
+
+  return Number.isFinite(amount) ? formatAmountValue(amount) : trimmed;
+};
 
 export const formatReportAmountValue = (amount: number): string => {
   const rounded = roundMoney(amount);
@@ -564,6 +629,62 @@ type PaymentMethodSummary = {
   currency: string;
 };
 
+type ParentPaymentMethodSummary = {
+  paymentMethodId?: string;
+  paymentMethodName: string;
+  amount: number;
+  currency: string;
+};
+
+export const paymentMethodIdForTransaction = (data: AppData, transaction: Transaction): string | undefined => {
+  if (transaction.paymentMethodId) {
+    return transaction.paymentMethodId;
+  }
+
+  return transaction.paymentSubmethodId
+    ? data.paymentSubmethods.find((item) => item.id === transaction.paymentSubmethodId)?.paymentMethodId
+    : undefined;
+};
+
+export const summarizeExpensesByParentPaymentMethod = (
+  data: AppData,
+  transactions: Transaction[],
+  language?: AppLanguage,
+): ParentPaymentMethodSummary[] => {
+  const byPaymentMethod = new Map<string, ParentPaymentMethodSummary>();
+  const copy = reportCopy[language ?? 'en'];
+
+  transactions
+    .filter((transaction) => transaction.type === 'expense')
+    .forEach((transaction) => {
+      const paymentMethodId = paymentMethodIdForTransaction(data, transaction);
+      const paymentMethod = paymentMethodId
+        ? data.paymentMethods.find((item) => item.id === paymentMethodId)
+        : undefined;
+      const key = `${paymentMethodId ?? 'unassigned'}-${transaction.currency}`;
+      const current =
+        byPaymentMethod.get(key) ??
+        ({
+          paymentMethodId,
+          paymentMethodName:
+            displayDefaultName(paymentMethod, defaultPaymentMethodNames, language) ?? copy.noPaymentMethod,
+          amount: 0,
+          currency: transaction.currency,
+        } satisfies ParentPaymentMethodSummary);
+
+      current.amount += transaction.amount;
+      byPaymentMethod.set(key, current);
+    });
+
+  return Array.from(byPaymentMethod.values())
+    .map((summary) => ({ ...summary, amount: roundMoney(summary.amount) }))
+    .sort(
+      (left, right) =>
+        right.amount - left.amount ||
+        left.paymentMethodName.localeCompare(right.paymentMethodName, language, { sensitivity: 'base' }),
+    );
+};
+
 export const summarizeExpensesByPaymentMethod = (
   data: AppData,
   transactions: Transaction[],
@@ -578,7 +699,7 @@ export const summarizeExpensesByPaymentMethod = (
       const submethod = transaction.paymentSubmethodId
         ? data.paymentSubmethods.find((item) => item.id === transaction.paymentSubmethodId)
         : undefined;
-      const paymentMethodId = transaction.paymentMethodId ?? submethod?.paymentMethodId;
+      const paymentMethodId = paymentMethodIdForTransaction(data, transaction);
       const paymentMethod = paymentMethodId
         ? data.paymentMethods.find((item) => item.id === paymentMethodId)
         : undefined;
@@ -733,11 +854,18 @@ const reportSummaryRows = (
     summary.cashBoxId,
   ]);
   const paymentMethodRows = summarizeExpensesByPaymentMethod(data, transactions, language).map((summary) => [
-    copy.expensesByPaymentMethod,
+    copy.expensesByPaymentSubmethod,
     [summary.paymentMethodName, summary.paymentSubmethodName].filter(Boolean).join(' / '),
     summary.amount,
     summary.currency,
     [summary.paymentMethodId, summary.paymentSubmethodId].filter(Boolean).join('/'),
+  ]);
+  const parentPaymentMethodRows = summarizeExpensesByParentPaymentMethod(data, transactions, language).map((summary) => [
+    copy.expensesByParentPaymentMethod,
+    summary.paymentMethodName,
+    summary.amount,
+    summary.currency,
+    summary.paymentMethodId,
   ]);
   const categoryRows = summarizeExpensesByCategory(data, transactions, language).map((summary) => [
     copy.expensesByCategory,
@@ -761,7 +889,15 @@ const reportSummaryRows = (
     summary.personId,
   ]);
 
-  return [...currencyRows, ...cashBoxRows, ...paymentMethodRows, ...categoryRows, ...incomeCategoryRows, ...personRows];
+  return [
+    ...currencyRows,
+    ...cashBoxRows,
+    ...categoryRows,
+    ...incomeCategoryRows,
+    ...parentPaymentMethodRows,
+    ...paymentMethodRows,
+    ...personRows,
+  ];
 };
 
 export const monthlyReportToCsv = (
@@ -909,6 +1045,10 @@ export const monthlyReportToHtml = (
         summary.paymentSubmethodName,
         formatReportMoney(summary.amount, currency),
       ]);
+      const parentPaymentMethodRows = summarizeExpensesByParentPaymentMethod(data, currencyTransactions, language).map((summary) => [
+        summary.paymentMethodName,
+        formatReportMoney(summary.amount, currency),
+      ]);
       const personRows = summarizeExpensesByPerson(data, currencyTransactions, language).map((summary) => [
         summary.personName,
         formatReportMoney(summary.amount, currency),
@@ -933,7 +1073,8 @@ export const monthlyReportToHtml = (
       ${htmlReportSection(copy.expensesByCashBox, [copy.cashBox, copy.amount], cashBoxRows, [1])}
       ${htmlReportSection(copy.expensesByCategory, [copy.category, copy.amount], expenseCategoryRows, [1])}
       ${htmlReportSection(copy.incomeByCategory, [copy.category, copy.amount], incomeCategoryRows, [1])}
-      ${htmlReportSection(copy.expensesByPaymentMethod, [copy.paymentMethod, copy.paymentSubmethod, copy.amount], paymentMethodRows, [2])}
+      ${htmlReportSection(copy.expensesByParentPaymentMethod, [copy.paymentMethod, copy.amount], parentPaymentMethodRows, [1])}
+      ${htmlReportSection(copy.expensesByPaymentSubmethod, [copy.paymentMethod, copy.paymentSubmethod, copy.amount], paymentMethodRows, [2])}
       ${htmlReportSection(copy.expensesByAssignedPerson, [copy.assignedPerson, copy.amount], personRows, [1])}
       ${htmlReportSection(
         copy.transactions,

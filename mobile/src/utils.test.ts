@@ -5,9 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { appDataFromDevFixturePayload, type DevAppDataPayload } from './devFixtures';
 import type { AppData, PaymentMethod, PaymentSubmethod, Subcategory } from './types';
 import {
+  amountExpressionNeedsResolution,
+  calendarWeeksForMonth,
   cashBoxNameForCategory,
   deactivateById,
+  evaluateAmountExpression,
   formatAmountValue,
+  formatAmountPreview,
   formatMoney,
   formatReportMoney,
   installmentTransactionName,
@@ -19,6 +23,7 @@ import {
   splitInstallmentsWithInterest,
   subcategoryName,
   summarizeExpensesByCashBox,
+  summarizeExpensesByParentPaymentMethod,
   summarizeExpensesByPaymentMethod,
   summarizeExpensesByPerson,
   transactionsToCsv,
@@ -121,6 +126,31 @@ describe('installment helpers', () => {
   it('uses Spanish copy when generating installment names in Spanish', () => {
     expect(installmentTransactionName('Botas', 2, 6, 'es-AR')).toBe('Botas - Cuota 2/6');
     expect(installmentTransactionName('', 1, 3, 'es-AR')).toBe('Compra en cuotas - Cuota 1/3');
+  });
+});
+
+describe('calendar helpers', () => {
+  it('builds six complete Monday-first weeks for June 2026 in Spanish layout', () => {
+    const weeks = calendarWeeksForMonth(new Date(2026, 5, 1), 1);
+
+    expect(weeks).toHaveLength(6);
+    expect(weeks.every((week) => week.length === 7)).toBe(true);
+    expect(weeks[0][0]).toMatchObject({ dateInput: '2026-06-01', day: 1, currentMonth: true });
+    expect(weeks[0][6]).toMatchObject({ dateInput: '2026-06-07', day: 7, currentMonth: true });
+  });
+});
+
+describe('amount expression helpers', () => {
+  it('requires explicit resolution for addition and formats the resolved result', () => {
+    expect(amountExpressionNeedsResolution('100+50')).toBe(true);
+    expect(evaluateAmountExpression('100+50')).toBe(150);
+    expect(formatAmountPreview('150')).toBe('150');
+  });
+
+  it('rejects invalid or non-positive expressions for transaction confirmation', () => {
+    expect(Number.isNaN(evaluateAmountExpression('100+'))).toBe(true);
+    expect(evaluateAmountExpression('100-150')).toBe(-50);
+    expect(Number.isNaN(evaluateAmountExpression('abc'))).toBe(true);
   });
 });
 
@@ -258,6 +288,14 @@ describe('expense reports', () => {
       { personId: 'person-friend', personName: 'Friend', amount: 1000, currency: 'ARS' },
       { personId: undefined, personName: 'No person', amount: 250, currency: 'ARS' },
     ]);
+    expect(summarizeExpensesByParentPaymentMethod(data, transactions)).toEqual([
+      {
+        paymentMethodId: 'pay-card',
+        paymentMethodName: 'Credit Card',
+        amount: 1250,
+        currency: 'ARS',
+      },
+    ]);
     expect(summarizeExpensesByPaymentMethod(data, transactions)).toEqual([
       {
         paymentMethodId: 'pay-card',
@@ -330,6 +368,8 @@ describe('expense reports', () => {
     const csv = monthlyReportToCsv({ ...data, transactions }, transactions);
 
     expect(csv).toContain('"Expenses by cash box","Basic","1000","ARS","cashbox-basic"');
+    expect(csv).toContain('"Expenses by payment method","Credit Card","1000","ARS","pay-card"');
+    expect(csv).toContain('"Expenses by payment submethod","Credit Card / Visa","1000","ARS","pay-card/subpay-visa"');
     expect(csv).toContain('"Expenses by assigned person","Friend","1000","ARS","person-friend"');
     expect(csv).toContain('"Income by category","Salary","5000","ARS","cat-income"');
     expect(csv).toContain('"Transactions","Groceries","1000","ARS","trx-1","trx-1"');
@@ -445,6 +485,8 @@ describe('expense reports', () => {
 
     expect(csv.split('\n')[0]).toContain('"Seccion","Item","Importe","Moneda"');
     expect(csv).toContain('"Gastos por caja","Basico","1000","ARS","cashbox-basic"');
+    expect(csv).toContain('"Gastos por metodo de pago","Tarjeta de credito","1000","ARS","pay-credit-card"');
+    expect(csv).toContain('"Gastos por submetodo de pago","Tarjeta de credito / Visa","1000","ARS","pay-credit-card/subpay-credit-visa"');
     expect(csv).toContain('"Ingresos por categoria","Salario","5000","ARS","cat-inc-salary"');
     expect(csv).toContain('"Movimientos","Compra mensual","1000","ARS","trx-1","trx-1","2026-05-28","Gasto"');
     expect(csv).toContain('"Movimientos","Sueldo","5000","ARS","trx-2","trx-2","2026-05-28","Ingreso","","Salario","Sueldo"');
@@ -453,6 +495,7 @@ describe('expense reports', () => {
     expect(html).toContain('<h3>Totales mensuales</h3>');
     expect(html).toContain('<h3>Gastos por caja</h3>');
     expect(html).toContain('<h3>Gastos por metodo de pago</h3>');
+    expect(html).toContain('<h3>Gastos por submetodo de pago</h3>');
     expect(html).toContain('<th>Caja</th>');
     expect(html).toContain('<td>Gasto</td>');
     expect(html).toContain('<td>Ingreso</td>');
@@ -471,6 +514,7 @@ describe('expense reports', () => {
     expect(html).toContain('<h3>Gastos por categoria</h3>');
     expect(html).toContain('<h3>Ingresos por categoria</h3>');
     expect(html).toContain('<h3>Gastos por metodo de pago</h3>');
+    expect(html).toContain('<h3>Gastos por submetodo de pago</h3>');
     expect(html).toContain('<h3>Gastos por caja</h3>');
     expect(html).toContain('<h3>Gastos por persona asignada</h3>');
     expect(html).toContain('<h3>Movimientos</h3>');

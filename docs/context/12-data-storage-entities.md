@@ -57,7 +57,7 @@ Defined in `mobile/src/types.ts`.
 - Persisted transaction dates are stored as `YYYY-MM-DD` strings.
 - Persisted created/updated audit timestamps are stored as full ISO datetime strings.
 - Budget month/year are stored as numbers. Budget operations use `subcategoryId` as the only spending scope; `categoryId` is retained only as legacy/derived context.
-- Expense categories may store `cashBoxId`; income categories do not use cash boxes. Default cash boxes are Basic, Fun, Education, Savings, Investment, and Charity. The default category mapping is maintained in `docs/context/15-cash-box-category-map.md`.
+- Expense categories may store `cashBoxId`; income categories do not use cash boxes. Default cash boxes are Basic, Fun, Education, Savings, Investment, and Charity. The default category mapping is maintained in `docs/context/15-cash-box-category-map.md`. Settings > Cash boxes/Cajas updates the relation by changing `Category.cashBoxId`; the cash box catalog itself remains fixed.
 - Currencies are stored as uppercase 3-character strings.
 - Default payment is stored as `settings.defaultPaymentSubmethodId`; expenses derive the parent method from the selected submethod.
 - Manual UI theme mode is stored as `settings.themeMode`; valid values are `light` and `dark`, with `light` as the default/migration fallback.

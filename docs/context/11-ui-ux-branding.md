@@ -8,6 +8,8 @@ The app must be simple, fast, mobile-first, low clutter, and optimized for daily
 
 Defined in `mobile/src/theme.ts`.
 
+The public app name is Inflatrack. Release metadata and in-app About version display use `mobile/app.json` as the source of truth.
+
 The app supports a manual light/dark theme selected from Settings > Core settings. There is no "follow system" option.
 
 Light colors:
@@ -78,6 +80,7 @@ Settings management screens should stay low-clutter and progressive:
 
 - Compact mobile is width below `360`; regular is `360` to `429`; large mobile is `430` and above.
 - Header, bottom navigation, dashboard summary, forms, transaction rows, report rows, settings management rows, expense keypad, calendar, and transaction modals adapt spacing, wrapping, and sizing for compact screens.
+- The in-app calendar renders explicit 7-day week rows so all weekday columns are real columns. Spanish uses Monday-Sunday order; English uses Sunday-Saturday order.
 - Form grids collapse from two columns to one column on compact screens.
 - The expense subcategory grid uses more columns on large mobile and tighter icon sizing on compact mobile. Subcategory labels can wrap to two lines so common names such as "Cuidado Personal" and "Comida mascotas" remain readable. The same icon grid is reused for monthly budget subcategory selection, then collapses once a subcategory is selected so only the budget form remains.
 - The edit transaction flow keeps category/subcategory collapsed by default to prioritize amount and memo edits.
@@ -97,9 +100,9 @@ The new expense entry screen is designed to keep daily capture on one screen:
 - More options has an explicit confirm action after selecting currency, installments, assigned person, or memo.
 - Composer row with icon-only More options, selected subcategory context, reference input, and amount preview.
 - The amount preview formats simple numeric values with Argentine dot thousands separators and no decimals while keeping the underlying keypad input unmasked.
-- Date key that opens an in-app calendar selector.
+- Date key that opens an in-app calendar selector. It says Today/Hoy only when the selected date is the current day; otherwise the primary text is the short selected date with weekday support text.
 - Fixed numeric keypad.
-- Brand-colored confirm action.
+- Brand-colored confirm action. When the amount contains a pending `+` or `-` expression, the confirm key becomes `=` and only resolves the amount. Saving is available again after the calculated positive result is shown.
 - The keypad delete key uses the lucide `Delete` icon to match a backspace-style affordance.
 
 Category rows and category selector chips include an icon, with the category name rendered smaller than the icon. User-selected category icons take precedence over default and keyword-matched icons.

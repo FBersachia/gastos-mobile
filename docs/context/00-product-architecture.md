@@ -2,14 +2,14 @@
 
 ## Product
 
-Expense Control is an Android-first personal finance app for manually tracking expenses and incomes. It is designed for local-only use on a Samsung Galaxy S24 FE or similar Android phone.
+Inflatrack is an Android-first personal finance app for manually tracking expenses and incomes. It is designed for local-only use on a Samsung Galaxy S24 FE or similar Android phone.
 
-The UI language is English. The visual identity uses the Inflatrack palette and Poppins typography.
+The app supports English and Spanish Argentina. The visual identity uses the Inflatrack palette and Poppins typography.
 
 ## Current stack
 
 - Framework: Expo React Native with TypeScript.
-- Runtime target: Android through Expo Go or a future native build.
+- Runtime target: Android through Expo Go for development, APK for internal testing, and AAB for Google Play release.
 - State: React local state in `App.tsx`.
 - Persistence: `@react-native-async-storage/async-storage`.
 - Authentication: `expo-local-authentication`.
@@ -50,6 +50,6 @@ The app has a functional MVP slice for:
 - Category and payment method management.
 - Monthly budgets.
 - Basic reports.
-- CSV export.
+- CSV/PDF export.
 
-The implementation is not production hardened yet. It needs stronger tests, screen extraction, more polished input controls, and Android device QA.
+The implementation is preparing for Google Play release. Large internal refactors such as screen extraction remain useful, but Play Store readiness is evaluated by release artifacts, permissions, privacy disclosures, core workflow QA, and Android device validation.

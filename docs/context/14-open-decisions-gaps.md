@@ -4,10 +4,9 @@
 
 From the requirements document:
 
-- Final app name.
 - Biometric fallback through PIN/password.
 - Full default category and subcategory list.
-- Whether cash boxes should become user-managed beyond the default catalog.
+- Whether cash boxes should become user-managed beyond the fixed default catalog.
 - Whether unused categories can be hard deleted.
 - Whether payment methods can be restricted by transaction type.
 - Editing behavior for installment groups.
@@ -18,7 +17,7 @@ From the requirements document:
 
 ## Defaults currently chosen in code
 
-- App working name: Expense Control.
+- App public name: Inflatrack.
 - Biometric lock: optional, default enabled.
 - Device passcode fallback: allowed.
 - Category deletion: disable only.
@@ -26,7 +25,7 @@ From the requirements document:
 - Subcategory/person deletion: soft delete only.
 - Payment methods: expense transactions only.
 - Assigned people: expense transactions only, with reports by assigned person.
-- Cash boxes: default expense-category groupers for Basic, Fun, Education, Savings, Investment, and Charity.
+- Cash boxes: fixed expense-category groupers for Basic, Fun, Education, Savings, Investment, and Charity. Users can reassign active expense categories to another fixed cash box.
 - Installment interest: total percentage applied before splitting.
 - Installment rounding: remainder goes to last installment.
 - Installment edit: individual generated installments are not editable.
@@ -49,7 +48,7 @@ Medium:
 - Add transaction detail screen.
 - Add custom date range filters for reports and CSV export.
 - Add transaction type/currency filters for monthly export.
-- Add cash box create/edit management.
+- Add custom cash box create/edit/delete management if the product moves beyond the fixed catalog.
 - Add CSV export access from Settings.
 - Add app-resume biometric locking.
 
