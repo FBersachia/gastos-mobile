@@ -438,6 +438,7 @@ export const createMay2026SampleData = (): AppData => ({
     defaultPaymentSubmethodId: 'subpay-cash-wallet',
     language: 'en',
     themeMode: 'light',
+    premiumEntitlement: { active: false },
     biometricLockEnabled: true,
     budgetNearLimitThreshold: 0.8,
   },

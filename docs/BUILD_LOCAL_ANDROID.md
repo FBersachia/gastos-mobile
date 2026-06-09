@@ -132,6 +132,11 @@ if (Test-Path "$target\mobile\android") {
 $nodeHome = "$env:APPDATA\fnm\node-versions\v20.19.4\installation"
 $env:Path = "$nodeHome;$env:Path"
 
+Set-Location "C:\tmp\gastos-mobile-local-build\backend"
+npm ci
+npm run typecheck
+npm test
+
 Set-Location "C:\tmp\gastos-mobile-local-build\mobile"
 npm ci
 npx tsc --noEmit
@@ -141,8 +146,8 @@ npm test
 Salida esperada de tests:
 
 ```text
-Test Files  4 passed (4)
-Tests  29 passed (29)
+Backend: Test Files  2 passed (2), Tests  11 passed (11)
+Mobile: Test Files  5 passed (5), Tests  35 passed (35)
 ```
 
 ## Excluir Fixture Local Antes Del APK/AAB
@@ -257,7 +262,7 @@ Validar:
 - `Length` es mayor que `0`.
 - El metadata del APK tiene `versionName=1.0.16`, `versionCode=17`, `applicationId=com.suats.gastoscontrol`.
 - El AAB no siempre genera `output-metadata.json` local; validar `mobile/android/app/build.gradle` generado y el nombre/tamano del artefacto.
-- El manifest final no debe incluir permisos no justificados de storage, overlay, internet o vibracion.
+- El manifest final no debe incluir permisos no justificados de storage, overlay o vibracion. En la rama `premium`, se esperan `android.permission.INTERNET` para verificar/restaurar compras y `com.android.vending.BILLING` para Google Play Billing.
 - En el ultimo build probado, el APK peso `68,614,602` bytes y el AAB peso `46,880,135` bytes.
 - SHA256 ultimo build:
   - APK: `F295B0839FBE62795050ED968363E706713080A027847196442039B229DEDBF3`
@@ -274,8 +279,10 @@ $apk = "C:\tmp\gastos-mobile-local-build\artifacts\inflatrack-v1.0.16-17-interna
 
 Permisos esperados:
 
+- `android.permission.INTERNET`
 - `android.permission.USE_BIOMETRIC`
 - `android.permission.USE_FINGERPRINT`
+- `com.android.vending.BILLING`
 - `com.suats.gastoscontrol.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
 
 ## Troubleshooting

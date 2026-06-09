@@ -8,6 +8,20 @@ export type AppLanguage = 'en' | 'es-AR';
 
 export type ThemeMode = 'light' | 'dark';
 
+export type PremiumProductId = 'premium_lifetime' | 'premium_monthly' | 'premium_yearly';
+
+export type PremiumFeature = 'darkMode' | 'cashBoxReport' | 'monthlyCsvExport' | 'monthlyPdfExport';
+
+export type PremiumProductType = 'inapp' | 'subs';
+
+export interface PremiumEntitlement {
+  active: boolean;
+  productId?: PremiumProductId;
+  productType?: PremiumProductType;
+  verifiedAt?: string;
+  expiresAt?: string;
+}
+
 export interface Category {
   id: string;
   name: string;
@@ -102,6 +116,7 @@ export interface AppSettings {
   defaultPaymentSubmethodId?: string;
   language: AppLanguage;
   themeMode: ThemeMode;
+  premiumEntitlement: PremiumEntitlement;
   biometricLockEnabled: boolean;
   budgetNearLimitThreshold: number;
 }

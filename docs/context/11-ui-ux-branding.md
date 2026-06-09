@@ -64,6 +64,7 @@ Typography:
 - Deep blue is used for dashboard summary bands.
 - Cards use small radius and restrained borders.
 - Settings uses individual menu buttons that open one management screen at a time.
+- Premium features stay visible in their natural location with a compact Premium badge and route to Settings > Premium when locked.
 
 ## Settings management UX patterns
 
@@ -75,6 +76,7 @@ Settings management screens should stay low-clutter and progressive:
 - Keep only one nested list/accordion expanded in a group when multiple expanded lists would compete for attention.
 - Prefer inline editing only when the edit surface follows the same compact flow as creation.
 - Use native `Alert.alert` for destructive confirmations and a web-compatible `window.confirm` fallback when running on Expo web.
+- Premium upsell belongs in Settings > Premium and locked feature CTAs; avoid adding marketing-style landing pages inside the app.
 
 ## Responsive behavior
 

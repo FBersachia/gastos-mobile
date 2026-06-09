@@ -17,6 +17,7 @@ Implemented in `mobile/src/storage.ts`.
 - `withDefaults` tolerates older stored data without a `people` section by defaulting it to an empty array.
 - `withDefaults` tolerates older settings without `defaultPaymentSubmethodId` and resolves the configured default to an active payment submethod when possible.
 - `withDefaults` tolerates older settings without `themeMode`, preserves `light` or `dark`, and falls back to `light` for missing/invalid values.
+- `withDefaults` tolerates older settings without `premiumEntitlement`, preserves valid Premium entitlement fields, and falls back to inactive for missing/invalid values.
 - `withDefaults` preserves stored `biometricLockEnabled` booleans and defaults older/invalid settings to enabled.
 - `withDefaults` preserves legacy category budgets without silently assigning them to a first subcategory; they must be repaired through Settings before saving.
 - `loadAppData` hydrates persisted date strings into `Date` values for runtime use.
@@ -61,6 +62,7 @@ Defined in `mobile/src/types.ts`.
 - Currencies are stored as uppercase 3-character strings.
 - Default payment is stored as `settings.defaultPaymentSubmethodId`; expenses derive the parent method from the selected submethod.
 - Manual UI theme mode is stored as `settings.themeMode`; valid values are `light` and `dark`, with `light` as the default/migration fallback.
+- Premium entitlement is stored as `settings.premiumEntitlement`; it is a local cache of Google Play verification state, not a financial record. The app stores active state, Product ID, product type, verification timestamp, and optional subscription expiry.
 - Money is rounded to two decimals.
 - Installment splitting is done in cents to avoid visible rounding drift.
 - `paymentMethodId` and `paymentSubmethodId` are optional on transactions; expenses require them in the UI, incomes leave them empty.

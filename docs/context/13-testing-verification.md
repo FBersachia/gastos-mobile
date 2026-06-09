@@ -12,6 +12,8 @@ The current implementation has been verified with:
 - Android bundle request from Metro at `http://localhost:8081/index.bundle?platform=android&dev=true&minify=false`
 - Default data validation: first-run data has built-in catalogs and settings, with no transactions or budgets.
 - Theme validation: first-run settings default to light theme, legacy storage hydrates missing/invalid theme mode as light, persisted dark mode is preserved, and palette resolution maps light/dark to their semantic color sets.
+- Premium validation: first-run settings default to inactive entitlement, storage hydrates valid entitlement fields, and gating covers free, active Premium, and legacy dark-mode behavior.
+- Backend validation: `backend` typecheck and Vitest coverage for healthcheck, active purchase verification, invalid token response, expired/refunded purchases, and unsupported products.
 - May 2026 demo fixture validation: 69 CSV rows produce 74 transactions, including six generated installments and no missing category/payment references.
 - June 2026 monthly-report PDF fixture validation: local dev fixture data reproduces the PDF totals for ARS and USD, including expenses and income.
 
@@ -61,6 +63,9 @@ Transactions:
 - Open June 2026 in Spanish and confirm the calendar renders Monday first, seven day columns per row, and Sunday is populated instead of appearing as an empty column.
 - In Settings > Core settings, switch between Claro/Oscuro or Light/Dark and confirm the app updates immediately, persists after restart, and keeps Dashboard, Reports, Settings, transaction create/edit, modals, calendar, inputs, chips, amount colors, and buttons legible.
 - Confirm older persisted data without `settings.themeMode` opens in light mode and invalid stored theme values fall back to light mode.
+- For a free user currently in light mode, confirm selecting dark mode opens Premium instead of changing the theme.
+- For a free user with dark mode already persisted from an older version, confirm dark mode remains usable until switching back to light.
+- In Settings > Premium, confirm lifetime/monthly/yearly products display when Google Play returns them, restore purchases runs, and missing `EXPO_PUBLIC_PREMIUM_API_URL` shows the backend configuration message.
 
 Responsive mobile:
 
@@ -68,6 +73,8 @@ Responsive mobile:
 - Confirm bottom navigation remains usable, forms stay reachable with scroll, and text, buttons, icons, and amounts do not overlap.
 - In Reports detail screens, confirm only the global header has month navigation controls.
 - In Reports, open expenses by parent payment method, payment submethod, cash box, and assigned person, then drill into a row and confirm the movement list matches the selected month and currency.
+- As a free user, confirm Reports > Expenses by cash box and Reports > Monthly export remain visible with a Premium badge and open the Premium CTA.
+- As an active Premium user, confirm Reports > Expenses by cash box opens normally.
 - In Reports > Monthly export, export the selected month to CSV and PDF and confirm the files open/share successfully.
 - In Reports > Monthly export, confirm the PDF groups sections by currency, renders ARS before USD when ARS is the default currency, separates totals/categories/payment methods/cash boxes/people/movements into distinct tables, and formats money with dot thousands and comma decimals.
 - On Android API 35+ with 3-button navigation, confirm the system navigation bar does not cover bottom tab icons or labels.
@@ -125,6 +132,7 @@ Local Android APK builds:
 CSV export:
 
 - Export the selected-month monthly report from Reports.
+- Confirm free users cannot generate monthly CSV/PDF and active Premium users generate the same CSV/PDF content as before.
 - Confirm monthly report CSV includes totals, expenses by cash box, expenses by category, income by category, expenses by parent payment method, expenses by payment submethod, expenses by assigned person, and transaction rows for both expenses and income.
 - Confirm monthly report PDF includes the same selected-month sections grouped by currency.
 - Switch language to Spanish and confirm monthly report CSV/PDF headers, section labels, transaction type labels, empty-person labels, and default catalog names are exported in Spanish while custom names remain unchanged.

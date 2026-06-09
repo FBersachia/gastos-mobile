@@ -5,6 +5,8 @@ import {
   useFonts,
 } from '@expo-google-fonts/poppins';
 import { StatusBar } from 'expo-status-bar';
+import { ErrorCode, finishTransaction as finishStoreTransaction, getAvailablePurchases as getStoreAvailablePurchases, useIAP } from 'expo-iap';
+import type { Product, ProductSubscription, Purchase } from 'expo-iap';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as Print from 'expo-print';
@@ -75,7 +77,7 @@ import {
   X,
   Zap,
 } from 'lucide-react-native';
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -100,6 +102,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import appConfig from './app.json';
 import { AppSafeAreaProvider, AppSafeAreaView } from './src/AppSafeArea';
 import { appDataFromDevFixturePayload, type DevAppDataPayload } from './src/devFixtures';
+import {
+  canSelectThemeMode,
+  canUsePremiumFeature,
+  DEFAULT_PREMIUM_ENTITLEMENT,
+  isPremiumActive,
+  isPremiumProductId,
+  PREMIUM_IN_APP_PRODUCT_IDS,
+  PREMIUM_SUBSCRIPTION_PRODUCT_IDS,
+} from './src/premium';
 import { loadAppData, saveAppData } from './src/storage';
 import { AppThemeColors, fonts, getThemeColors, lightColors, radius, spacing } from './src/theme';
 import {
@@ -115,6 +126,9 @@ import {
   PaymentSubmethod,
   Person,
   PersonSummary,
+  PremiumEntitlement,
+  PremiumProductId,
+  PremiumProductType,
   Subcategory,
   TabKey,
   ThemeMode,
@@ -172,6 +186,20 @@ type IconComponent = React.ComponentType<{
   size?: number;
   strokeWidth?: number;
 }>;
+
+type PremiumPurchaseBusyState = PremiumProductId | 'restore' | undefined;
+
+type PremiumProductDisplay = {
+  productId: PremiumProductId;
+  productType: PremiumProductType;
+  title: string;
+  displayPrice?: string;
+  available: boolean;
+};
+
+type PremiumVerificationResponse = PremiumEntitlement & {
+  reason?: string;
+};
 
 const getScreenSize = (width: number): ScreenSize => {
   if (width < 360) return 'compact';
@@ -311,6 +339,35 @@ const translations = {
     monthlyExport: 'Monthly export',
     monthlyExportSubtitle: 'CSV and PDF for the selected month',
     monthlyReport: 'Monthly report',
+    premium: 'Premium',
+    premiumActive: 'Premium active',
+    premiumBadge: 'Premium',
+    premiumBackendMissing: 'Set EXPO_PUBLIC_PREMIUM_API_URL to enable purchases.',
+    premiumBuyLifetime: 'Buy lifetime access',
+    premiumFeatureCashBoxReport: 'Cash box report',
+    premiumFeatureCsv: 'CSV export',
+    premiumFeatureDarkMode: 'Dark mode',
+    premiumFeaturePdf: 'PDF export',
+    premiumInactive: 'Free plan',
+    premiumLifetime: 'Lifetime Premium',
+    premiumLockedMessage: 'Unlock Premium to use this feature.',
+    premiumLockedSubtitle: 'Premium feature',
+    premiumMonthly: 'Monthly Premium',
+    premiumNotAvailable: 'Premium is available on Android through Google Play.',
+    premiumProductUnavailable: 'This product is not available from Google Play yet.',
+    premiumPurchaseFailedMessage: 'The purchase could not be completed or verified.',
+    premiumPurchaseFailedTitle: 'Purchase failed',
+    premiumPurchaseSuccessMessage: 'Premium is active on this device.',
+    premiumPurchaseSuccessTitle: 'Premium active',
+    premiumRestore: 'Restore purchases',
+    premiumRestoreFailedMessage: 'Purchases could not be restored.',
+    premiumRestoreNone: 'No active Premium purchase was found.',
+    premiumRestoreSuccess: 'Premium purchase restored.',
+    premiumStoreLoading: 'Connecting to Google Play.',
+    premiumStatus: 'Status',
+    premiumSubtitle: 'Dark mode, cash boxes and exports',
+    premiumVerifying: 'Verifying purchase',
+    premiumYearly: 'Yearly Premium',
     newCategory: 'New category',
     newMethod: 'New method',
     newPerson: 'New person',
@@ -397,7 +454,7 @@ const translations = {
     version: 'Version',
     website: 'Website',
     privacyBody:
-      'Inflatrack stores your financial records locally on this device. Inflatrack does not create accounts, upload your records to its own servers, use analytics, show ads, sell information, or access your local records. CSV/PDF exports are created only when you choose to export or share them. You can delete local data by clearing app storage or uninstalling the app. Privacy inquiries: privacidad@inflatrack.com.ar.',
+      'Inflatrack stores your financial records locally on this device. Inflatrack does not create accounts, upload your records to its own servers, use analytics, show ads, sell information, or access your local records. CSV/PDF exports are created only when you choose to export or share them. Premium purchase verification contacts the Inflatrack backend with the Google Play product ID and purchase token only; it does not send movements, amounts, categories, budgets, notes, or other financial records. You can delete local data by clearing app storage or uninstalling the app. Privacy inquiries: privacidad@inflatrack.com.ar.',
     privacyPolicyLink: 'Privacy policy URL',
     privacyTitle: 'Privacy policy',
   },
@@ -520,6 +577,35 @@ const translations = {
     monthlyExport: 'Exportacion mensual',
     monthlyExportSubtitle: 'CSV y PDF del mes seleccionado',
     monthlyReport: 'Reporte mensual',
+    premium: 'Premium',
+    premiumActive: 'Premium activo',
+    premiumBadge: 'Premium',
+    premiumBackendMissing: 'Configura EXPO_PUBLIC_PREMIUM_API_URL para habilitar compras.',
+    premiumBuyLifetime: 'Comprar acceso permanente',
+    premiumFeatureCashBoxReport: 'Reporte por cajas',
+    premiumFeatureCsv: 'Exportacion CSV',
+    premiumFeatureDarkMode: 'Modo oscuro',
+    premiumFeaturePdf: 'Exportacion PDF',
+    premiumInactive: 'Plan gratis',
+    premiumLifetime: 'Premium permanente',
+    premiumLockedMessage: 'Desbloquea Premium para usar esta funcion.',
+    premiumLockedSubtitle: 'Funcion Premium',
+    premiumMonthly: 'Premium mensual',
+    premiumNotAvailable: 'Premium esta disponible en Android a traves de Google Play.',
+    premiumProductUnavailable: 'Este producto todavia no esta disponible en Google Play.',
+    premiumPurchaseFailedMessage: 'No se pudo completar o verificar la compra.',
+    premiumPurchaseFailedTitle: 'Error de compra',
+    premiumPurchaseSuccessMessage: 'Premium esta activo en este dispositivo.',
+    premiumPurchaseSuccessTitle: 'Premium activo',
+    premiumRestore: 'Restaurar compras',
+    premiumRestoreFailedMessage: 'No se pudieron restaurar las compras.',
+    premiumRestoreNone: 'No se encontro una compra Premium activa.',
+    premiumRestoreSuccess: 'Compra Premium restaurada.',
+    premiumStoreLoading: 'Conectando con Google Play.',
+    premiumStatus: 'Estado',
+    premiumSubtitle: 'Modo oscuro, cajas y exportaciones',
+    premiumVerifying: 'Verificando compra',
+    premiumYearly: 'Premium anual',
     newCategory: 'Nueva categoría',
     newMethod: 'Nuevo método',
     newPerson: 'Nueva persona',
@@ -606,7 +692,7 @@ const translations = {
     version: 'Versión',
     website: 'Sitio web',
     privacyBody:
-      'Inflatrack guarda tus registros financieros localmente en este dispositivo. Inflatrack no crea cuentas, no sube tus registros a servidores propios, no usa analytics, no muestra publicidad, no vende información ni accede a tus registros locales. Los CSV/PDF se crean solo cuando elegís exportarlos o compartirlos. Podés eliminar los datos locales borrando el almacenamiento de la app o desinstalándola. Consultas de privacidad: privacidad@inflatrack.com.ar.',
+      'Inflatrack guarda tus registros financieros localmente en este dispositivo. Inflatrack no crea cuentas, no sube tus registros a servidores propios, no usa analytics, no muestra publicidad, no vende informacion ni accede a tus registros locales. Los CSV/PDF se crean solo cuando elegis exportarlos o compartirlos. La verificacion de compras Premium contacta el backend de Inflatrack solo con el ID de producto de Google Play y el token de compra; no envia movimientos, importes, categorias, presupuestos, notas ni otros registros financieros. Podes eliminar los datos locales borrando el almacenamiento de la app o desinstalandola. Consultas de privacidad: privacidad@inflatrack.com.ar.',
     privacyPolicyLink: 'URL de política de privacidad',
     privacyTitle: 'Política de privacidad',
   },
@@ -635,6 +721,8 @@ const publicEnv = (key: string): string | undefined =>
 
 const devFixturesEnabled = (): boolean =>
   __DEV__ && publicEnv('EXPO_PUBLIC_ENABLE_DEV_FIXTURES') === '1';
+
+const premiumApiUrl = (): string | undefined => publicEnv('EXPO_PUBLIC_PREMIUM_API_URL')?.replace(/\/+$/, '');
 
 const devFixtureUrl = (): string =>
   publicEnv('EXPO_PUBLIC_DEV_FIXTURE_URL') ??
@@ -1092,6 +1180,7 @@ type TransactionDayGroup = {
 type SettingsSection =
   | 'menu'
   | 'core'
+  | 'premium'
   | 'budgets'
   | 'categories'
   | 'cashboxes'
@@ -1325,6 +1414,7 @@ function AppRoot() {
   const [selectedMonth, setSelectedMonth] = useState(monthStartInput());
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | undefined>();
   const [editingTransactionId, setEditingTransactionId] = useState<string | undefined>();
+  const [requestedSettingsSection, setRequestedSettingsSection] = useState<SettingsSection | undefined>();
   const initialAuthResolved = useRef(false);
   const responsive = useMemo(() => {
     const screenSize = getScreenSize(width);
@@ -1337,6 +1427,7 @@ function AppRoot() {
       isLarge: screenSize === 'large',
     };
   }, [height, width]);
+  const t = getTranslator(data?.settings.language ?? 'en');
 
   useEffect(() => {
     void loadAppData()
@@ -1405,6 +1496,259 @@ function AppRoot() {
 
       return next;
     });
+  };
+
+  const updatePremiumEntitlement = useCallback(
+    (premiumEntitlement: PremiumEntitlement) => {
+      persistData((current) => ({
+        ...current,
+        settings: {
+          ...current.settings,
+          premiumEntitlement,
+        },
+      }));
+    },
+    [],
+  );
+
+  const verifyPremiumPurchase = useCallback(
+    async (purchase: Purchase): Promise<PremiumVerificationResponse> => {
+      const productId = purchase.productId;
+
+      if (!isPremiumProductId(productId) || !purchase.purchaseToken) {
+        return { active: false, reason: 'unsupported-purchase' };
+      }
+
+      const apiUrl = premiumApiUrl();
+      if (!apiUrl) {
+        throw new Error('Premium API URL is not configured.');
+      }
+
+      const response = await fetch(`${apiUrl}/v1/google-play/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId,
+          purchaseToken: purchase.purchaseToken,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Premium verification failed with status ${response.status}.`);
+      }
+
+      return (await response.json()) as PremiumVerificationResponse;
+    },
+    [],
+  );
+
+  const handleVerifiedPremiumPurchase = useCallback(
+    async (purchase: Purchase, showSuccessAlert = true): Promise<boolean> => {
+      const t = getTranslator(data?.settings.language ?? 'en');
+      const verification = await verifyPremiumPurchase(purchase);
+
+      if (!verification.active || !verification.productId || !verification.productType) {
+        return false;
+      }
+
+      const entitlement: PremiumEntitlement = {
+        active: true,
+        productId: verification.productId,
+        productType: verification.productType,
+        verifiedAt: verification.verifiedAt ?? new Date().toISOString(),
+        ...(verification.expiresAt ? { expiresAt: verification.expiresAt } : {}),
+      };
+
+      updatePremiumEntitlement(entitlement);
+      await finishStoreTransaction({ purchase, isConsumable: false });
+      if (showSuccessAlert) {
+        Alert.alert(t('premiumPurchaseSuccessTitle'), t('premiumPurchaseSuccessMessage'));
+      }
+      return true;
+    },
+    [data?.settings.language, updatePremiumEntitlement, verifyPremiumPurchase],
+  );
+
+  const [premiumPurchaseBusy, setPremiumPurchaseBusy] = useState<PremiumPurchaseBusyState>();
+  const [premiumStoreError, setPremiumStoreError] = useState<string | undefined>();
+
+  const {
+    connected: premiumStoreConnected,
+    products: premiumStoreProducts,
+    subscriptions: premiumStoreSubscriptions,
+    fetchProducts: fetchPremiumProducts,
+    requestPurchase: requestPremiumPurchase,
+  } = useIAP({
+    onPurchaseSuccess: (purchase) => {
+      void handleVerifiedPremiumPurchase(purchase)
+        .then((verified) => {
+          if (!verified) {
+            const t = getTranslator(data?.settings.language ?? 'en');
+            Alert.alert(t('premiumPurchaseFailedTitle'), t('premiumPurchaseFailedMessage'));
+          }
+        })
+        .catch((error) => {
+          console.warn(error);
+          const t = getTranslator(data?.settings.language ?? 'en');
+          Alert.alert(t('premiumPurchaseFailedTitle'), t('premiumPurchaseFailedMessage'));
+        })
+        .finally(() => setPremiumPurchaseBusy(undefined));
+    },
+    onPurchaseError: (error) => {
+      setPremiumPurchaseBusy(undefined);
+      if (error.code !== ErrorCode.UserCancelled) {
+        const t = getTranslator(data?.settings.language ?? 'en');
+        Alert.alert(t('premiumPurchaseFailedTitle'), error.message || t('premiumPurchaseFailedMessage'));
+      }
+    },
+    onError: (error) => {
+      setPremiumStoreError(error.message);
+    },
+  });
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !premiumStoreConnected) {
+      return;
+    }
+
+    void fetchPremiumProducts({ skus: PREMIUM_IN_APP_PRODUCT_IDS, type: 'in-app' }).catch((error) => {
+      console.warn(error);
+      setPremiumStoreError(error.message);
+    });
+    void fetchPremiumProducts({ skus: PREMIUM_SUBSCRIPTION_PRODUCT_IDS, type: 'subs' }).catch((error) => {
+      console.warn(error);
+      setPremiumStoreError(error.message);
+    });
+  }, [fetchPremiumProducts, premiumStoreConnected]);
+
+  const premiumProductDisplays = useMemo<PremiumProductDisplay[]>(() => {
+    const lifetime = premiumStoreProducts.find((product) => product.id === 'premium_lifetime');
+    const monthly = premiumStoreSubscriptions.find((subscription) => subscription.id === 'premium_monthly');
+    const yearly = premiumStoreSubscriptions.find((subscription) => subscription.id === 'premium_yearly');
+    const displayPrice = (product?: Product | ProductSubscription): string | undefined =>
+      product?.subscriptionOffers?.[0]?.displayPrice ?? product?.displayPrice;
+
+    return [
+      {
+        productId: 'premium_lifetime',
+        productType: 'inapp',
+        title: t('premiumBuyLifetime'),
+        displayPrice: displayPrice(lifetime),
+        available: Boolean(lifetime),
+      },
+      {
+        productId: 'premium_monthly',
+        productType: 'subs',
+        title: t('premiumMonthly'),
+        displayPrice: displayPrice(monthly),
+        available: Boolean(monthly),
+      },
+      {
+        productId: 'premium_yearly',
+        productType: 'subs',
+        title: t('premiumYearly'),
+        displayPrice: displayPrice(yearly),
+        available: Boolean(yearly),
+      },
+    ];
+  }, [premiumStoreProducts, premiumStoreSubscriptions, t]);
+
+  const startPremiumPurchase = async (productId: PremiumProductId) => {
+    const t = getTranslator(data?.settings.language ?? 'en');
+
+    if (Platform.OS !== 'android') {
+      Alert.alert(t('premium'), t('premiumNotAvailable'));
+      return;
+    }
+
+    if (!premiumApiUrl()) {
+      Alert.alert(t('premium'), t('premiumBackendMissing'));
+      return;
+    }
+
+    if (productId === 'premium_lifetime') {
+      const product = premiumStoreProducts.find((item) => item.id === productId);
+      if (!product) {
+        Alert.alert(t('premium'), t('premiumProductUnavailable'));
+        return;
+      }
+
+      setPremiumPurchaseBusy(productId);
+      await requestPremiumPurchase({
+        type: 'in-app',
+        request: {
+          google: { skus: [productId] },
+        },
+      }).catch((error) => {
+        console.warn(error);
+        setPremiumPurchaseBusy(undefined);
+        Alert.alert(t('premiumPurchaseFailedTitle'), t('premiumPurchaseFailedMessage'));
+      });
+      return;
+    }
+
+    const subscription = premiumStoreSubscriptions.find((item) => item.id === productId);
+    const offerToken = subscription?.subscriptionOffers?.[0]?.offerTokenAndroid;
+    if (!subscription || !offerToken) {
+      Alert.alert(t('premium'), t('premiumProductUnavailable'));
+      return;
+    }
+
+    setPremiumPurchaseBusy(productId);
+    await requestPremiumPurchase({
+      type: 'subs',
+      request: {
+        google: {
+          skus: [productId],
+          subscriptionOffers: [{ sku: productId, offerToken }],
+        },
+      },
+    }).catch((error) => {
+      console.warn(error);
+      setPremiumPurchaseBusy(undefined);
+      Alert.alert(t('premiumPurchaseFailedTitle'), t('premiumPurchaseFailedMessage'));
+    });
+  };
+
+  const restorePremiumPurchases = async () => {
+    const t = getTranslator(data?.settings.language ?? 'en');
+
+    if (Platform.OS !== 'android') {
+      Alert.alert(t('premium'), t('premiumNotAvailable'));
+      return;
+    }
+
+    if (!premiumApiUrl()) {
+      Alert.alert(t('premium'), t('premiumBackendMissing'));
+      return;
+    }
+
+    setPremiumPurchaseBusy('restore');
+    try {
+      const purchases = await getStoreAvailablePurchases();
+      const premiumPurchases = purchases.filter((purchase) => isPremiumProductId(purchase.productId));
+
+      for (const purchase of premiumPurchases) {
+        const restored = await handleVerifiedPremiumPurchase(purchase, false);
+        if (restored) {
+          Alert.alert(t('premiumPurchaseSuccessTitle'), t('premiumRestoreSuccess'));
+          return;
+        }
+      }
+
+      updatePremiumEntitlement(DEFAULT_PREMIUM_ENTITLEMENT);
+      Alert.alert(t('premium'), t('premiumRestoreNone'));
+    } catch (error) {
+      console.warn(error);
+      Alert.alert(t('premiumPurchaseFailedTitle'), t('premiumRestoreFailedMessage'));
+    } finally {
+      setPremiumPurchaseBusy(undefined);
+    }
+  };
+
+  const openPremiumSettings = () => {
+    setRequestedSettingsSection('premium');
+    setActiveTab('settings');
   };
 
   const handleSaveTransaction = (input: TransactionInput, editingTransaction?: Transaction) => {
@@ -2070,7 +2414,6 @@ function AppRoot() {
 
   const selectedTransaction = data.transactions.find((transaction) => transaction.id === selectedTransactionId);
   const editingTransaction = data.transactions.find((transaction) => transaction.id === editingTransactionId);
-  const t = getTranslator(data.settings.language);
   const isDevFixturesEnabled = devFixturesEnabled();
   const handleLoadDevMonthlyReportFixture = isDevFixturesEnabled
     ? async () => {
@@ -2128,6 +2471,7 @@ function AppRoot() {
             selectedMonth={selectedMonth}
             deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
             onBackToDashboard={() => setActiveTab('dashboard')}
+            onOpenPremium={openPremiumSettings}
             onSelectTransaction={(transaction) => setSelectedTransactionId(transaction.id)}
           />
         ) : null}
@@ -2138,8 +2482,20 @@ function AppRoot() {
             selectedMonth={selectedMonth}
             deferHardwareBack={Boolean(selectedTransactionId || editingTransactionId)}
             devFixturesEnabled={isDevFixturesEnabled}
+            requestedSettingsSection={requestedSettingsSection}
+            onRequestedSettingsSectionConsumed={() => setRequestedSettingsSection(undefined)}
             onBackToDashboard={() => setActiveTab('dashboard')}
             onLoadDevMonthlyReportFixture={handleLoadDevMonthlyReportFixture}
+            premiumProducts={premiumProductDisplays}
+            premiumPurchaseBusy={premiumPurchaseBusy}
+            premiumStoreConnected={premiumStoreConnected}
+            premiumStoreError={premiumStoreError}
+            onStartPremiumPurchase={(productId) => {
+              void startPremiumPurchase(productId);
+            }}
+            onRestorePremiumPurchases={() => {
+              void restorePremiumPurchases();
+            }}
             onSaveBudget={handleSaveBudget}
             onDeleteBudget={handleDeleteBudget}
             onSetDefaultCurrency={handleSetDefaultCurrency}
@@ -3766,6 +4122,7 @@ function ReportsScreen({
   selectedMonth,
   deferHardwareBack,
   onBackToDashboard,
+  onOpenPremium,
   onSelectTransaction,
 }: {
   data: AppData;
@@ -3773,11 +4130,16 @@ function ReportsScreen({
   selectedMonth: Date;
   deferHardwareBack: boolean;
   onBackToDashboard: () => void;
+  onOpenPremium: () => void;
   onSelectTransaction: (transaction: Transaction) => void;
 }) {
   const { isCompact } = useResponsive();
   const [activeReport, setActiveReport] = useState<ReportSection>('menu');
   const [selectedItem, setSelectedItem] = useState<SelectedReportItem>(null);
+  const canUseCashBoxReport = canUsePremiumFeature(data.settings.premiumEntitlement, 'cashBoxReport');
+  const canUseMonthlyCsvExport = canUsePremiumFeature(data.settings.premiumEntitlement, 'monthlyCsvExport');
+  const canUseMonthlyPdfExport = canUsePremiumFeature(data.settings.premiumEntitlement, 'monthlyPdfExport');
+  const canUseMonthlyExport = canUseMonthlyCsvExport && canUseMonthlyPdfExport;
 
   const transactions = useMemo(() => monthlyTransactions(data, selectedMonth), [data, selectedMonth]);
 
@@ -4045,9 +4407,10 @@ function ReportsScreen({
           />
           <SettingsMenuButton
             title={t('byCashBox')}
-            subtitle={`${cashBoxSummaries.length} ${t('cashBoxesWithExpenses')}`}
+            subtitle={canUseCashBoxReport ? `${cashBoxSummaries.length} ${t('cashBoxesWithExpenses')}` : t('premiumLockedSubtitle')}
             Icon={Package}
-            onPress={() => setActiveReport('cashbox')}
+            badgeLabel={canUseCashBoxReport ? undefined : t('premiumBadge')}
+            onPress={() => (canUseCashBoxReport ? setActiveReport('cashbox') : onOpenPremium())}
           />
           <SettingsMenuButton
             title={t('byCategory')}
@@ -4075,9 +4438,10 @@ function ReportsScreen({
           />
           <SettingsMenuButton
             title={t('monthlyExport')}
-            subtitle={t('monthlyExportSubtitle')}
+            subtitle={canUseMonthlyExport ? t('monthlyExportSubtitle') : t('premiumLockedSubtitle')}
             Icon={Save}
-            onPress={() => setActiveReport('export')}
+            badgeLabel={canUseMonthlyExport ? undefined : t('premiumBadge')}
+            onPress={() => (canUseMonthlyExport ? setActiveReport('export') : onOpenPremium())}
           />
         </View>
       </ScreenScroll>
@@ -4150,6 +4514,10 @@ function ReportsScreen({
   }
 
   if (activeReport === 'cashbox') {
+    if (!canUseCashBoxReport) {
+      return <PremiumLockedScreen t={t} onOpenPremium={onOpenPremium} />;
+    }
+
     return (
       <ScreenScroll>
         <DetailHeader title={reportTitle.cashbox} />
@@ -4291,6 +4659,10 @@ function ReportsScreen({
   }
 
   if (activeReport === 'export') {
+    if (!canUseMonthlyExport) {
+      return <PremiumLockedScreen t={t} onOpenPremium={onOpenPremium} />;
+    }
+
     return (
       <ScreenScroll>
         <DetailHeader title={reportTitle.export} />
@@ -4357,8 +4729,16 @@ function SettingsScreen({
   selectedMonth,
   deferHardwareBack,
   devFixturesEnabled,
+  requestedSettingsSection,
   onBackToDashboard,
+  onRequestedSettingsSectionConsumed,
   onLoadDevMonthlyReportFixture,
+  premiumProducts,
+  premiumPurchaseBusy,
+  premiumStoreConnected,
+  premiumStoreError,
+  onStartPremiumPurchase,
+  onRestorePremiumPurchases,
   onSaveBudget,
   onDeleteBudget,
   onSetDefaultCurrency,
@@ -4388,8 +4768,16 @@ function SettingsScreen({
   selectedMonth: Date;
   deferHardwareBack: boolean;
   devFixturesEnabled: boolean;
+  requestedSettingsSection?: SettingsSection;
   onBackToDashboard: () => void;
+  onRequestedSettingsSectionConsumed: () => void;
   onLoadDevMonthlyReportFixture?: () => void;
+  premiumProducts: PremiumProductDisplay[];
+  premiumPurchaseBusy: PremiumPurchaseBusyState;
+  premiumStoreConnected: boolean;
+  premiumStoreError?: string;
+  onStartPremiumPurchase: (productId: PremiumProductId) => void;
+  onRestorePremiumPurchases: () => void;
   onSaveBudget: (subcategoryId: string, amount: number, currency: string, budgetId?: string) => void;
   onDeleteBudget: (budgetId: string) => void;
   onSetDefaultCurrency: (currency: string) => void;
@@ -4604,8 +4992,22 @@ function SettingsScreen({
     selectedBudgetCategory?.name ??
     editingBudget?.categoryName;
   const editingBudgetRequiresSubcategory = Boolean(editingBudget?.requiresSubcategory);
+  const premiumActive = isPremiumActive(data.settings.premiumEntitlement);
+  const premiumStatusLabel = premiumActive ? t('premiumActive') : t('premiumInactive');
+  const canActivateDarkTheme = canSelectThemeMode(
+    data.settings.premiumEntitlement,
+    data.settings.themeMode,
+    'dark',
+  );
+  const premiumFeatureLabels = [
+    t('premiumFeatureDarkMode'),
+    t('premiumFeatureCashBoxReport'),
+    t('premiumFeaturePdf'),
+    t('premiumFeatureCsv'),
+  ];
   const settingsSectionTitles: Record<Exclude<SettingsSection, 'menu'>, string> = {
     core: t('coreSettings'),
+    premium: t('premium'),
     budgets: t('budgets'),
     categories: t('categories'),
     cashboxes: t('cashBoxes'),
@@ -4614,6 +5016,15 @@ function SettingsScreen({
     people: t('people'),
     about: t('about'),
   };
+
+  useEffect(() => {
+    if (!requestedSettingsSection) {
+      return;
+    }
+
+    setActiveSettingsSection(requestedSettingsSection);
+    onRequestedSettingsSectionConsumed();
+  }, [onRequestedSettingsSectionConsumed, requestedSettingsSection]);
 
   useEffect(() => {
     if (editingBudgetId) {
@@ -4894,6 +5305,13 @@ function SettingsScreen({
             onPress={() => setActiveSettingsSection('core')}
           />
           <SettingsMenuButton
+            title={t('premium')}
+            subtitle={`${premiumStatusLabel} - ${t('premiumSubtitle')}`}
+            Icon={BadgeDollarSign}
+            badgeLabel={premiumActive ? undefined : t('premiumBadge')}
+            onPress={() => setActiveSettingsSection('premium')}
+          />
+          <SettingsMenuButton
             title={t('budgets')}
             subtitle={monthLabel(selectedMonth, localeForLanguage(data.settings.language))}
             Icon={BarChart3}
@@ -4975,9 +5393,16 @@ function SettingsScreen({
               onPress={() => onSetThemeMode('light')}
             />
             <Chip
-              label={t('themeDark')}
+              label={canActivateDarkTheme ? t('themeDark') : `${t('themeDark')} Premium`}
               selected={data.settings.themeMode === 'dark'}
-              onPress={() => onSetThemeMode('dark')}
+              onPress={() => {
+                if (canActivateDarkTheme) {
+                  onSetThemeMode('dark');
+                  return;
+                }
+
+                setActiveSettingsSection('premium');
+              }}
             />
           </View>
         </Field>
@@ -5091,6 +5516,76 @@ function SettingsScreen({
             </View>
           </Pressable>
         </Field>
+        </View>
+      ) : null}
+
+      {activeSettingsSection === 'premium' ? (
+        <View style={styles.formPanel}>
+          <View style={styles.premiumStatusCard}>
+            <View style={styles.managementIconBadge}>
+              <BadgeDollarSign color={colors.primary} size={20} strokeWidth={2.2} />
+            </View>
+            <View style={styles.managementText}>
+              <Text style={styles.rowTitle}>{t('premiumStatus')}</Text>
+              <Text style={styles.rowMeta}>{premiumStatusLabel}</Text>
+            </View>
+            <Text style={[styles.premiumBadge, premiumActive ? styles.premiumBadgeActive : null]}>
+              {premiumActive ? t('premiumActive') : t('premiumBadge')}
+            </Text>
+          </View>
+
+          <Field label={t('premiumSubtitle')}>
+            <View style={styles.premiumFeatureList}>
+              {premiumFeatureLabels.map((label) => (
+                <View key={label} style={styles.premiumFeatureRow}>
+                  <Check color={colors.primary} size={18} strokeWidth={2.4} />
+                  <Text style={styles.rowTitle} numberOfLines={1}>
+                    {label}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </Field>
+
+          {Platform.OS === 'android' ? (
+            <Field label={t('premium')}>
+              {!premiumStoreConnected ? <Text style={styles.rowMeta}>{t('premiumStoreLoading')}</Text> : null}
+              {premiumStoreError ? <Text style={styles.rowMeta}>{premiumStoreError}</Text> : null}
+              <View style={styles.premiumProductList}>
+                {premiumProducts.map((product) => {
+                  const busy = premiumPurchaseBusy === product.productId;
+                  const disabled = Boolean(premiumPurchaseBusy) || !premiumStoreConnected || !product.available;
+                  const label = busy
+                    ? t('premiumVerifying')
+                    : product.displayPrice
+                      ? `${product.title} - ${product.displayPrice}`
+                      : product.available
+                        ? product.title
+                        : `${product.title} - ${t('premiumProductUnavailable')}`;
+
+                  return (
+                    <AppButton
+                      key={product.productId}
+                      label={label}
+                      Icon={BadgeDollarSign}
+                      variant={product.productType === 'inapp' ? 'primary' : 'secondary'}
+                      disabled={disabled}
+                      onPress={() => onStartPremiumPurchase(product.productId)}
+                    />
+                  );
+                })}
+              </View>
+              <AppButton
+                label={premiumPurchaseBusy === 'restore' ? t('premiumVerifying') : t('premiumRestore')}
+                Icon={RefreshCcw}
+                variant="secondary"
+                disabled={Boolean(premiumPurchaseBusy)}
+                onPress={onRestorePremiumPurchases}
+              />
+            </Field>
+          ) : (
+            <Text style={styles.rowMeta}>{t('premiumNotAvailable')}</Text>
+          )}
         </View>
       ) : null}
 
@@ -6305,11 +6800,13 @@ function SettingsMenuButton({
   title,
   subtitle,
   Icon,
+  badgeLabel,
   onPress,
 }: {
   title: string;
   subtitle: string;
   Icon: IconComponent;
+  badgeLabel?: string;
   onPress: () => void;
 }) {
   const { isCompact } = useResponsive();
@@ -6324,7 +6821,12 @@ function SettingsMenuButton({
         <Icon color={colors.primary} size={isCompact ? 20 : 24} strokeWidth={2.2} />
       </View>
       <View style={styles.settingsMenuText}>
-        <Text style={styles.settingsMenuTitle}>{title}</Text>
+        <View style={styles.settingsMenuTitleRow}>
+          <Text style={styles.settingsMenuTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          {badgeLabel ? <Text style={styles.premiumBadge}>{badgeLabel}</Text> : null}
+        </View>
         <Text style={styles.settingsMenuSubtitle} numberOfLines={1}>
           {subtitle}
         </Text>
@@ -6574,31 +7076,41 @@ function AppButton({
   onPress,
   variant = 'primary',
   compact,
+  disabled,
 }: {
   label: string;
   Icon?: IconComponent;
   onPress: () => void;
   variant?: 'primary' | 'secondary';
   compact?: boolean;
+  disabled?: boolean;
 }) {
   const { isCompact } = useResponsive();
   const primary = variant === 'primary';
-  const iconColor = primary ? colors.onPrimary : colors.primary;
+  const iconColor = disabled ? colors.textMuted : primary ? colors.onPrimary : colors.primary;
 
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      disabled={disabled}
       onPress={onPress}
       style={[
         styles.button,
         isCompact ? styles.buttonResponsiveCompact : null,
         primary ? styles.buttonPrimary : styles.buttonSecondary,
         compact ? styles.buttonCompact : null,
+        disabled ? styles.buttonDisabled : null,
       ]}
     >
       {Icon ? <Icon color={iconColor} size={compact || isCompact ? 16 : 18} strokeWidth={2.4} /> : null}
       <Text
-        style={[styles.buttonText, isCompact ? styles.buttonTextCompact : null, primary ? styles.buttonTextPrimary : styles.buttonTextSecondary]}
+        style={[
+          styles.buttonText,
+          isCompact ? styles.buttonTextCompact : null,
+          primary ? styles.buttonTextPrimary : styles.buttonTextSecondary,
+          disabled ? styles.buttonTextDisabled : null,
+        ]}
         numberOfLines={1}
         adjustsFontSizeToFit
       >
@@ -6638,6 +7150,21 @@ function EmptyState({ title }: { title: string }) {
     <View style={styles.emptyState}>
       <Text style={styles.emptyStateText}>{title}</Text>
     </View>
+  );
+}
+
+function PremiumLockedScreen({ t, onOpenPremium }: { t: Translator; onOpenPremium: () => void }) {
+  return (
+    <ScreenScroll>
+      <View style={styles.premiumLockedPanel}>
+        <View style={styles.managementIconBadge}>
+          <BadgeDollarSign color={colors.primary} size={24} strokeWidth={2.2} />
+        </View>
+        <Text style={styles.sectionTitle}>{t('premiumLockedSubtitle')}</Text>
+        <Text style={styles.rowMeta}>{t('premiumLockedMessage')}</Text>
+        <AppButton label={t('premium')} Icon={BadgeDollarSign} onPress={onOpenPremium} />
+      </View>
+    </ScreenScroll>
   );
 }
 
@@ -7566,8 +8093,15 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
     gap: spacing.xs,
     minWidth: 0,
   },
+  settingsMenuTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minWidth: 0,
+  },
   settingsMenuTitle: {
     color: colors.text,
+    flexShrink: 1,
     fontFamily: fonts.bold,
     fontSize: 15,
   },
@@ -7582,6 +8116,53 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
     gap: spacing.md,
   },
   formPanel: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  premiumStatusCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 56,
+    padding: spacing.md,
+  },
+  premiumBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.sm,
+    color: colors.primary,
+    flexShrink: 0,
+    fontFamily: fonts.bold,
+    fontSize: 11,
+    overflow: 'hidden',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  premiumBadgeActive: {
+    backgroundColor: colors.successSoft,
+    color: colors.success,
+  },
+  premiumFeatureList: {
+    gap: spacing.sm,
+  },
+  premiumFeatureRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 32,
+  },
+  premiumProductList: {
+    gap: spacing.sm,
+  },
+  premiumLockedPanel: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radius.md,
@@ -8243,6 +8824,11 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
     borderColor: colors.primary,
     borderWidth: 1,
   },
+  buttonDisabled: {
+    backgroundColor: colors.surfaceAlt,
+    borderColor: colors.border,
+    opacity: 0.72,
+  },
   buttonText: {
     fontFamily: fonts.bold,
     fontSize: 14,
@@ -8255,6 +8841,9 @@ const createAppStyles = (colors: AppThemeColors) => StyleSheet.create({
   },
   buttonTextSecondary: {
     color: colors.primary,
+  },
+  buttonTextDisabled: {
+    color: colors.textMuted,
   },
   iconButton: {
     alignItems: 'center',

@@ -102,6 +102,52 @@ describe('app data storage', () => {
     expect(data.settings.themeMode).toBe('light');
   });
 
+  it('hydrates missing premium entitlement as inactive', async () => {
+    const defaultData = createDefaultData();
+    const { premiumEntitlement: _premiumEntitlement, ...legacySettings } = defaultData.settings;
+
+    mockedAsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...defaultData,
+        settings: legacySettings,
+      }),
+    );
+
+    const data = await loadAppData();
+
+    expect(data.settings.premiumEntitlement).toEqual({ active: false });
+  });
+
+  it('preserves a valid persisted premium entitlement', async () => {
+    const persistedData = createDefaultData();
+
+    mockedAsyncStorage.getItem.mockResolvedValue(
+      JSON.stringify({
+        ...persistedData,
+        settings: {
+          ...persistedData.settings,
+          premiumEntitlement: {
+            active: true,
+            productId: 'premium_yearly',
+            productType: 'subs',
+            verifiedAt: '2026-06-09T12:00:00.000Z',
+            expiresAt: '2027-06-09T12:00:00.000Z',
+          },
+        },
+      }),
+    );
+
+    const data = await loadAppData();
+
+    expect(data.settings.premiumEntitlement).toEqual({
+      active: true,
+      productId: 'premium_yearly',
+      productType: 'subs',
+      verifiedAt: '2026-06-09T12:00:00.000Z',
+      expiresAt: '2027-06-09T12:00:00.000Z',
+    });
+  });
+
   it('preserves persisted user data instead of resetting it on load', async () => {
     const persistedData = createDefaultData();
     const transactionDate = '2026-05-29';

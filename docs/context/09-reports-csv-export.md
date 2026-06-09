@@ -19,6 +19,8 @@ Current report sections:
 - Active installment plans.
 - Monthly export.
 
+In the `premium` branch, the cash box report and monthly export remain visible in the Reports menu with a Premium badge. Free users are routed to the Premium CTA. Active Premium users keep the same report/export content as the MVP.
+
 The parent payment method report groups expenses by `paymentMethodId + currency`; when an older expense only has `paymentSubmethodId`, the parent method is resolved from that submethod. The drill-down includes all expenses for the selected method, including expenses from its submethods.
 
 Monthly balance is represented in dashboard summaries and in the exported monthly report. Income by category is not yet a dedicated report screen.
@@ -30,6 +32,8 @@ Report screens and exports use the selected month from the global header. Custom
 ## CSV and PDF export
 
 Implemented through `transactionsToCsv`, `monthlyReportToCsv`, and `monthlyReportToHtml` in `mobile/src/utils.ts`.
+
+Monthly CSV and PDF export are Premium-gated in UI. The CSV/PDF generation helpers and output shape are unchanged when Premium is active.
 
 The app keeps transaction dates and audit timestamps as `Date` values in memory. CSV generation serializes transaction dates as `YYYY-MM-DD` and audit timestamps as full ISO datetime strings.
 

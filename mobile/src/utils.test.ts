@@ -98,6 +98,7 @@ const baseData = (): AppData => ({
     defaultPaymentSubmethodId: 'subpay-visa',
     language: 'en',
     themeMode: 'light',
+    premiumEntitlement: { active: false },
     biometricLockEnabled: false,
     budgetNearLimitThreshold: 0.8,
   },

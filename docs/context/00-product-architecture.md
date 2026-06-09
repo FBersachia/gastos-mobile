@@ -13,9 +13,11 @@ The app supports English and Spanish Argentina. The visual identity uses the Inf
 - State: React local state in `App.tsx`.
 - Persistence: `@react-native-async-storage/async-storage`.
 - Authentication: `expo-local-authentication`.
+- Premium purchases: `expo-iap` on Android with Google Play Billing.
 - CSV file creation/sharing: `expo-file-system/legacy` and `expo-sharing`.
 - Icons: `lucide-react-native`.
 - Fonts: `@expo-google-fonts/poppins`.
+- Backend: Node/Express TypeScript service in `backend/` for Google Play purchase verification.
 
 ## App structure
 
@@ -51,5 +53,8 @@ The app has a functional MVP slice for:
 - Monthly budgets.
 - Basic reports.
 - CSV/PDF export.
+- Premium gating for dark mode reactivation, report by cash box, and monthly CSV/PDF export.
 
-The implementation is preparing for Google Play release. Large internal refactors such as screen extraction remain useful, but Play Store readiness is evaluated by release artifacts, permissions, privacy disclosures, core workflow QA, and Android device validation.
+Premium is Android/Google Play only in this branch. The backend verifies `premium_lifetime`, `premium_monthly`, and `premium_yearly` using Google Play Developer API and does not store purchase tokens or financial data.
+
+The implementation is preparing for Google Play release. Large internal refactors such as screen extraction remain useful, but Play Store readiness is evaluated by release artifacts, permissions, privacy disclosures, core workflow QA, Premium purchase QA, and Android device validation.

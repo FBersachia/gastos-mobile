@@ -10,10 +10,12 @@ import {
   PaymentMethod,
   PaymentSubmethod,
   Person,
+  PremiumEntitlement,
   Subcategory,
   ThemeMode,
   Transaction,
 } from './types';
+import { DEFAULT_PREMIUM_ENTITLEMENT, isPremiumProductId, isPremiumProductType } from './premium';
 import {
   dateFromInput,
   dateInputFromDate,
@@ -27,6 +29,27 @@ const STORAGE_KEY = 'expense-control-app-data-v3';
 
 const isAppLanguage = (value: unknown): value is AppLanguage => value === 'en' || value === 'es-AR';
 const isThemeMode = (value: unknown): value is ThemeMode => value === 'light' || value === 'dark';
+
+const hydratePremiumEntitlement = (value: unknown): PremiumEntitlement => {
+  if (!value || typeof value !== 'object') {
+    return DEFAULT_PREMIUM_ENTITLEMENT;
+  }
+
+  const entitlement = value as Partial<PremiumEntitlement>;
+  const active = entitlement.active === true;
+  const productId = isPremiumProductId(entitlement.productId) ? entitlement.productId : undefined;
+  const productType = isPremiumProductType(entitlement.productType) ? entitlement.productType : undefined;
+  const verifiedAt = typeof entitlement.verifiedAt === 'string' ? entitlement.verifiedAt : undefined;
+  const expiresAt = typeof entitlement.expiresAt === 'string' ? entitlement.expiresAt : undefined;
+
+  return {
+    active,
+    ...(productId ? { productId } : {}),
+    ...(productType ? { productType } : {}),
+    ...(verifiedAt ? { verifiedAt } : {}),
+    ...(expiresAt ? { expiresAt } : {}),
+  };
+};
 
 type StoredCategory = Omit<Category, 'createdAt' | 'updatedAt'> & {
   createdAt?: unknown;
@@ -353,6 +376,7 @@ const withDefaults = (stored: StoredAppData): AppData => {
       defaultPaymentSubmethodId,
       language: isAppLanguage(stored.settings?.language) ? stored.settings.language : defaults.settings.language,
       themeMode: isThemeMode(stored.settings?.themeMode) ? stored.settings.themeMode : defaults.settings.themeMode,
+      premiumEntitlement: hydratePremiumEntitlement(stored.settings?.premiumEntitlement),
       biometricLockEnabled:
         typeof stored.settings?.biometricLockEnabled === 'boolean'
           ? stored.settings.biometricLockEnabled

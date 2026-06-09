@@ -11,7 +11,8 @@ Implemented in `SettingsScreen`.
 Settings currently includes:
 
 - A settings menu with individual buttons for each management area. Language is managed inside Core settings, not as a separate menu item.
-- Core settings screen: language selection, manual theme selector, default currency update, default payment submethod selector, and biometric lock toggle.
+- Core settings screen: language selection, manual theme selector, default currency update, default payment submethod selector, and biometric lock toggle. Dark mode is Premium-gated when switching from light to dark; users who already had dark mode persisted can keep it until they switch back to light.
+- Premium screen: shows entitlement status, Premium feature list, Android Google Play purchase options for lifetime/monthly/yearly products, and restore purchases.
 - Monthly budgets screen: expense subcategory budget creation/editing with the same icon grid used by expense entry. After selecting a subcategory, the grid collapses into a summary row and the amount/currency form takes focus. Budget currency is selected from a dropdown-style selector, not free text. Budgets can be deleted with native/web-compatible confirmation, and legacy category budgets must be assigned to a subcategory before save.
 - Categories screen: category creation, edit, expense cash box assignment, optional icon selection, and disable, with the expense/income toggle filtering the creation type and visible list.
 - Cash boxes screen: fixed cash box catalog with one expandable section per cash box. Each row shows icon, localized name, and active assigned category count. Expanding a cash box lists active expense categories assigned to it and allows reassigning each category to another active cash box through chips. Cash boxes themselves are not created, edited, or deleted.
@@ -39,10 +40,11 @@ Defined in `AppSettings`:
 - `defaultPaymentSubmethodId`, optional active payment submethod id used to preselect expense payment.
 - `language`.
 - `themeMode`, manual UI theme mode. Valid values are `light` and `dark`; default is `light`.
+- `premiumEntitlement`, local Premium entitlement cache with active state, product id/type, verification time, and optional subscription expiry.
 - `biometricLockEnabled`, boolean, default `true`.
 - `budgetNearLimitThreshold`, default `0.8`.
 
-`storage.ts` preserves persisted `biometricLockEnabled` when it is boolean and falls back to the default for older/invalid data. It also hydrates missing or invalid `themeMode` values as `light`.
+`storage.ts` preserves persisted `biometricLockEnabled` when it is boolean and falls back to the default for older/invalid data. It also hydrates missing or invalid `themeMode` values as `light`, and missing or invalid `premiumEntitlement` as inactive.
 
 ## Known gaps
 
